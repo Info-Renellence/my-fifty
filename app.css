@@ -1,0 +1,70 @@
+/* My Fifty. Every size and colour here comes from "Edge – Final Mockup" (screens L1-L25); screens use the same
+   values inline where the mockup did. Light only, like the mockup. */
+:root {
+  --bg: #f2f3f7;
+  --ink: #062064;
+  --muted: #6b7486;
+  --blue: #1170c0;
+  --soft: #eef2f8;
+  --line: #e3e6ec;
+  --grey: #9aa1ad;
+  --chev: #c4c7ce;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+body { min-height: 100dvh; overscroll-behavior-y: none; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+input, textarea, select { font: inherit; color: var(--ink); }
+svg { flex: none; }
+
+/* The app is a phone screen; on a wide screen it sits in a phone-width column. */
+#app { max-width: 430px; margin: 0 auto; min-height: 100dvh; position: relative; background: var(--bg); }
+.scr { min-height: 100dvh; padding: calc(var(--safe-top) + 14px) 16px calc(var(--safe-bottom) + 100px); display: flex; flex-direction: column; }
+.scr.full { padding-bottom: calc(var(--safe-bottom) + 24px); }
+
+/* Bottom tabs (every L screen) */
+.tabs { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 430px; z-index: 20;
+  padding: 8px 0 calc(var(--safe-bottom) + 6px); min-height: 60px;
+  background: rgba(255, 255, 255, 0.92); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px);
+  border-top: 0.5px solid #d6d9df; display: grid; grid-template-columns: repeat(4, 1fr); align-items: start; }
+.tabs a { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10px; font-weight: 600; color: var(--grey); }
+.tabs a.on { color: var(--ink); }
+.tabs .plus { width: 44px; height: 30px; border-radius: 15px; background: var(--blue); color: #fff; display: flex; align-items: center; justify-content: center; }
+
+/* Sheets (L3 Log it, L13 Add a person) slide up over a dimmed screen */
+#sheet:empty { display: none; }
+.dim { position: fixed; inset: 0; background: rgba(40, 52, 75, 0.62); z-index: 40; animation: fade .18s ease; }
+.sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 430px; z-index: 41; max-height: calc(100dvh - var(--safe-top) - 24px);
+  overflow: auto; background: #fff; border-radius: 30px 30px 0 0; padding: 10px 18px calc(var(--safe-bottom) + 24px);
+  display: flex; flex-direction: column; gap: 16px; animation: up .22s ease; }
+.sheet.tall { top: calc(var(--safe-top) + 24px); }
+.grab { align-self: center; width: 38px; height: 5px; border-radius: 3px; background: #d0d5de; flex: none; }
+@keyframes up { from { transform: translate(-50%, 40px); opacity: .4; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+/* Full-screen moments (L4, L5) */
+.moment { position: fixed; inset: 0; z-index: 50; background: radial-gradient(110% 80% at 50% 20%, #3596ea 0%, #1170c0 50%, #0b4f9c 100%);
+  color: #fff; display: flex; flex-direction: column; align-items: center; text-align: center;
+  padding: calc(var(--safe-top) + 14px) 24px 0; animation: fade .2s ease; }
+.moment .inner { width: 100%; max-width: 430px; flex: 1; display: flex; flex-direction: column; align-items: center; }
+
+/* Inputs keep the mockup's look (no browser chrome) */
+.bare { border: 0; background: transparent; outline: none; }
+.bare::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+textarea.note { width: 100%; min-height: 96px; resize: none; border: 0; outline: none; background: transparent; font-size: 16px; line-height: 1.4; }
+
+#toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 92px); z-index: 60; max-width: 360px; width: calc(100% - 32px);
+  background: #0b1220; color: #fff; border-radius: 14px; padding: 12px 16px; font-size: 15px; font-weight: 500; text-align: center;
+  opacity: 0; pointer-events: none; transition: opacity .2s; }
+#toast.on { opacity: 1; }
+
+.spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(17, 112, 192, .2); border-top-color: var(--blue); animation: rot .8s linear infinite; }
+@keyframes rot { to { transform: rotate(360deg); } }
+.rec { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(214, 69, 69, .18); } }
+.hide { display: none !important; }
