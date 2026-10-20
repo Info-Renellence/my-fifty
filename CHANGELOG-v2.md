@@ -45,8 +45,15 @@ Every change below was made on 2026-10-20. The SQL is in `db/`.
 | 19 | `users`: admin@renellence.com and info@renellence.com as admins | Real. Reps are added at go-live with the real import |
 | 20 | Fictional demo data: 4 demo staff (`@demo.invalid`), 26 clinics, about 67 people, 70 orders, interactions, tasks, agreements and onboardings, all owned by admin@renellence.com | Remove with `db/wipe-demo.sql` before go-live |
 
-## 5. Still to do in v2 (not done yet)
+## 5. The timer (`db/003-cron.sql`)
 
-- **The every-5-minutes timer** (`db/003-cron.sql`): pg_cron + pg_net call My Fifty's `/api/cron` for new-lead pushes, the 7:30 morning summary and the Gmail pull. Turning on the pg_cron and pg_net extensions is a v2 change.
+| # | Change | Why |
+|---|---|---|
+| 21 | The `pg_cron` and `pg_net` extensions turned on | Vercel's free plan only runs timers once a day |
+| 22 | Vault secret `my_fifty_cron_key` (the value of the Vercel `CRON_SECRET`) | The timer's key, kept out of code and tables |
+| 23 | pg_cron job `my-fifty-tick`, every 5 minutes, calling `https://my-fifty.vercel.app/api/cron?op=tick` | New-lead pushes (L1), the 7:30 morning summary, the Gmail pull |
+
+## 6. Still to do in v2 (not done yet)
+
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.

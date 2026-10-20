@@ -61,6 +61,9 @@ async function subscribe(tx, me, sub) {
 async function notify(sql, userId, n) {
   const keys = vapid();
   if (!keys) return { sent: 0, error: 'no_key' };
+  // Nobody to tell yet: nothing is logged, so it can still go once they turn notifications on.
+  const [{ n: phones }] = await sql`select count(*)::int as n from user_connections where user_id = ${userId} and kind = 'push' and status = 'connected'`;
+  if (!phones) return { sent: 0, noPhone: true };
   const [row] = await sql`
     insert into notifications (user_id, kind, contact_id, dedupe_key, title, body, status, sent_at)
     values (${userId}, ${n.kind}, ${n.contactId || null}, ${n.dedupeKey}, ${n.title}, ${n.body}, 'sent', now())
