@@ -121,7 +121,7 @@ async function syncMailbox(sql, user, c, budgetEnd) {
     const messageId = hdr(m, 'Message-ID') || m.id;
     const [ev] = await sql`
       insert into ingest_events (source, external_key, payload, received_via, received_at, status, attempts)
-      values ('gmail', ${messageId}, ${JSON.stringify({ mailbox: user.email, id: m.id, threadId: m.threadId, from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc'), subject: hdr(m, 'Subject'), date: hdr(m, 'Date'), snippet: m.snippet })}::jsonb, 'pull', now(), 'pending', 1)
+      values ('gmail', ${messageId}, ${sql.json({ mailbox: user.email, id: m.id, threadId: m.threadId, from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc'), subject: hdr(m, 'Subject'), date: hdr(m, 'Date'), snippet: m.snippet })}, 'pull', now(), 'pending', 1)
       on conflict (source, external_key) do nothing returning id`;
     if (!ev) continue;   // already pulled from another mailbox
     const direction = from.some((a) => OURS.test(a)) ? 'out' : 'in';
@@ -129,9 +129,9 @@ async function syncMailbox(sql, user, c, budgetEnd) {
     let first = null;
     for (const ct of contacts) {
       const [row] = await sql`
-        insert into interactions (kind, contact_id, user_id, occurred_at, direction, status, subject, body, thread_id, addresses, source, external_id)
+        insert into interactions (kind, contact_id, user_id, occurred_at, direction, status, subject, body, thread_id, addresses, source, external_id, created_by)
         values ('email', ${ct.id}, ${direction === 'out' ? user.id : null}, ${occurred}, ${direction}, 'completed', ${hdr(m, 'Subject').slice(0, 500)},
-                ${bodyText(m.payload).slice(0, 8000) || m.snippet || ''}, ${m.threadId}, ${JSON.stringify({ from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc') })}::jsonb,
+                ${bodyText(m.payload).slice(0, 8000) || m.snippet || ''}, ${m.threadId}, ${sql.json({ from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc') })},
                 'gmail', ${messageId}, ${user.id})
         on conflict (source, external_id, contact_id) do nothing returning id`;
       first = first || (row && row.id);
@@ -161,3 +161,5 @@ async function sync(sql, budgetMs) {
 }
 
 module.exports = { connect, send, sync, connection };
+// Exposed for the unit tests only.
+module.exports._ = { accessToken, header, encodeWord, addrs, hdr, bodyText, gget, syncMailbox, ROBOT };

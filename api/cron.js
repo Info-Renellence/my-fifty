@@ -74,3 +74,6 @@ async function morning(sql) {
   }
   return { users: users.length, sent };
 }
+
+// Exposed for the unit tests only.
+module.exports._ = { authorised, newLeads, morning };

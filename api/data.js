@@ -367,7 +367,7 @@ async function historyOf(sql, me, p) {
      order by l.at desc`;
   for (const m of moves) out.push({ type: 'event', at: m.at, title: 'Moved to you from ' + m.name });
   const origin = p.sourceKind === 'event' && p.eventName ? 'Met at ' + p.eventName
-    : p.sourceKind === 'social' ? 'Came from a ' + (p.sourceDetail || 'social media') + ' ad'
+    : p.sourceKind === 'social' ? 'Came from ' + (/^[aeiou]/i.test(p.sourceDetail || 's') ? 'an ' : 'a ') + (p.sourceDetail || 'social media') + ' ad'
       : p.sourceDetail ? 'Came from ' + p.sourceDetail : 'Added to My Fifty';
   out.push({ type: 'origin', at: p.createdAt, title: origin });
   out.sort((a, b) => new Date(b.at) - new Date(a.at));
@@ -415,3 +415,6 @@ function sampleSteps(o, md, ag) {
 }
 
 module.exports.OPS = OPS;
+// Exposed for the unit tests only.
+module.exports._ = { money, initials, shortProduct, unitWord, one, addedBy, sourceText, cardOnFile, onboardingOf, statusRow, outcomeWord, when, lastHistoryLine,
+  ORDER_WORD, lineSummary, shortName, historyOf, fmtTime, markCurrent, orderSteps, sampleSteps, LEAD_GROUPS };

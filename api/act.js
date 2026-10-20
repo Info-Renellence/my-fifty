@@ -82,7 +82,7 @@ const OPS = {
         insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source, from_interaction_id)
         values (${c.id}, ${me.id}, ${me.id}, ${next || 'Follow up'}, ${kind === 'meeting' ? 'visit' : 'call'}, ${due}, 'open', 'manual', ${i.id})
         returning id`;
-      if (isUuid(b.aiOutputId)) await tx`update ai_outputs set output_data = coalesce(output_data, '{}'::jsonb) || ${JSON.stringify({ saved_as: i.id })}::jsonb where id = ${b.aiOutputId} and created_by = ${me.id}`;
+      if (isUuid(b.aiOutputId)) await tx`update ai_outputs set output_data = coalesce(output_data, '{}'::jsonb) || ${tx.json({ saved_as: i.id })} where id = ${b.aiOutputId} and created_by = ${me.id}`;
       return { interactionId: i.id, taskId: t.id, closedTaskIds: closed.map((r) => r.id) };
     });
     const cfg = await B.settings(sql);
@@ -116,13 +116,13 @@ const OPS = {
       const snoozed = Object.assign({}, me.settings.snoozed || {});
       for (const k of Object.keys(snoozed)) if (snoozed[k] <= T.ymd()) delete snoozed[k];
       snoozed[c.id] = tomorrow;
-      await tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${JSON.stringify({ snoozed })}::jsonb where id = ${me.id}`;
+      await tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${tx.json({ snoozed })} where id = ${me.id}`;
     });
     return { ok: true };
   },
 
   async seen_fifty(me) {
-    await asUser(me.id, (tx) => tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${JSON.stringify({ fifty_seen_at: new Date().toISOString() })}::jsonb where id = ${me.id}`);
+    await asUser(me.id, (tx) => tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${tx.json({ fifty_seen_at: new Date().toISOString() })} where id = ${me.id}`);
     return { ok: true };
   },
 
@@ -321,7 +321,7 @@ const OPS = {
     const r = await require('./_gmail').send(sql, me, { to, subject, text });
     await asUser(me.id, (tx) => tx`
       insert into interactions (kind, contact_id, user_id, occurred_at, direction, status, subject, body, thread_id, addresses, source, external_id, created_by)
-      values ('email', ${c.id}, ${me.id}, now(), 'out', 'completed', ${subject}, ${text}, ${r.threadId}, ${JSON.stringify({ from: me.email, to })}::jsonb,
+      values ('email', ${c.id}, ${me.id}, now(), 'out', 'completed', ${subject}, ${text}, ${r.threadId}, ${tx.json({ from: me.email, to })},
               'my_fifty', ${r.messageId}, ${me.id})`);
     return { ok: true };
   },

@@ -30,8 +30,8 @@ async function ordersFor(sql, contactIds) {
            o.created_at,
            coalesce(l.total, 0)::float8 as total, coalesce(l.n, 0)::int as n_lines, coalesce(l.all_free, false) as all_free,
            l.summary,
-           (o.status = any(${PAID_STATUSES}) or o.payment_method = 'wire'
-             or exists (select 1 from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true)) as paid_flag,
+           coalesce(o.status = any(${PAID_STATUSES}) or o.payment_method = 'wire'
+             or exists (select 1 from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true), false) as paid_flag,
            (select min(p.paid_at) from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded') as paid_at
       from orders o
       left join lateral (
@@ -212,4 +212,4 @@ function ago(at) {
 // The next milestone: every 5 people (the Fifty tile shows the last 10 dots towards it).
 const nextMilestone = (n) => Math.floor(n / 5) * 5 + 5;
 
-module.exports = { settings, book, ordersFor, dayStats, todayList, isSample, isPaid, paidAt, fullName, ago, nextMilestone, DEFAULTS };
+module.exports = { settings, book, ordersFor, dayStats, todayList, isSample, isPaid, paidAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };

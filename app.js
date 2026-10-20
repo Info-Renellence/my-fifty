@@ -10,31 +10,14 @@
   var sb = null, session = null, ME = null, BOOT = null, CONFIG = null;
   var cache = {};
 
-  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function nb(s) { return esc(s).replace(/ /g, '&nbsp;'); }
+  // Pure helpers live in lib.js (unit tested in test/unit/lib.test.js).
+  var L = window.MFLib;
+  var esc = L.esc, nb = L.nb, MONTHS = L.MONTHS, ymd = L.ymd, addDays = L.addDays, shortDate = L.shortDate, errText = L.errText, initials = L.initials, money = L.money;
   function toast(msg) {
     var t = document.getElementById('toast');
     t.textContent = msg; t.classList.add('on');
     clearTimeout(toast.t); toast.t = setTimeout(function () { t.classList.remove('on'); }, 2600);
   }
-  var MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  var LONG_DAYS = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'];
-  var LONG_MONTHS = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
-  function ymd(d) { return (d || new Date()).toLocaleDateString('en-CA', { timeZone: 'America/Toronto' }); }
-  function addDays(date, n) { return new Date(Date.parse(date + 'T12:00:00Z') + n * 86400000).toISOString().slice(0, 10); }
-  function shortDate(date) { return MONTHS[+date.slice(5, 7) - 1] + ' ' + (+date.slice(8, 10)); }
-
-  var ERR = {
-    note_required: 'Say or type what happened first.', pick_a_follow_up: 'Pick a follow-up date.', name_required: 'Add a name.',
-    bad_email: 'That email doesn’t look right.', bad_phone: 'That phone number doesn’t look right.',
-    already_yours: 'This person is already in your book.', already_someones: 'This person is already in someone else’s book.',
-    no_products: 'Add products first.', md_required: 'Add the medical director’s name and email.', not_ready_to_order: 'They need to finish onboarding before ordering.',
-    voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
-    gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.',
-    subject_and_message_required: 'Add a subject and a message.', not_set_up: 'Your account isn’t set up in My Fifty yet. Ask an admin.',
-    not_renellence: 'Sign in with your @renellence.com Google account.', nothing_to_charge: 'Add at least one paid product.',
-  };
-  function errText(e) { return ERR[e && e.message] || 'Something went wrong. Try again.'; }
 
   // ---- talking to the server -----------------------------------------------------------------------
   function token() { return session && session.access_token; }
@@ -122,7 +105,6 @@
       + '<span style="font-size:13px;font-weight:700;color:#6B7486;letter-spacing:0.4px">' + esc(left) + '</span>' + (right || '') + '</span>';
   }
   var CHEV = '<span style="color:#C4C7CE;display:flex">' + ic('chev', 15, 2.4) + '</span>';
-  function initials(name) { return String(name || '').replace(/^Dr\.?\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join(''); }
   function loading() { return '<div class="scr" style="align-items:center;justify-content:center"><span class="spin"></span></div>'; }
   function failed(e) {
     return '<div class="scr" style="align-items:center;justify-content:center;gap:12px;text-align:center"><span style="font-size:17px;font-weight:600">'
@@ -194,17 +176,14 @@
     return paint(read('today'), function (d) {
       var now = new Date();
       var date = d.date;
-      var dow = LONG_DAYS[new Date(date + 'T12:00:00Z').getUTCDay()];
       var day = d.day, goal = day.goal, done = day.done;
-      var left = Math.max(0, goal - done);
-      var C = 2 * Math.PI * 38, frac = Math.min(1, done / goal);
       var list = d.list.slice();
       if (todayFirst) {
         var at = list.findIndex(function (x) { return x.id === todayFirst; });
         if (at > 0) list.unshift(list.splice(at, 1)[0]);
       }
       var next = list[0], then = list.slice(1);
-      var fifty = d.fifty, toNext = fifty.next - fifty.count, filled = 10 - toNext;
+      var fifty = d.fifty, tile = L.fiftyTile(fifty.count, fifty.next), toNext = tile.toNext, filled = tile.filled;
       var dots = '';
       for (var i = 0; i < 10; i++) {
         dots += i < filled ? '<span style="width:10px;height:10px;border-radius:50%;box-sizing:border-box;background:#FFFFFF"></span>'
@@ -213,7 +192,7 @@
       void now;
       var h = '<div class="scr">' + LOGO
         + '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 10px">'
-        + '<span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:#6B7486;letter-spacing:0.3px">' + dow + ', ' + LONG_MONTHS[+date.slice(5, 7) - 1] + ' ' + (+date.slice(8, 10)) + '</span>'
+        + '<span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:#6B7486;letter-spacing:0.3px">' + L.longDate(date) + '</span>'
         + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">Today</span></span>'
         + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-bottom:4px">' + esc(ME.initials) + '</span></div>'
         // tiles
@@ -222,10 +201,10 @@
         + '<span style="font-size:13px;font-weight:600;color:#6B7486">TODAY</span>'
         + '<svg width="92" height="92" viewBox="0 0 92 92" role="img" aria-label="done today"><defs><linearGradient id="gt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FA3EE"/><stop offset="1" stop-color="#1170C0"/></linearGradient></defs>'
         + '<circle cx="46" cy="46" r="38" fill="none" stroke="#EEF2F8" stroke-width="11"/>'
-        + (done ? '<circle cx="46" cy="46" r="38" fill="none" stroke="url(#gt)" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 46 46)"/>' : '')
+        + (done ? '<circle cx="46" cy="46" r="38" fill="none" stroke="url(#gt)" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + L.ringDash(38, done, goal) + '" transform="rotate(-90 46 46)"/>' : '')
         + '<text x="46" y="49" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="22" font-weight="700" fill="#062064">' + done + '/' + goal + '</text>'
         + '<text x="46" y="64" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="11" font-weight="500" fill="#6B7486">done</text></svg>'
-        + '<span style="font-size:15px;font-weight:600;line-height:1.2">' + (left ? left + ' more and today is done' : 'Today is done') + '</span></div>'
+        + '<span style="font-size:15px;font-weight:600;line-height:1.2">' + L.dayLeftText(done, goal) + '</span></div>'
         + '<div style="background:linear-gradient(135deg,#FFD86B,#F5B21F);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#3D2A00">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600">STREAK ' + FLAME + '</span>'
         + '<span style="display:flex;align-items:baseline;gap:4px"><span style="font-size:30px;font-weight:700;letter-spacing:-0.8px">' + day.streak + '</span>'
@@ -354,7 +333,7 @@
     var R = 2 * Math.PI * 20;
     h += '<section style="background:#FFFFFF;border-radius:16px">' + cands.map(function (c, i) {
       // Yousef 2026-10-20: no "Ask now"; every candidate shows how long since their samples arrived.
-      var pill = c.days == null ? 'Not shipped' : c.days + (c.days === 1 ? ' day' : ' days');
+      var pill = L.candidatePill(c.days);
       return '<a href="/person/' + c.id + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
         + '<span style="position:relative;width:44px;height:44px;flex:none"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="position:absolute;inset:0">'
         + '<circle cx="22" cy="22" r="20" fill="none" stroke="#E2E6ED" stroke-width="3.5"/>'
@@ -671,15 +650,14 @@
 
   // ---- L4 The win moment ---------------------------------------------------------------------------------
   function winMoment(r) {
-    var day = r.day, C = 2 * Math.PI * 70, frac = Math.min(1, day.done / day.goal), left = Math.max(0, day.goal - day.done);
-    var line = 'Logged for ' + r.name + '. Follow-up saved for ' + r.followUp + '. '
-      + (left ? left + ' more ' + (left === 1 ? 'finishes' : 'finish') + ' today.' : 'Today is done.');
+    var day = r.day;
+    var line = L.winLine(r.name, r.followUp, day.done, day.goal);
     $sheet.innerHTML = '<div class="moment"><div class="inner">'
       + '<img src="/logo-white.png" alt="Renellence" style="height:18px;width:auto;margin-top:6px">'
       + '<div style="margin-top:56px"><svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="' + day.done + ' of ' + day.goal + '">'
       + '<defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D7E8FA"/></linearGradient></defs>'
       + '<circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="16"/>'
-      + (day.done ? '<circle cx="90" cy="90" r="70" fill="none" stroke="url(#w)" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 90 90)"/>' : '')
+      + (day.done ? '<circle cx="90" cy="90" r="70" fill="none" stroke="url(#w)" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + L.ringDash(70, day.done, day.goal) + '" transform="rotate(-90 90 90)"/>' : '')
       + '<text x="90" y="100" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="40" font-weight="700" fill="#fff">' + day.done + '/' + day.goal + '</text></svg></div>'
       + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;margin-top:24px">Nice work!</span>'
       + '<span style="font-size:17px;color:#E3EEFB;line-height:1.45;margin-top:10px">' + esc(line) + '</span>'
@@ -830,7 +808,7 @@
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#EAF3FC;color:#1170C0">' + ic({ call: 'phone', meeting: 'pin', text: 'text', email: 'mail', note: 'pen' }[e.kind] || 'pen', 16) + '</span>';
           card = '<div style="flex:1 1 auto;min-width:0;background:#FFFFFF;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:3px">'
             + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
-            + (e.body ? '<span data-body style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(e.body.replace(/\n\s*next(?: step)?\s*:[\s\S]*$/i, '')) + '</span>' : '')
+            + (e.body ? '<span data-body style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(L.stripNext(e.body)) + '</span>' : '')
             + (e.next ? '<span style="font-size:15px;line-height:1.35"><b>Next:</b> ' + esc(e.next) + '</span>' : '')
             + '<span style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span>'
             + (e.editable ? '<button type="button" data-edit="' + e.id + '" data-text="' + esc(e.body) + '" style="border:0;background:transparent;font-size:13px;font-weight:600;color:#1170C0;padding:2px 0 2px 8px">Edit</button>' : '') + '</span></div>';
@@ -969,13 +947,11 @@
     if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, kind: 'order', qty: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '', mdName: '', mdEmail: '' };
     return draft;
   }
-  function money(n) { return '$' + Math.round(n).toLocaleString('en-CA'); }
   function screenProducts(contactId) {
     var dft = draftFor(contactId);
     return paint(read('products', { id: contactId }), function (d) {
-      var list = d.products.filter(function (p) { return dft.kind === 'samples' || !p.alwaysFree || dft.qty[p.sku]; });
-      var count = 0, total = 0;
-      d.products.forEach(function (p) { var q = dft.qty[p.sku] || 0; count += q; if (dft.kind === 'order' && !p.alwaysFree) total += q * p.price; });
+      var list = L.visibleProducts(d.products, dft.qty, dft.kind);
+      var tot = L.draftTotals(d.products, dft.qty, dft.kind), count = tot.count, total = tot.total;
       var h = '<div class="scr" style="gap:14px">'
         + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;padding:0 4px">New order</span>'
         + '<div role="tablist" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#E4E8EF;border-radius:12px;padding:3px;gap:3px">'
@@ -989,8 +965,7 @@
         + (d.sameAsLast.length && dft.kind === 'order' ? '<button type="button" data-same style="height:52px;border-radius:14px;border:0;background:#FFFFFF;color:#1170C0;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">' + ic('redo', 18) + 'Same as last order</button>' : '')
         + '<section style="background:#FFFFFF;border-radius:16px;padding:0 14px">' + list.map(function (p, i) {
           var q = dft.qty[p.sku] || 0;
-          var sub = p.last != null ? 'Last order: ' + p.last + (p.unit ? ' ' + p.unit + (p.last === 1 ? '' : 'es') : '') : 'New for them';
-          if (dft.kind === 'order') sub += p.alwaysFree ? ' · Free' : ' · ' + money(p.price);
+          var sub = L.productSub(p, dft.kind);
           return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
             + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(p.name) + '</span><span style="font-size:13px;color:#6B7486">' + esc(sub) + '</span></span>'
             + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="Fewer" style="width:40px;height:40px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;font-size:22px;font-weight:600;flex:none"' + (q ? '' : ' disabled') + '>−</button>'
@@ -1011,8 +986,7 @@
     var b = e.target.closest('[data-okind]');
     if (b) { draft.kind = b.getAttribute('data-okind'); draft.qty = {}; screenProducts(draft.contactId); return; }
     if (e.target.closest('[data-same]') && draft.products) {
-      draft.qty = {};
-      draft.products.sameAsLast.forEach(function (l) { draft.qty[l.sku] = (draft.qty[l.sku] || 0) + l.qty; });
+      draft.qty = L.sameAsLast(draft.products.sameAsLast);
       screenProducts(draft.contactId); return;
     }
     if ((b = e.target.closest('[data-more]'))) { var s = b.getAttribute('data-more'); draft.qty[s] = (draft.qty[s] || 0) + 1; keepScroll(function () { return screenProducts(draft.contactId); }); return; }
@@ -1035,7 +1009,7 @@
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #E3E6EC') + '">'
           + '<span style="font-size:15px;color:#6B7486;flex:none">' + label + '</span><span style="font-size:15px;font-weight:600;text-align:right">' + value + '</span></div>';
       }
-      var billingSame = !who.billing.street || (who.billing.street === who.shipping.street && who.billing.city === who.shipping.city);
+      var billingSame = L.billingSame(who);
       var FREE = '<span style="height:20px;padding:0 8px;border-radius:10px;background:#EAF3FC;color:#1170C0;font-size:12px;font-weight:700;display:inline-flex;align-items:center">Free</span>';
       var h = '<div class="scr">' + backLink('/order/' + contactId, 'Edit order')
         + '<span style="font-size:30px;font-weight:700;letter-spacing:-0.7px;padding:0 4px 8px">Review</span>'
@@ -1177,7 +1151,6 @@
         : '<button type="button" data-push-hide style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:13px;font-weight:600;flex:none">OK</button>')
       + '</section>';
   }
-  function b64ToBytes(s) { var p = '='.repeat((4 - s.length % 4) % 4); var raw = atob((s + p).replace(/-/g, '+').replace(/_/g, '/')); var out = new Uint8Array(raw.length); for (var i = 0; i < raw.length; i++) out[i] = raw.charCodeAt(i); return out; }
   $app.addEventListener('click', function (e) {
     if (e.target.closest('[data-push-hide]')) { localStorageSet('mf-push-hide', ymd()); screenToday(); return; }
     var b = e.target.closest('[data-push-on]');
@@ -1187,7 +1160,7 @@
       if (perm !== 'granted') throw new Error('denied');
       return navigator.serviceWorker.ready;
     }).then(function (reg) {
-      return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToBytes(CONFIG.vapidPublicKey) }); });
+      return reg.pushManager.getSubscription().then(function (s) { return s || reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: L.b64ToBytes(CONFIG.vapidPublicKey) }); });
     }).then(function (sub) {
       return act('push_subscribe', { subscription: sub.toJSON() });
     }).then(function () { localStorageSet('mf-push', 'on'); toast('Reminders are on'); screenToday(); }, function () { b.disabled = false; toast('Reminders are off. You can allow them in your phone’s settings.'); });

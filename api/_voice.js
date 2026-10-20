@@ -82,9 +82,9 @@ async function transcribe(sql, me, body, deps) {
     followUpDate: /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= T.ymd() ? date : '', transcript: clean(out && out.transcript, 6000) };
   const [ai] = await sql`
     insert into ai_outputs (kind, contact_id, input, output, output_data, model, created_by)
-    values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${JSON.stringify(draft)}::jsonb, ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}, ${me.id})
+    values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${sql.json(draft)}, ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}, ${me.id})
     returning id`;
   return Object.assign({ aiOutputId: ai.id }, draft);
 }
 
-module.exports = { transcribe, _prompt: prompt };
+module.exports = { transcribe, context, _prompt: prompt };

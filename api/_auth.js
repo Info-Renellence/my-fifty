@@ -44,7 +44,8 @@ async function signedIn(req) {
   let [row] = await sql`select id, email, name, kind, active, settings, auth_user_id from users where auth_user_id = ${u.id}`;
   if (!row) {
     [row] = await sql`select id, email, name, kind, active, settings, auth_user_id from users where lower(email) = ${email}`;
-    if (row && !row.auth_user_id) await sql`update users set auth_user_id = ${u.id} where id = ${row.id}`;
+    // Linked only for someone who may sign in; a switched-off account stays unlinked.
+    if (row && row.active !== false && !row.auth_user_id) await sql`update users set auth_user_id = ${u.id} where id = ${row.id}`;
   }
   if (!row || row.active === false) throw fail(403, 'not_set_up');
   return { id: row.id, email: row.email, name: row.name || email, first: String(row.name || email).split(/\s+/)[0],
@@ -52,3 +53,5 @@ async function signedIn(req) {
 }
 
 module.exports = { signedIn, initials, SUPABASE_URL, ANON };
+// Exposed for the unit tests only.
+module.exports._ = { supabaseUser, seen };

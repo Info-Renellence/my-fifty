@@ -54,8 +54,9 @@ async function rewards(sql, me) {
   const mine = board.find((r) => r.you);
   const top = board.slice(0, 3);
   if (!top.includes(mine)) top[2] = mine;
-  const leader = board[0];
-  const toLead = mine.rank === 1 ? 0 : leader.n - mine.n + 1;
+  // A tie for first is not the lead: it takes one more than the best of the others.
+  const bestOther = board.filter((r) => !r.you).reduce((a, r) => Math.max(a, r.n), 0);
+  const toLead = mine.n > bestOther ? 0 : bestOther - mine.n + 1;
 
   return {
     extra: money(onNew + onReorders),
