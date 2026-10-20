@@ -93,7 +93,12 @@ describe('rewards', () => {
 describe('push: subscribe and notify', () => {
   test('a sixth phone switches the oldest off; the same phone again is updated, not added', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    for (let i = 1; i <= 6; i++) await P.subscribe(sql, me, { endpoint: 'https://push.test/phone' + i, keys: { p256dh: 'P', auth: 'A' } });
+    // Phones are added minutes apart in real life; inside one test transaction they would share a time, so space them out.
+    for (let i = 1; i <= 5; i++) {
+      await P.subscribe(sql, me, { endpoint: 'https://push.test/phone' + i, keys: { p256dh: 'P', auth: 'A' } });
+      await sql`update user_connections set created_at = now() - make_interval(mins => ${10 - i}) where user_id = ${me.id} and account = ${P.deviceId('https://push.test/phone' + i)}`;
+    }
+    await P.subscribe(sql, me, { endpoint: 'https://push.test/phone6', keys: { p256dh: 'P', auth: 'A' } });
     await P.subscribe(sql, me, { endpoint: 'https://push.test/phone6', keys: { p256dh: 'P2', auth: 'A2' } });
     const rows = await sql`select status::text from user_connections where user_id = ${me.id} and kind = 'push' order by created_at`;
     assert.deepEqual(rows.map((r) => r.status), ['off', 'connected', 'connected', 'connected', 'connected', 'connected']);

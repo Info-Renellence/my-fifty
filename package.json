@@ -3,9 +3,13 @@
   "version": "1.0.0",
   "private": true,
   "description": "My Fifty: Renellence's phone app for reps, on Supabase v2",
-  "engines": { "node": "24.x" },
+  "engines": {
+    "node": "24.x"
+  },
   "scripts": {
-    "test": "node test/run.js"
+    "test": "node --test --test-concurrency=4 --experimental-test-coverage --test-coverage-include=api/**/*.js --test-coverage-include=lib.js --test-coverage-lines=90 \"test/unit/*.test.js\" \"test/db/*.test.js\"",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:db": "node --test --test-concurrency=4 \"test/db/*.test.js\""
   },
   "dependencies": {
     "postgres": "^3.4.5",

@@ -128,7 +128,7 @@ sql(`insert into tasks (contact_id, assignee_id, created_by, title, type, due_at
 
 // -- the rest of My Fifty (warm) --
 const warmNames = [['Dr. Ben Sample', 'A'], ['Zoe Sample', 'D'], ['Raj Sample', 'Q'], ['Dr. Ella Sample', 'F'], ['Ivy Sample', 'G'], ['Max Sample', 'I'], ['Nora Sample', 'J'],
-  ['Owen Sample', 'K'], ['Dr. Priya Sample', 'L'], ['Quinn Sample', 'M'], ['Rosa Sample', 'N'], ['Sam Sample', 'O'], ['Tess Sample', 'P'], ['Uri Sample', 'R'], ['Vera Sample', 'U'],
+  ['Owen Sample', 'K'], ['Dr. Priya Sample', 'L'], ['Quinn Sample', 'M'], ['Rosa Sample', 'N'], ['Tobi Sample', 'O'], ['Tess Sample', 'P'], ['Uri Sample', 'R'], ['Vera Sample', 'U'],
   ['Will Sample', 'V'], ['Xena Sample', 'W'], ['Yuki Sample', 'X']];
 const warm = warmNames.map(([name, c], i) => {
   const id = person({ name, clinic: c, role: i % 3 === 0 ? 'physician' : i % 3 === 1 ? 'nurse_injector' : 'clinic_owner', source: i % 4 === 0 ? 'social' : i % 4 === 1 ? 'event' : 'warm', detail: i % 4 === 0 ? 'Instagram' : i % 4 === 2 ? 'Referral' : null, event: i % 4 === 1 ? 'academy' : null, created: 200 - i * 5, fillers: i % 2 ? ['saypha'] : ['saypha', 'juvederm'], prp: i % 5 === 0 ? ['exprecell'] : [] });

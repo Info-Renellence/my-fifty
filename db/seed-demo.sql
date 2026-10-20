@@ -95,6 +95,7 @@ insert into interactions (id, kind, contact_id, user_id, occurred_at, direction,
     'connected', 'Wants to order before Christmas.
 Next: send lips pricing, call Monday', 'import', current_setting('app.owner')::uuid);
 insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values ('de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000022', '2026-09-01T14:00:00.000Z', 'complete', '2026-09-02T14:00:00.000Z', null);
+insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send lips pricing, call Monday', 'call', '2026-10-22T13:00:00.000Z', 'open', 'manual');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
 insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002b', 'de000000-0000-4000-8000-000000000005', current_setting('app.owner')::uuid, 'Ben', 'Sample', 'ben.sample@sampleclinica.example', 'physician', '+15550200002',
@@ -430,7 +431,7 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
       'demo_pi_25', '2026-10-07T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000004b';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
 insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de000000-0000-4000-8000-00000000004c', 'de000000-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Sam', 'Sample', 'sam.sample@sampleclinico.example', 'clinic_owner', '+15550200013',
+  values ('de000000-0000-4000-8000-00000000004c', 'de000000-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Tobi', 'Sample', 'tobi.sample@sampleclinico.example', 'clinic_owner', '+15550200013',
     '25 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-13', '2026-05-28T13:00:00.000Z');
 select set_config('app.user_id', '', true);
@@ -1062,13 +1063,13 @@ select set_config('app.user_id', current_setting('app.owner')::uuid::text, true)
 insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bb', 'de000000-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Nadia', 'Sample', 'nadia.sample@sampleclinicl.example', 'nurse_injector', '+15550200032',
     '44 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-32', '2026-10-20T12:37:40.226Z');
+    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-32', '2026-10-20T13:19:01.250Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
 insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bc', 'de000000-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Tara', 'Sample', 'tara.sample@sampleclinicu.example', 'nurse_injector', '+15550200033',
     '45 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-33', '2026-10-20T15:37:40.226Z');
+    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-33', '2026-10-20T16:19:01.250Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
 insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)

@@ -39,5 +39,8 @@ original #12).
 | `N8N_MYFIFTY_URL`, `N8N_MYFIFTY_KEY` | The n8n order branch |
 
 ## Tests
-- `node test/smoke.js`: every read and the undoable writes, against v2 and the demo data.
-- `node test/serve.js` then `node test/screens.js <dir>`: screenshots of every screen at phone size.
+- `npm test` runs everything and reports coverage. It fails below 90% of lines.
+  - `npm run test:unit`: `test/unit/`, the pure rules. No database or network, and the clock is frozen.
+  - `npm run test:db`: `test/db/`, run directly on Supabase v2. Each test runs in its own transaction that is rolled back, so nothing is kept. Outside services (Google, Gemini, n8n, web push) are faked.
+- `node test/smoke.js`: an end-to-end check against the demo data.
+- `node test/serve.js` then `node test/screens.js <dir>`: screenshots of every screen.
