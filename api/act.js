@@ -19,7 +19,7 @@
 //   gmail_connect    after sign-in: keep the Gmail token
 const { db, asUser } = require('./_db');
 const { signedIn } = require('./_auth');
-const { send, body, route, fail, isUuid, clean } = require('./_http');
+const { send, body, route, fail, isUuid, clean, own } = require('./_http');
 const B = require('./_book');
 const T = require('./_time');
 
@@ -27,7 +27,7 @@ module.exports = route(async (req, res) => {
   if (req.method !== 'POST') throw fail(405, 'post_only');
   const me = await signedIn(req);
   const b = await body(req);
-  const fn = OPS[b.op];
+  const fn = own(OPS, b.op);
   if (!fn) throw fail(400, 'unknown_op');
   send(res, 200, await fn(me, b));
 });

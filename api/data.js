@@ -15,7 +15,7 @@
 //   search      Find a person (&q=)
 const { db } = require('./_db');
 const { signedIn, SUPABASE_URL, ANON } = require('./_auth');
-const { send, query, route, fail, isUuid } = require('./_http');
+const { send, query, route, fail, isUuid, own } = require('./_http');
 const B = require('./_book');
 const T = require('./_time');
 const R = require('./_rewards');
@@ -33,7 +33,7 @@ module.exports = route(async (req, res) => {
   }
   const me = await signedIn(req);
   const sql = db();
-  const fn = OPS[op];
+  const fn = own(OPS, op);
   if (!fn) throw fail(400, 'unknown_op');
   send(res, 200, await fn(sql, me, q));
 });
@@ -88,7 +88,7 @@ const OPS = {
 
   async leads(sql, me, q) {
     const group = q.get('group');
-    if (!LEAD_GROUPS[group]) throw fail(400, 'bad_group');
+    if (!own(LEAD_GROUPS, group)) throw fail(400, 'bad_group');
     const { people } = await B.book(sql, me);
     const leads = people.filter((p) => p.stage === 'lead' && p.sourceKind === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const added = group === 'cold' || group === 'warm' ? await addedBy(sql, leads.map((p) => p.id), me) : {};
