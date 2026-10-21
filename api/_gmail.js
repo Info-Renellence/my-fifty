@@ -147,7 +147,7 @@ async function sync(sql, budgetMs) {
   const end = Date.now() + (budgetMs || 40000);
   const boxes = await sql`
     select c.id, c.credentials, c.sync_cursor, u.id as user_id, u.email from user_connections c join users u on u.id = c.user_id
-     where c.kind = 'gmail' and c.status = 'connected' and u.active is not false order by c.last_synced_at nulls first`;
+     where c.kind = ${'gmail'} and c.status = 'connected' and u.active is not false order by c.last_synced_at nulls first`;
   const out = { mailboxes: 0, kept: 0, errors: 0 };
   for (const b of boxes) {
     if (Date.now() > end) break;

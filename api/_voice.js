@@ -38,7 +38,7 @@ async function context(sql, me, contactId) {
      where contact_id = ${contactId} and deleted_at is null and coalesce(body, subject, '') <> '' order by occurred_at desc limit 4`;
   const lines = await sql`
     select distinct l.name from order_lines l join orders o on o.id = l.order_id where o.contact_id = ${contactId} and o.deleted_at is null limit 12`;
-  const products = await sql`select name from products where active order by name`;
+  const products = await sql`select name from products where active = ${true} order by name`;
   return { c, others, recent, lines, products };
 }
 

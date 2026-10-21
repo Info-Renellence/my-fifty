@@ -17,7 +17,7 @@ const inRange = (at, p) => { const d = T.ymd(at); return d >= p.from && d <= p.t
 
 async function rewards(sql, me) {
   // Every paid order of every contact that has one, so "first ever" is right across reps.
-  const rows = await sql`select distinct o.contact_id from orders o where o.deleted_at is null and o.status not in ('rejected', 'cancelled')`;
+  const rows = await sql`select distinct o.contact_id from orders o where o.deleted_at is null and o.status <> all(${['rejected', 'cancelled']}::orders_status[])`;
   const orders = (await B.ordersFor(sql, rows.map((r) => r.contact_id))).filter(B.isPaid);
   const firstBy = {};
   for (const o of orders) { const at = B.paidAt(o); if (!firstBy[o.contact_id] || at < B.paidAt(firstBy[o.contact_id])) firstBy[o.contact_id] = o; }
@@ -46,7 +46,7 @@ async function rewards(sql, me) {
   const t = PROGRAMS.trip;
   const perRep = {};
   for (const o of Object.values(firstBy)) if (o.rep_id && inRange(B.paidAt(o), t)) perRep[o.rep_id] = (perRep[o.rep_id] || 0) + 1;
-  const reps = await sql`select id, name from users where kind = 'rep' and active is not false`;
+  const reps = await sql`select id, name from users where kind = ${'rep'} and active is not false`;
   const board = reps.map((r) => ({ id: r.id, name: String(r.name || '').split(/\s+/)[0], n: perRep[r.id] || 0 }));
   if (!board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, n: perRep[me.id] || 0 });
   board.sort((a, b2) => b2.n - a.n || a.name.localeCompare(b2.name));

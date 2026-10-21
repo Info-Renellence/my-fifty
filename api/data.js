@@ -132,7 +132,7 @@ const OPS = {
 
   async products(sql, me, q) {
     const p = await one(sql, me, q.get('id'));
-    const products = await sql`select id, sku, name, family::text as family, line, unit, list_price::float8 as price from products where active order by name`;
+    const products = await sql`select id, sku, name, family::text as family, line, unit, list_price::float8 as price from products where active = ${true} order by name`;
     const lastQty = {};
     const latestPaid = p.orders.find((o) => !B.isSample(o));
     for (const o of p.orders.slice().reverse()) for (const l of o.summary || []) if (!l.free) lastQty[l.sku] = { qty: l.qty, unit: unitWord(l.sku) };

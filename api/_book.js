@@ -13,7 +13,7 @@ const T = require('./_time');
 const DEFAULTS = { daily_goal: 8, going_cold_days: 30, fifty_goal: 50, new_lead_hours: 24 };
 
 async function settings(sql) {
-  const rows = await sql`select key, value from settings where key in ('my_fifty', 'holidays')`;
+  const rows = await sql`select key, value from settings where key = any(${['my_fifty', 'holidays']})`;
   const by = Object.fromEntries(rows.map((r) => [r.key, r.value]));
   return Object.assign({}, DEFAULTS, by.my_fifty || {}, { holidays: Array.isArray(by.holidays) ? by.holidays : [] });
 }

@@ -37,7 +37,7 @@ async function newLeads(sql) {
   const leads = await sql`
     select c.id, c.first_name, c.last_name, c.owner_id, c.source_detail
       from contacts c
-     where c.source_kind = 'social' and c.owner_id is not null and c.deleted_at is null and c.created_at > now() - interval '24 hours'
+     where c.source_kind = ${'social'} and c.owner_id is not null and c.deleted_at is null and c.created_at > now() - interval '24 hours'
        and not exists (select 1 from interactions i where i.contact_id = c.id and i.deleted_at is null and i.status is distinct from 'cancelled')
        and not exists (select 1 from notifications n where n.dedupe_key = 'new_lead:' || c.id::text)`;
   let sent = 0;

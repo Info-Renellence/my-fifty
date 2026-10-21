@@ -18,6 +18,9 @@ function db() {
   return sql;
 }
 
+// Every query must carry at least one parameter: through Supabase's transaction pooler (port 6543) a query with none
+// sometimes never came back when several ran at once (test run 2026-10-21, test/db/testrun-parallel.test.js).
+
 // fn(tx) runs inside one transaction tagged with the acting user.
 async function asUser(userId, fn, opts) {
   const o = opts || {};
