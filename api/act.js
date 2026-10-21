@@ -40,12 +40,15 @@ async function mine(sql, me, id) {
   return c;
 }
 
+const realDay = (s) => { const t = Date.parse(s + 'T12:00:00Z'); return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; };
+
 // The follow-up moment for EOD / Tomorrow / a picked date (5 PM Toronto, the end of the working day).
 function followUpAt(choice) {
   const today = T.ymd();
   if (choice === 'eod') return T.atLocal(today, 17, 0);
   if (choice === 'tomorrow') return T.atLocal(T.addDays(today, 1), 9, 0);
-  if (/^\d{4}-\d{2}-\d{2}$/.test(String(choice || '')) && choice >= today) return T.atLocal(choice, 9, 0);
+  // A real calendar day only ('2026-02-30' or '2026-13-45' would otherwise reach the database as an invalid time).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(choice || '')) && choice >= today && realDay(choice)) return T.atLocal(choice, 9, 0);
   return null;
 }
 

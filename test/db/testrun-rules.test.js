@@ -217,3 +217,58 @@ describe('orders and money through the app (act.order)', () => {
     assert.equal((await sql`select count(*)::int n from orders where contact_id = ${c}`)[0].n, 3);
   }));
 });
+
+describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () => {
+  test('log: a past date is refused; today is fine; text does not count towards the goal', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await assert.rejects(A.log(me, { contactId: c, kind: 'call', note: 'Hello there', followUp: T.addDays(T.ymd(), -1) }), (e) => e.message === 'pick_a_follow_up');
+    const r = await A.log(me, { contactId: c, kind: 'text', note: 'Texted about lips', followUp: T.ymd() });
+    assert.equal(r.counted, false);
+    assert.equal(r.day.done, 0);
+  }));
+  test('log: a note that is only a "Next:" line becomes the follow-up title', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const r = await A.log(me, { contactId: c, kind: 'visit', reached: true, note: 'Next: bring the volume samples', followUp: 'eod' });
+    const [t] = await sql`select title, type::text from tasks where id = ${r.taskId}`;
+    assert.deepEqual([t.title, t.type], ['bring the volume samples', 'visit']);
+  }));
+  test('undo twice: the second is refused and nothing else changes; an old log cannot be undone', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const r = await A.log(me, { contactId: c, kind: 'call', reached: true, note: 'Talked', followUp: 'tomorrow' });
+    await A.undo(me, { interactionId: r.interactionId, closedTaskIds: r.closedTaskIds });
+    await assert.rejects(A.undo(me, { interactionId: r.interactionId }), (e) => e.status === 404);
+    const old = await h.touch(sql, c, me.id, { days: 2 });
+    await assert.rejects(A.undo(me, { interactionId: old }), (e) => e.status === 404);
+  }));
+  test('snooze keeps other people snoozed and drops old snoozes', () => h.withDb(async (sql) => {
+    const me = await h.user(sql, { settings: { snoozed: { old: '2020-01-01', keep: '2099-01-01' } } }), c = await h.contact(sql, me);
+    await A.snooze(me, { contactId: c });
+    const [u] = await sql`select settings from users where id = ${me.id}`;
+    assert.deepEqual(Object.keys(u.settings.snoozed).sort(), [c, 'keep'].sort());
+  }));
+  test('add a person: phone formats, blank names, odd characters, very long text', () => h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const r1 = await A.add_person(me, { firstName: '  Zoë  ', lastName: "O'Brien-Ñúñez 😀", phone: '(416) 555-0199', email: 'ZOE.Testrun@Demo.Invalid', clinic: 'Testrun Odd Clinic ' + 'x'.repeat(300) });
+    const [c1] = await sql`select first_name, last_name, mobile, email::text, length(cl.name) n from contacts c join clinics cl on cl.id = c.clinic_id where c.id = ${r1.id}`;
+    assert.deepEqual([c1.first_name, c1.last_name, c1.mobile, c1.email, c1.n], ['Zoë', "O'Brien-Ñúñez 😀", '+14165550199', 'zoe.testrun@demo.invalid', 160]);
+    await assert.rejects(A.add_person(me, { firstName: '   ', lastName: '' }), (e) => e.message === 'name_required');
+    await assert.rejects(A.add_person(me, { firstName: 'A', phone: '123' }), (e) => e.message === 'bad_phone');
+    await assert.rejects(A.add_person(me, { firstName: 'A', email: 'not-an-email' }), (e) => e.message === 'bad_email');
+    const r2 = await A.add_person(me, { firstName: 'Intl', phone: '+44 20 7946 0958' });
+    assert.equal((await sql`select mobile from contacts where id = ${r2.id}`)[0].mobile, '+442079460958');
+  }));
+  test('add a person who is already in another rep\'s book: refused without telling who or which record', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), other = await h.user(sql);
+    await h.contact(sql, other, { email: 'taken.testrun@demo.invalid', phone: '+14165550111' });
+    for (const body of [{ firstName: 'X', email: 'Taken.Testrun@demo.invalid' }, { firstName: 'X', phone: '416 555 0111' }]) {
+      await assert.rejects(A.add_person(me, body), (e) => e.status === 409 && e.message === 'already_someones' && e.detail === undefined);
+    }
+  }));
+  test('two reps adding the same new clinic name share one clinic', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), other = await h.user(sql);
+    const a = await A.add_person(me, { firstName: 'One', clinic: 'Testrun Shared Clinic' });
+    const b = await A.add_person(other, { firstName: 'Two', clinic: 'testrun shared clinic' });
+    const rows = await sql`select clinic_id from contacts where id in (${a.id}, ${b.id})`;
+    assert.equal(new Set(rows.map((r) => r.clinic_id)).size, 1);
+  }));
+});

@@ -92,3 +92,13 @@ describe('orders: a line over the 999 limit', () => {
     assert.ok(err || n === 2, 'either refused, or both lines kept (got ' + n + ' line(s))');
   }));
 });
+
+describe('follow-up dates that do not exist', () => {
+  test('a follow-up date that does not exist is refused, not a server error', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    for (const d of ['2026-13-45', '2026-02-30', '9999-99-99']) {
+      await assert.rejects(A.set_follow_up(me, { contactId: c, date: d }), (e) => e.status === 400, d);
+      await assert.rejects(A.log(me, { contactId: c, kind: 'call', note: 'Hello', followUp: d }), (e) => e.status === 400, d);
+    }
+  }));
+});
