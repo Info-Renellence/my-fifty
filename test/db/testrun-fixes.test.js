@@ -127,3 +127,14 @@ describe('voice notes (Gemini stubbed)', () => {
     assert.equal(d.followUpDate, '', 'a date in the past is dropped');
   }));
 });
+
+describe('Tomorrow on two people at once (two phones, or two quick taps)', () => {
+  test('both stay hidden: the second save does not wipe the first', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), a = await h.contact(sql, me), b = await h.contact(sql, me);
+    const stale = Object.assign({}, me, { settings: {} });     // both requests signed in before either saved
+    await A.snooze(stale, { contactId: a });
+    await A.snooze(stale, { contactId: b });
+    const [u] = await sql`select settings from users where id = ${me.id}`;
+    assert.deepEqual(Object.keys(u.settings.snoozed).sort(), [a, b].sort());
+  }));
+});

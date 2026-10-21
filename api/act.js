@@ -117,7 +117,9 @@ const OPS = {
       if (isUuid(b.taskId)) await tx`update tasks set due_at = ${T.atLocal(tomorrow, 9, 0)} where id = ${b.taskId} and assignee_id = ${me.id} and status = 'open'`;
       // Hidden from Today until tomorrow (SOP: dismissals of derived to-dos live in users.settings).
       // Settings saved as anything but an object (seen in v2) are started again as an object.
-      const snoozed = Object.assign({}, (objectOrEmpty(me.settings).snoozed) || {});
+      // Read what is saved now (locked), not what was there at sign-in, so two quick saves never undo each other.
+      const [now] = await tx`select settings from users where id = ${me.id} for update`;
+      const snoozed = Object.assign({}, (objectOrEmpty(now && now.settings).snoozed) || {});
       for (const k of Object.keys(snoozed)) if (snoozed[k] <= T.ymd()) delete snoozed[k];
       snoozed[c.id] = tomorrow;
       await tx`update users set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end) || ${tx.json({ snoozed })} where id = ${me.id}`;
