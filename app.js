@@ -680,8 +680,11 @@
       var b = e.target.closest('[data-next]');
       if (b) { closeSheet(); go('/person/' + b.getAttribute('data-next')); return; }
       if (e.target.closest('[data-done]')) { closeSheet(); go('/'); return; }
-      if (e.target.closest('[data-undo]')) {
-        act('undo', { interactionId: r.interactionId, closedTaskIds: r.closedTaskIds }).then(function () { closeSheet(); toast('Undone'); render(); }, function (err) { toast(errText(err)); });
+      var ub = e.target.closest('[data-undo]');
+      if (ub) {
+        if (ub.disabled) return;   // a second tap while the first is on its way would answer "Something went wrong"
+        ub.disabled = true;
+        act('undo', { interactionId: r.interactionId, closedTaskIds: r.closedTaskIds }).then(function () { closeSheet(); toast('Undone'); render(); }, function (err) { ub.disabled = false; toast(errText(err)); });
       }
     };
   }

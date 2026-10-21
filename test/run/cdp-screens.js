@@ -174,6 +174,17 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const after = await evaluate("document.getElementById('app').innerText.indexOf('" + LAST + "') >= 0");
       note('STALE before=' + before + ' after=' + after + (after ? ' OK' : ' STALE TODAY'));
       await shot('stale-today');
+    } else if (SCEN === 'undotwice') {
+      // Log a call, then tap Undo twice quickly: the rep should only ever see "Undone".
+      const all = await api('op=search&q=Wren');
+      await go('/person/' + all.people[0].id);
+      await click('[data-log][data-kind="visit"]'); await click('[data-kind="call"]'); await click('[data-type]');
+      await type('[data-note]', 'Double tap check'); await click('#sheet [data-save]'); await wait(2000);
+      const toasts = [];
+      await evaluate("(function(){ window.__toasts = []; var t = document.getElementById('toast'); new MutationObserver(function(){ window.__toasts.push(t.textContent); }).observe(t, { childList: true, characterData: true, subtree: true }); var b = document.querySelector('[data-undo]'); b.click(); b.click(); })()");
+      await wait(2500);
+      toasts.push(...(await evaluate('window.__toasts')));
+      note('UNDOTWICE toasts ' + JSON.stringify(toasts) + (toasts.every((t) => t === 'Undone') ? ' OK' : ' ERROR SHOWN'));
     } else if (SCEN === 'navrace') {
       // Tap a person, then the People tab before their card has loaded: the slow card must not cover the People screen.
       await go('/people');
