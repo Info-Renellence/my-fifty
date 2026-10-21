@@ -1,32 +1,27 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
-**Time:** 11:05 AM
+**Time:** 11:15 AM
 
-**Covered since 10:40:** the "joined your Fifty" moment (L5); random input against every read and write (1,500+ random
-requests, no server errors); two reps adding the same person at once; sign-in rules; what the public website serves;
-pushes to switched-off reps; the Ready-to-order list.
+**Covered since 11:05:** the data-model SOP compared with the app; sign-in screen; people with no clinic, email or phone;
+the product picker's "Same as last order"; slow answers on the phone (search and moving between screens).
 
-**New findings since 10:40 (7):**
-- F16 (low) Adding a person (or a samples MD) whose email is still held by a removed person, or that another rep saved a moment earlier, gave a raw database error. **Fixed** bd55357 + 86be39f.
-- F17 (medium, needs a check by you) Sign-in treats an @renellence.com email as verified unless Supabase explicitly says "not verified". If email-and-password sign-ups are open in Supabase without email confirmation, someone could sign up as a staff address and be let in as that person. Proposal: confirm Supabase sign-ups are closed (or confirmation is on), and require Supabase's "email confirmed" date in the code. Not changed (the older sign-in tests would need new fixtures, and the setting cannot be checked from here).
-- F18 (medium) The public website served every file in the project: test scripts, SQL, the demo-data generator and these test-run notes (which describe security findings). **Fixed** 6b585cb (a .vercelignore; the app's own files are unchanged). Until it is pushed, those files stay public.
-- F19 (medium, data) A switched-off rep would still get "New Instagram lead: <name>" pushes on their phone for leads still assigned to them. **Fixed** 2bf152c.
-- F20 (low) The injector on a signed onboarding could order but was missing from the L9 "who is ordering" list. **Fixed** d23cf36.
-- F21 (low) Any https address is accepted as a phone's push address, so the server can be made to call any website. Proposal: accept only the browsers' push services.
-- F22 (medium, Phase 2) If n8n is down or refuses when an order is sent, the order is saved as "Waiting on approval" and nothing ever sends it again. The screen says it will go "once the connection is switched on", but no step does that. Proposal for the n8n branch.
+**New findings since 11:05:**
+- **Decision needed (top of the list):** the data-model SOP (`renellence-edge/docs/data-model-sop.md`, Money section) says
+  "Wire orders count as paid as soon as they're placed (a wire payment row is written then)", but the test-run rules say
+  "Never create a payment row for a wire order". The run followed the test-run rules (fix d7af6a7 stays). If the SOP is
+  right, revert d7af6a7 and the rules need changing.
+- F20 withdrawn: the SOP says the onboarding's *primary* contact is the account that orders, so listing the injector on L9
+  was the wrong fix; reverted (b7acbbe) and turned into question Q8 (the order screen still lets the injector order).
+- F25 (medium) "Same as last order" copied a product that is no longer sold; Send then failed with "Something went wrong" and the rep could not remove the hidden line. **Fixed** 56cb30f.
+- F26 (low) People search: a slow older answer could show after the rep cleared the box. **Fixed** 96aca0d.
+- F27 (medium) On a slow connection, tapping a person and then another tab could leave the person's card on screen while the app was on the other tab. **Fixed** ee2d6e6.
+- F11 detail: the MY FIFTY dots fill for people who do not exist below 5 (0 people: 5 dots, 1: 6, 3: 8, 4: 9, then 5 people: 5 dots).
 
-**Questions added:** Q5 a lead with no source is in none of the four lead groups (only search finds it); Q6 a rep's email to
-a client in another rep's book lands on that client's history (good for the client's story, but the other rep reads it).
-
-**Pushing:** GitHub refused pushes from about 10:28 to 10:52 ("permission denied to yousefk07"); since 10:52 every commit is pushed.
-
-**Also since 10:52:** F23 (medium) a candidate with a second sample order on the way showed "Not shipped" and left Today: **fixed** f558770. F24 (low) a note that is only a "Next:" line showed twice in History: **fixed** 09bfc62. Tried with fake n8n, Gemini and Gmail answering like the real services, and real taps through whole flows in the browser (add a person, order by wire, log a visit, undo, fillers, search): all fine. Q7: a rejected order disappears from the person's History without a word.
-
-**Next:** keep going on deeper checks until 1:00 PM, then the full re-run and the final report.
+**Next:** more checks until 1:00 PM, then the full re-run and the final report.
 
 ## Running totals
-- Findings: 24 (high 2, medium 10, low 12). Fixed: 19. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11) and questions Q1-Q7.
+- Findings: 26 (high 2, medium 11, low 13). Fixed: 21. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
 - Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
 - Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
