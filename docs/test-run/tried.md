@@ -26,3 +26,14 @@ Format: time · area · scenario · result
 - 09:52 · bad input · bodies that are junk JSON, a list, null, a number · `null` gave a 500 (part of F5)
 - 09:55 · RLS · anon key on 28 tables; a signed-in account not in users; the admin (read only); outsider insert/update of contacts · ok
 - 09:55 · RLS · outsider signed-in account reads all 12 staff rows in users and can add clinics (finding F6, needs a policy change: proposal)
+- 09:55 · orders · quantities 0 / negative / junk / decimal, unknown and inactive products, only-free order, samples with paid products, MD added from name + email · ok
+- 09:55 · orders · a line of 1000 next to a normal line · the 1000 line was left off silently (F7, fixed)
+- 09:55 · orders · not ready (no onboarding, only rejected/cancelled orders) · refused, not on L9 · ok
+- 09:55 · n8n stub · 500, timeout, success with junk reply · reported as n8n_500 / n8n_timeout / sent; order always kept; payload only {action, orderId} · ok
+- 09:58 · log · past follow-up refused; text not counted; "Next:"-only note becomes the task · ok
+- 09:58 · undo · twice; a 2-day-old log · refused · ok
+- 09:58 · snooze · keeps other snoozes, drops old ones · ok
+- 09:58 · add person · phone formats (+1 and +44), blank name, bad phone/email, emoji/accents, 300-char clinic · ok
+- 09:58 · add person · already in another rep's book (by email, by phone) · refused, no id or owner given · ok
+- 09:58 · two reps add the same new clinic name · one shared clinic · ok
+- 09:58 · follow-up dates 2026-13-45, 2026-02-30, 9999-99-99 · server error (F8, fixed)
