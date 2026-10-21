@@ -116,14 +116,18 @@ async function syncMailbox(sql, user, c, budgetEnd) {
     if (from.some((a) => ROBOT.test(a))) continue;
     const outside = [...new Set(from.concat(to))].filter((a) => !OURS.test(a));
     if (!outside.length) continue;
-    const contacts = await sql`select id from contacts where deleted_at is null and (lower(email::text) = any(${outside}) or lower(secondary_email::text) = any(${outside}))`;
+    // Only the mailbox owner's own clients (Yousef 2026-10-21, Q6): a rep's email never lands on another rep's
+    // client's history. Each mailbox keeps its own copy of a message, so when two reps are on one email each
+    // rep's client still gets it.
+    const contacts = await sql`select id from contacts where deleted_at is null and owner_id = ${user.id}
+      and (lower(email::text) = any(${outside}) or lower(secondary_email::text) = any(${outside}))`;
     if (!contacts.length) continue;
     const messageId = hdr(m, 'Message-ID') || m.id;
     const [ev] = await sql`
       insert into ingest_events (source, external_key, payload, received_via, received_at, status, attempts)
-      values ('gmail', ${messageId}, ${sql.json({ mailbox: user.email, id: m.id, threadId: m.threadId, from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc'), subject: hdr(m, 'Subject'), date: hdr(m, 'Date'), snippet: m.snippet })}, 'pull', now(), 'pending', 1)
+      values ('gmail', ${messageId + '|' + user.email}, ${sql.json({ mailbox: user.email, id: m.id, threadId: m.threadId, from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc'), subject: hdr(m, 'Subject'), date: hdr(m, 'Date'), snippet: m.snippet })}, 'pull', now(), 'pending', 1)
       on conflict (source, external_key) do nothing returning id`;
-    if (!ev) continue;   // already pulled from another mailbox
+    if (!ev) continue;   // already pulled from this mailbox
     const direction = from.some((a) => OURS.test(a)) ? 'out' : 'in';
     const occurred = new Date(Number(m.internalDate) || Date.now());
     let first = null;

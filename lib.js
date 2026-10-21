@@ -25,7 +25,7 @@
     already_yours: 'This person is already in your book.', already_someones: 'This person is already in someone else’s book.',
     no_products: 'Add products first.', md_required: 'Add the medical director’s name and email.', not_ready_to_order: 'They need to finish onboarding before ordering.',
     voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
-    gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.',
+    gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.', resent_recently: 'Pay link already resent in the last hour.',
     subject_and_message_required: 'Add a subject and a message.', not_set_up: 'Your account isn’t set up in My Fifty yet. Ask an admin.',
     not_renellence: 'Sign in with your @renellence.com Google account.', nothing_to_charge: 'Add at least one paid product.',
   };
@@ -40,8 +40,12 @@
     var c = 2 * Math.PI * r, frac = goal > 0 ? Math.min(1, Math.max(0, done / goal)) : 0;
     return done > 0 ? (c * frac).toFixed(1) + ' ' + c.toFixed(1) : '';
   }
-  // The MY FIFTY tile (L2): the last 10 dots towards the next milestone.
-  function fiftyTile(count, next) { var toNext = Math.max(0, next - count); return { toNext: toNext, filled: Math.max(0, 10 - toNext) }; }
+  // The MY FIFTY tile (L2): 10 dots ending at the next milestone, one per real person (with fewer than 10 people
+  // the dots start at the first person, so no dot is ever filled for someone who does not exist; F11).
+  function fiftyTile(count, next) {
+    var toNext = Math.max(0, next - count);
+    return { toNext: toNext, filled: Math.max(0, Math.min(10, count - Math.max(0, next - 10))) };
+  }
   // L2 under the ring.
   function dayLeftText(done, goal) { var left = Math.max(0, goal - done); return left ? left + ' more and today is done' : 'Today is done'; }
   // L4's sentence.

@@ -181,7 +181,7 @@ describe('gmail: the pull', () => {
     assert.equal(rows.length, 1);
     assert.deepEqual([rows[0].direction, rows[0].source, rows[0].subject, rows[0].body, rows[0].user_id], ['in', 'gmail', 'Order', 'Hello from the clinic', null]);
     assert.equal(typeof rows[0].addresses, 'object');
-    const [ev] = await sql`select status::text, result_table, jsonb_typeof(payload) t from ingest_events where source = 'gmail' and external_key = ${'<m1-' + mid + '@x>'}`;
+    const [ev] = await sql`select status::text, result_table, jsonb_typeof(payload) t from ingest_events where source = 'gmail' and external_key = ${'<m1-' + mid + '@x>|' + me.email}`;
     assert.deepEqual(ev, { status: 'done', result_table: 'interactions', t: 'object' });
     const [conn] = await sql`select sync_cursor, last_synced_at from user_connections where user_id = ${me.id}`;
     assert.equal(conn.sync_cursor, 'h1');
@@ -210,6 +210,17 @@ describe('gmail: the pull', () => {
     const out = await Gm.sync(sql, 20000);
     assert.equal(out.kept, 1);
     assert.equal((await sql`select count(*)::int n from interactions where contact_id = ${c}`)[0].n, 1);
+  }));
+  test('a rep\'s email never lands on another rep\'s client; on a shared email each rep\'s own client gets it (Q6)', () => h.withDb(async (sql) => {
+    const a = await h.user(sql, { email: 'a.' + h.uid() + '@renellence.com' }), b = await h.user(sql, { email: 'b.' + h.uid() + '@renellence.com' });
+    const ca = 'ca.' + h.uid() + '@clinic.test', cb = 'cb.' + h.uid() + '@clinic.test';
+    const ka = await h.contact(sql, a, { email: ca }), kb = await h.contact(sql, b, { email: cb });
+    await mailbox(sql, b);
+    const mid = h.uid();
+    f = google({ m1: msg('m1', b.email, ca, { mid, subject: 'From B to A\'s client' }), m2: msg('m2', b.email, ca + ', ' + cb, { mid, subject: 'To both' }) });
+    await Gm.sync(sql, 20000);
+    assert.equal((await sql`select count(*)::int n from interactions where contact_id = ${ka}`)[0].n, 0, 'nothing on A\'s client from B\'s mailbox');
+    assert.deepEqual((await sql`select subject from interactions where contact_id = ${kb}`).map((r) => r.subject), ['To both']);
   }));
   test('a revoked mailbox is marked broken and the others carry on', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -307,7 +318,7 @@ describe('cron', () => {
       const ok = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=tick', headers: { 'x-cron-key': 'test-cron-key' } }, ok);
       assert.equal(ok.statusCode, 200);
-      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'leads', 'morning']);
+      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'leads', 'morning', 'orders']);
       const bad = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=other', headers: { 'x-cron-key': 'test-cron-key' } }, bad);
       assert.equal(bad.statusCode, 400);

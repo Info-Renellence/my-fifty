@@ -12,14 +12,20 @@
 //
 // Until N8N_MYFIFTY_URL is set the call is skipped and the caller is told (queued: false), so an order stays
 // "Waiting on approval" in v2 and nothing pretends it was sent.
+//
+// An order n8n did not accept (down, timed out, refused) is sent again by the timer (api/cron.js resendOrders,
+// Yousef 2026-10-21, F22). Every order call carries a once-only key, X-Idempotency-Key: order:<id>, the same on
+// every try, so the n8n branch approves an order once however many times it arrives; an order n8n accepted is
+// recorded in change_log (action 'send') and never sent again.
 async function call(action, payload) {
   const url = String(process.env.N8N_MYFIFTY_URL || '').trim();
   if (!url) return { queued: false, reason: 'n8n_not_connected' };
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 20000);
+  const headers = { 'Content-Type': 'application/json', 'X-My-Fifty-Key': process.env.N8N_MYFIFTY_KEY || '' };
+  if (action === 'order' && payload && payload.orderId) headers['X-Idempotency-Key'] = 'order:' + payload.orderId;
   try {
-    const r = await fetch(url, { method: 'POST', signal: ctl.signal,
-      headers: { 'Content-Type': 'application/json', 'X-My-Fifty-Key': process.env.N8N_MYFIFTY_KEY || '' },
+    const r = await fetch(url, { method: 'POST', signal: ctl.signal, headers,
       body: JSON.stringify(Object.assign({ action }, payload)) });
     const text = await r.text();
     if (!r.ok) return { queued: false, reason: 'n8n_' + r.status, detail: text.slice(0, 300) };

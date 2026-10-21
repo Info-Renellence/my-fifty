@@ -7,7 +7,8 @@
 //      nobody has touched yet, to its owner, once (notifications.dedupe_key).
 //   2. the morning summary (L1 "6 days in a row with your plan done · 7 on today's list"), once a business day,
 //      on the first tick from 7:30 AM Toronto.
-//   3. the Gmail pull (api/_gmail.js), with what is left of the time.
+//   3. orders n8n did not accept when they were placed are sent again (resendOrders, once-only key; F22).
+//   4. the Gmail pull (api/_gmail.js), with what is left of the time.
 const crypto = require('crypto');
 const { db } = require('./_db');
 const { send, query, route, fail } = require('./_http');
@@ -29,7 +30,7 @@ module.exports = route(async (req, res) => {
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
   const sql = db();
-  const out = { leads: await newLeads(sql), morning: await morning(sql) };
+  const out = { leads: await newLeads(sql), morning: await morning(sql), orders: await resendOrders(sql) };
   out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
@@ -76,6 +77,30 @@ async function morning(sql) {
   return { users: users.length, sent };
 }
 
+// Orders n8n did not accept when they were placed (down, timed out or refused: F22, Yousef 2026-10-21): every tick
+// sends them again, with the same once-only key (api/_n8n.js), until n8n accepts one (then change_log 'send' is
+// written and it is never sent again). Only orders placed in My Fifty, still waiting on approval, from the last 7
+// days; never fictional (demo / test-run) ones. Nothing happens while n8n is not connected.
+async function resendOrders(sql) {
+  if (!String(process.env.N8N_MYFIFTY_URL || '').trim()) return { skipped: 'n8n_not_connected' };
+  const waiting = await sql`
+    select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id left join users u on u.id = o.rep_id
+     where o.status = ${'submitted'} and o.deleted_at is null and o.placed_by is not null and o.submitted_at > now() - interval '7 days'
+       and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
+       and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
+       and not exists (select 1 from change_log l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'send')
+     order by o.submitted_at limit 20`;
+  let sent = 0;
+  for (const o of waiting) {
+    const r = await require('./_n8n').call('order', { orderId: o.id });
+    if (!r.queued) break;   // still down: try again next tick
+    await sql`insert into change_log (actor_kind, source, action, entity_type, entity_id, contact_id, note)
+              values ('system', 'my_fifty', 'send', 'orders', ${o.id}, ${o.contact_id}, 'Sent for approval (again, after n8n was unreachable)')`;
+    sent++;
+  }
+  return { waiting: waiting.length, sent };
+}
+
 // Wire payments to follow up today (GET /api/cron?op=wires, called once a day by n8n, which only sends what comes
 // back). Each rep gets their heads-ups (5 days before the due date) and overdue wires; info@ gets every overdue wire
 // with a "Mark as received" button. Overdue ones come again every 7 days until received (api/_wire.js).
@@ -93,7 +118,7 @@ async function wires(sql, now) {
       join contacts c on c.id = o.contact_id
       left join clinics cl on cl.id = c.clinic_id
       left join users u on u.id = o.rep_id
-     where o.payment_method = 'wire' and o.deleted_at is null and o.status not in ('rejected', 'cancelled')
+     where o.payment_method = ${'wire'} and o.deleted_at is null and o.status not in ('rejected', 'cancelled')
        and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
      order by o.submitted_at`;
@@ -141,4 +166,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, wires };
+module.exports._ = { authorised, newLeads, morning, wires, resendOrders };

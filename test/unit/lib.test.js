@@ -48,7 +48,11 @@ describe('Today pieces', () => {
   test('ringDash never goes past full', () => { const c = (2 * Math.PI * 70).toFixed(1); assert.equal(L.ringDash(70, 12, 8), c + ' ' + c); });
   test('ringDash with no goal does not divide by zero', () => assert.match(L.ringDash(38, 3, 0), /^0\.0 /));
   test('fiftyTile: 22 of the way to 25 fills 7 dots', () => assert.deepEqual(L.fiftyTile(22, 25), { toNext: 3, filled: 7 }));
-  test('fiftyTile at 0 shows 5 more to 5', () => assert.deepEqual(L.fiftyTile(0, 5), { toNext: 5, filled: 5 }));
+  test('fiftyTile at 0 shows 5 more to 5 and no filled dot (F11)', () => assert.deepEqual(L.fiftyTile(0, 5), { toNext: 5, filled: 0 }));
+  test('fiftyTile below 10 people fills one dot per person (F11)', () => {
+    assert.deepEqual([1, 3, 4, 5, 9].map((n) => L.fiftyTile(n, Math.floor(n / 5) * 5 + 5).filled), [1, 3, 4, 5, 9]);
+    assert.deepEqual(L.fiftyTile(10, 15), { toNext: 5, filled: 5 }, 'from 10 on: the last 10 dots towards the milestone');
+  });
   test('dayLeftText counts down and finishes', () => {
     assert.equal(L.dayLeftText(3, 8), '5 more and today is done');
     assert.equal(L.dayLeftText(8, 8), 'Today is done');

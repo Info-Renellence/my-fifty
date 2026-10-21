@@ -1,14 +1,21 @@
 // A rep's book, with everything My Fifty shows worked out from v2's records (nothing derived is stored,
 // SOP section 9):
 //
-//   stage      lead       no orders at all
+//   stage      lead       no paid order and no sample order (an unpaid order alone is still a lead: Yousef 2026-10-21, Q3)
 //              candidate  has a sample order (every line free) and no paid order
 //              fifty      any paid order (a wire order counts as paid as soon as it is placed)
 //   goingCold  a Fifty person with no paid order and no visit in the last N days (settings, default 30)
 //   isNew      a lead nobody has called, texted, emailed or visited yet
 //
+// Reached (Yousef 2026-10-21, Q9): a call or in-person visit counts towards the day goal, and takes the person off
+// Today, only when they were reached: a no-answer call or a no-show visit does neither. An email never does; a text
+// takes the person off Today but is not a touchpoint.
+//
 // Everything is scoped to contacts the person owns (owner_id), the same rule as row-level security.
 const T = require('./_time');
+
+const NOT_REACHED = ['no_answer', 'voicemail', 'busy', 'no_show'];
+const REACHED = (sql) => sql`(coalesce(i.outcome, 'connected') <> all(${NOT_REACHED}) and i.status is distinct from 'no_show')`;
 
 const DEFAULTS = { daily_goal: 8, going_cold_days: 30, fifty_goal: 50, new_lead_hours: 24 };
 
@@ -75,7 +82,7 @@ async function book(sql, me, opts) {
              (array_agg(i.kind::text order by i.occurred_at desc) filter (where i.kind <> 'note'))[1] as last_touch_kind,
              max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode = 'in_person' and i.status is distinct from 'cancelled') as last_visit_at,
              count(*) filter (where i.kind <> 'note') as touches,
-             bool_or(i.user_id = ${me.id} and i.kind in ('call', 'meeting', 'text', 'email')
+             bool_or(i.user_id = ${me.id} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today
         from interactions i
        where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled' and i.status is distinct from 'cancelled'
@@ -143,15 +150,17 @@ function addr(c, k) {
 }
 function group(rows, key) { const out = {}; for (const r of rows) (out[r[key]] = out[r[key]] || []).push(r); return out; }
 
-// The day goal and streak: a touchpoint is a call or an in-person visit the person logged (Yousef 2026-10-20:
-// "any logged call or visit"). The streak counts business days in a row (no weekends, no holidays from
-// settings) with at least the goal, ending yesterday, plus today once today's goal is met.
+// The day goal and streak: a touchpoint is a call or an in-person visit the person logged where they were reached
+// (Yousef 2026-10-21, Q9: no-answer calls and no-show visits don't count; emails and texts never do).
+// The streak counts days in a row with at least the goal, ending yesterday, plus today once today's goal is met.
+// A business day short of the goal breaks it; a weekend or holiday (settings) never breaks it but adds one when
+// the goal was met on it (Yousef 2026-10-21, Q10).
 async function dayStats(sql, me, cfg) {
   const rows = await sql`
     select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
       from interactions i
      where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-       and (i.kind = 'call' or (i.kind = 'meeting' and i.mode = 'in_person'))
+       and (i.kind = 'call' or (i.kind = 'meeting' and i.mode = 'in_person')) and ${REACHED(sql)}
        and i.occurred_at > now() - interval '400 days'
      group by 1`;
   const by = Object.fromEntries(rows.map((r) => [r.day, r.n]));
@@ -160,10 +169,9 @@ async function dayStats(sql, me, cfg) {
   let streak = 0;
   let d = T.addDays(today, -1);
   for (let i = 0; i < 400; i++) {
-    if (T.isBusinessDay(d, cfg.holidays)) {
-      if ((by[d] || 0) >= cfg.daily_goal) streak++;
-      else break;
-    }
+    const met = (by[d] || 0) >= cfg.daily_goal;
+    if (met) streak++;
+    else if (T.isBusinessDay(d, cfg.holidays)) break;
     d = T.addDays(d, -1);
   }
   if (done >= cfg.daily_goal) streak++;

@@ -92,7 +92,7 @@ const OPS = {
     const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg }), B.dayStats(sql, me, cfg)]);
     const list = B.todayList(people, me, cfg);
     return Object.assign(out, { day, name: B.fullName(c), followUp: T.short(due),
-      counted: kind !== 'text', next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
+      counted: kind !== 'text' && !!b.reached, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
   },
 
   async undo(me, b) {
@@ -231,9 +231,10 @@ const OPS = {
     const samples = b.kind === 'samples';
     const sql = db();
     const c = await mine(sql, me, b.contactId);
-    // Only people who are ready to order (L9): onboarded, or who already have an order.
+    // Only people who are ready to order (L9): the main contact of a signed onboarding (never the injector on it,
+    // Yousef 2026-10-21, Q8; the injector only when there is no main contact, as L9 lists), or who already have an order.
     const [ready] = await sql`
-      select (exists (select 1 from onboardings where status in ('signed', 'complete') and (primary_contact_id = ${c.id} or injector_contact_id = ${c.id}))
+      select (exists (select 1 from onboardings where status in ('signed', 'complete') and coalesce(primary_contact_id, injector_contact_id) = ${c.id})
            or exists (select 1 from orders where contact_id = ${c.id} and deleted_at is null and status not in ('rejected', 'cancelled'))) as ok`;
     if (!ready.ok) throw fail(409, 'not_ready_to_order');
     const asked = (Array.isArray(b.lines) ? b.lines : []).map((l) => ({ sku: clean(l && l.sku, 40), qty: Math.round(Number(l && l.qty) || 0) })).filter((l) => l.sku && l.qty > 0);
@@ -290,11 +291,18 @@ const OPS = {
       return o.id;
     });
     const sent = await require('./_n8n').call('order', { orderId });
+    // Accepted by n8n: recorded so the timer never sends it again. Not accepted: the timer tries again (F22).
+    if (sent.queued) await asUser(me.id, (tx) => tx`
+      insert into change_log (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
+      values (${me.id}, 'user', 'my_fifty', 'send', 'orders', ${orderId}, ${c.id}, 'Sent for approval')`);
     return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason };
   },
 
   async resend_pay_link(me, b) {
     const o = await myOrder(me, b.orderId);
+    // At most once an hour, like Remind MD (Yousef 2026-10-21, Q4); the last resend is in change_log.
+    const [last] = await db()`select max(at) as at from change_log where entity_type = 'orders' and entity_id = ${o.id} and action = 'resend' and note = 'Pay link resent'`;
+    if (last && last.at && Date.now() - new Date(last.at) < 3600000) throw fail(429, 'resent_recently');
     const sent = await require('./_n8n').call('resend_pay_link', { orderId: o.id });
     if (sent.queued) await logResend(me, 'orders', o.id, o.contact_id, 'Pay link resent');
     return { ok: sent.queued, reason: sent.reason };

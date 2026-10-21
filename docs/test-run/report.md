@@ -257,3 +257,26 @@ whose `meta_id` starts `demo-test-`; and Gmail import rows with `demo-test` in t
 To remove it, run `db/wipe-demo.sql` in the Supabase SQL editor as the database owner. It removes the run's fake data and
 the original demo data together and keeps products, settings and real staff. The script was extended for the run's rows;
 `test/db/testrun-wipe.test.js` checks that it picks every fake row and no real one.
+
+## 8. After the run: the owner's answers (2026-10-21) and what was done
+
+| Item | Answer | Done |
+|---|---|---|
+| Decision 1, F1 wire payments | The rules line was wrong; collection is tracked | Pending wire payment + payment terms + daily follow-up + Mark as received (e28b9a6) |
+| F22 orders when n8n is down | The timer resends them, with protection | `resendOrders` in the timer; once-only key `X-Idempotency-Key: order:<id>`; accepted orders recorded (change_log `send`) and never resent. **The n8n branch must ignore a repeated key.** |
+| F11 MY FIFTY dots | Not intended | Fixed: one dot per real person |
+| Q1 admin view | Deferred | — |
+| Q2 Same as last order | Last paid order | Fixed |
+| Q3 unpaid order only | Still a lead | Already so; rule wording corrected |
+| Q4 Resend pay link limit | Yes, once an hour | Fixed |
+| Q5 lead with no source | Every lead has a source | No person in v2 lacks one today; recommendations below |
+| Q6 email on another rep's client | Fix | The Gmail pull only matches the mailbox owner's clients |
+| Q7 rejected / cancelled orders | Show in History | Fixed |
+| Q8 who on an onboarding orders | Only the main contact | Fixed |
+| Q9 what counts | No-answer calls, no-shows and emails don't count | Not counted toward the goal, and they don't take the person off Today |
+| Q10 weekends and holidays | Never break the streak; can add to it | Fixed |
+
+**Q5 recommendations (not done, need a yes):** (1) after checking every owned person has a source, make
+`contacts.source_kind` required for anyone with an owner (a database rule, CHANGELOG-v2); (2) a medical director added from
+a samples order has no owner and no source today: if one is ever given an owner they would be a lead in no group, so give
+them `warm` with source detail "Medical director" when added; (3) the Meta and Quo feeds (Phase 2) must always set a source.

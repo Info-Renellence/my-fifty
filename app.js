@@ -1093,7 +1093,7 @@
       var d = draft;
       act('order', { contactId: d.contactId, kind: d.kind, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
         lines: Object.keys(d.qty).map(function (s) { return { sku: s, qty: d.qty[s] }; }) })
-        .then(function (r) { draft = null; toast(r.sentToN8n ? 'Sent for approval' : 'Saved. It goes for approval once the order connection is switched on.'); go('/orders/' + r.orderId, true); },
+        .then(function (r) { draft = null; toast(r.sentToN8n ? 'Sent for approval' : 'Saved. It goes for approval automatically as soon as the order connection answers.'); go('/orders/' + r.orderId, true); },
           function (err) { b.disabled = false; b.textContent = 'Send for approval'; toast(errText(err)); });
     }
   });

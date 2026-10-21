@@ -10,23 +10,26 @@ These are the owner's decisions. Do not change the behaviour, wording, numbers o
 A fix may only make the code do what these rules say.
 
 **Who is who**
-- **Lead**: has no orders at all. **Candidate**: has a sample order (every line free) and no paid order.
+- **Lead**: has no paid order and no sample order; someone whose only order is unpaid is still a lead (Q3, 2026-10-21). Every lead has a source (social · event · warm · cold). **Candidate**: has a sample order (every line free) and no paid order.
   **Fifty**: has any paid order. A wire order counts as paid as soon as it is placed.
 - Orders that are rejected, cancelled or deleted don't count.
 - **New lead**: a lead nobody has called, texted, emailed or visited yet.
 - **Going cold**: a Fifty person with no paid order and no in-person visit for more than 30 days (`settings.my_fifty.going_cold_days`).
-- **Ready to order** (L9): the person is onboarded or has ordered before.
+- **Ready to order** (L9): the main contact of a signed onboarding (never the injector on it, Q8), or someone who has ordered before.
 
 **Today and the day goal**
-- The daily goal is **8 touchpoints**. A touchpoint is a logged call or a logged in-person visit. Scheduled and cancelled ones don't count.
-- **Streak**: business days in a row (no weekends, no holidays from `settings.holidays`) with 8 or more, ending yesterday.
-  Today is added once today's goal is met.
+- The daily goal is **8 touchpoints**. A touchpoint is a logged call or in-person visit where the person was reached. Scheduled, cancelled, no-answer and no-show ones don't count; emails and texts never do (Q9).
+- **Streak**: days in a row with 8 or more, ending yesterday; today is added once today's goal is met. A business day short of the goal
+  breaks it. A weekend or holiday (`settings.holidays`) never breaks it, and adds one when the goal was met on it (Q10).
 - "Today" and every date use **Toronto time** (America/Toronto).
 - Today's list, in this order: (1) new social-media leads under 24 hours old, (2) follow-ups due today or overdue,
   (3) Fifty people going cold, (4) candidates nobody has touched since their samples arrived.
-  Anyone already reached today drops off. "Tomorrow" hides someone until tomorrow.
+  Anyone already reached today drops off: a reached call or visit, or a text; never a no-answer call, a no-show or an email (Q9). "Tomorrow" hides someone until tomorrow.
 - Candidates show days since their samples arrived. There is no "Ask now" button, and no drive time on visits.
-- The Fifty goal is 50 people, with a milestone every 5.
+- The Fifty goal is 50 people, with a milestone every 5. The MY FIFTY tile never fills a dot for someone who doesn't exist (F11).
+- "Same as last order" copies the last *paid* order (Q2). "Resend pay link" and "Remind MD" work at most once an hour (Q4).
+- History shows every order, including rejected and cancelled ones (Q7). A rep's Gmail only lands on that rep's own clients (Q6).
+- An order n8n did not accept is sent again by the timer, with a once-only key, until n8n accepts it (F22).
 
 **Rewards** (written in code for now, on purpose)
 - Q4 Booster, Oct 1 to Dec 31 2026: **2% on new orders, 4% on reorders**.

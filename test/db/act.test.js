@@ -59,7 +59,29 @@ describe('log (L3 Save)', () => {
     assert.deepEqual(i, { kind: 'meeting', mode: 'in_person', outcome: 'no_answer' });
     const [t] = await sql`select type::text, title from tasks where id = ${r.taskId}`;
     assert.deepEqual(t, { type: 'visit', title: 'Follow up' });
-    assert.equal(r.day.done, 1);
+    // A no-show visit does not count toward the day (Yousef 2026-10-21, Q9); it used to count.
+    assert.equal(r.day.done, 0);
+    assert.equal(r.counted, false);
+  }));
+  test('a reached call counts toward the day; a no-answer call does not, and does not take them off Today (Q9)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), a = await h.contact(sql, me), b = await h.contact(sql, me);
+    const B = require('../../api/_book');
+    await h.task(sql, a, me.id, { due: h.ago(1) }); await h.task(sql, b, me.id, { due: h.ago(1) });
+    const no = await A.log(me, { contactId: a, kind: 'call', reached: false, followUp: 'eod', note: 'No answer' });
+    assert.deepEqual([no.day.done, no.counted], [0, false]);
+    const yes = await A.log(me, { contactId: b, kind: 'call', reached: true, followUp: 'eod', note: 'Talked' });
+    assert.deepEqual([yes.day.done, yes.counted], [1, true]);
+    await h.touch(sql, b, me.id, { kind: 'email', subject: 'Hi', body: 'x' });
+    const { people } = await B.book(sql, me);
+    const by = Object.fromEntries(people.map((p) => [p.id, p]));
+    assert.equal(by[a].touchedToday, false, 'a no-answer call leaves them on Today');
+    assert.equal(by[b].touchedToday, true);
+  }));
+  test('an email does not take someone off Today (Q9)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.touch(sql, c, me.id, { kind: 'email', subject: 'Hi', body: 'x' });
+    const { people } = await require('../../api/_book').book(sql, me);
+    assert.equal(people.find((p) => p.id === c).touchedToday, false);
   }));
   test('a text is saved but does not count toward the day', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
@@ -244,6 +266,12 @@ describe('order (L10 / L15 Send for approval)', () => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] }), st(409, 'not_ready_to_order'));
   }));
+  test('on a signed onboarding only the main contact can order, not the injector (Q8)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), main = await h.contact(sql, me), inj = await h.contact(sql, me);
+    await sql`insert into onboardings (primary_contact_id, injector_contact_id, status) values (${main}, ${inj}, 'signed')`;
+    await assert.rejects(A.order(me, { contactId: inj, lines: [{ sku: 'SAF100', qty: 1 }] }), st(409, 'not_ready_to_order'));
+    assert.equal((await A.order(me, { contactId: main, lines: [{ sku: 'SAF100', qty: 1 }] })).ok, true);
+  }));
   test('no products, unknown products, only free products, and samples without an MD are refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 0 }] }), st(400, 'no_products'));
@@ -318,6 +346,14 @@ describe('resend_pay_link and remind_md', () => {
     assert.equal((await A.resend_pay_link(me, { orderId: o })).ok, true);
     const [l] = await sql`select actor_user_id, contact_id, note, source::text from change_log where entity_id = ${o} and action = 'resend'`;
     assert.deepEqual(l, { actor_user_id: me.id, contact_id: c, note: 'Pay link resent', source: 'my_fifty' });
+  }));
+  test('resend pay link: at most once an hour (Q4)', () => h.withDb(async (sql) => {
+    process.env.N8N_MYFIFTY_URL = 'https://n8n.test/hook';
+    f = h.fakeFetch(() => ({ json: {} }));
+    const me = await h.user(sql), c = await h.contact(sql, me), o = await h.order(sql, c, me);
+    assert.equal((await A.resend_pay_link(me, { orderId: o })).ok, true);
+    await assert.rejects(A.resend_pay_link(me, { orderId: o }), st(429, 'resent_recently'));
+    assert.equal(f.calls.length, 1, 'the second tap never reached n8n');
   }));
   test('remind the MD on a sample order: sent, stamped, then refused within the hour', () => h.withDb(async (sql) => {
     process.env.N8N_MYFIFTY_URL = 'https://n8n.test/hook';

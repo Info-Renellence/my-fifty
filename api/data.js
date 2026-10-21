@@ -134,8 +134,10 @@ const OPS = {
     const p = await one(sql, me, q.get('id'));
     const products = await sql`select id, sku, name, family::text as family, line, unit, list_price::float8 as price from products where active = ${true} order by name`;
     const lastQty = {};
-    const latestPaid = p.orders.find((o) => !B.isSample(o));
-    for (const o of p.orders.slice().reverse()) for (const l of o.summary || []) if (!l.free) lastQty[l.sku] = { qty: l.qty, unit: unitWord(l.sku) };
+    // "Same as last order" and "Last order: n" come from paid orders only (Yousef 2026-10-21, Q2), never an unpaid one.
+    const paid = p.orders.filter(B.isPaid);
+    const latestPaid = paid[0];
+    for (const o of paid.slice().reverse()) for (const l of o.summary || []) if (!l.free) lastQty[l.sku] = { qty: l.qty, unit: unitWord(l.sku) };
     const card = await cardOnFile(sql, p.id);
     return {
       person: { id: p.id, name: p.name, clinic: p.clinic, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
@@ -310,6 +312,7 @@ async function lastHistoryLine(sql, p) {
 }
 
 const ORDER_WORD = (o) => {
+  if (o.status === 'rejected') return ['Rejected', 'grey'];
   if (o.status === 'cancelled') return ['Cancelled', 'grey'];
   if (o.delivered_at || o.status === 'delivered') return ['Delivered', 'green'];
   if (o.shipped_at || o.status === 'shipped') return ['Shipped', 'green'];
@@ -357,7 +360,18 @@ async function historyOf(sql, me, p) {
       body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 400) : (i.body || ''),
       next, by: who });
   }
-  for (const o of p.orders) {
+  // Rejected and cancelled orders are left out of everything else (they never count), but History shows them, so
+  // the rep sees what happened (Yousef 2026-10-21, Q7).
+  const ended = await sql`
+    select o.id, o.status::text as status, o.submitted_at, o.created_at,
+           coalesce(sum(case when ol.is_free then 0 else ol.quantity * coalesce(ol.unit_price, 0) end), 0)::float8 as total,
+           count(ol.id)::int as n_lines, coalesce(bool_and(ol.is_free or coalesce(ol.unit_price, 0) = 0), false) as all_free,
+           json_agg(json_build_object('sku', ol.sku, 'name', ol.name, 'qty', ol.quantity, 'free', coalesce(ol.is_free, false)) order by ol.quantity desc, ol.name)
+             filter (where ol.id is not null) as summary
+      from orders o left join order_lines ol on ol.order_id = o.id
+     where o.contact_id = ${p.id} and o.deleted_at is null and o.status = any(${['rejected', 'cancelled']})
+     group by o.id`;
+  for (const o of p.orders.concat(ended)) {
     const sample = B.isSample(o);
     const [word, tone] = ORDER_WORD(o);
     out.push({ type: sample ? 'samples' : 'order', at: o.submitted_at || o.created_at, id: o.id,

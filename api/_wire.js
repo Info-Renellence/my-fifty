@@ -15,7 +15,7 @@ const LINK_DAYS = 30;
 
 // The standard terms (settings 'payments'.default_terms_days).
 async function defaultTerms(sql) {
-  const [r] = await sql`select value from settings where key = 'payments'`;
+  const [r] = await sql`select value from settings where key = ${'payments'}`;   // every query carries a value (F12)
   const n = r && r.value && Number(r.value.default_terms_days);
   return Number.isInteger(n) && n >= 0 ? n : DEFAULT_TERMS;
 }

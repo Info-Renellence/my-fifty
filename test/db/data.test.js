@@ -239,6 +239,15 @@ describe('history', () => {
     assert.deepEqual(times, times.slice().sort((a, b) => b - a), 'newest first');
     assert.match(entries[0].month, /^[A-Z][a-z]+$/);
   }));
+  test('rejected and cancelled orders show in History, and still count for nothing (Q7)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.order(sql, c, me, { status: 'rejected', days: 3, lines: [['SAF100', 2]] });
+    await h.order(sql, c, me, { status: 'cancelled', days: 2, lines: [['SAL400', 1]] });
+    const { entries } = await D.history(sql, me, Q({ id: c }));
+    const orders = entries.filter((e) => e.type === 'order');
+    assert.deepEqual(orders.map((e) => [e.title, e.status, e.tone]), [['Order · $225', 'Cancelled', 'grey'], ['Order · $450', 'Rejected', 'grey']]);
+    assert.equal((await D.person(sql, me, Q({ id: c }))).stage, 'lead', 'they still count for nothing');
+  }));
   test('origin lines for social and other sources', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const s = await h.contact(sql, me, { source: 'social', detail: 'Instagram' });
@@ -266,6 +275,14 @@ describe('ready, products and search', () => {
     assert.deepEqual((await D.ready(sql, me)).people.map((p) => p.name.split(' ')[0]), ['Ace', 'Bea']);
   }));
   test('ready to order with an empty book', () => h.withDb(async (sql) => assert.deepEqual((await D.ready(sql, await h.user(sql))).people, [])));
+  test('same as last order copies the last *paid* order, never a newer unpaid one (Q2)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.order(sql, c, me, { status: 'shipped', days: 20, lines: [['SAF100', 4]] });
+    await h.order(sql, c, me, { status: 'submitted', days: 1, method: 'card_on_file', lines: [['SAL400', 9]] });
+    const p = await D.products(sql, me, Q({ id: c }));
+    assert.deepEqual(p.sameAsLast, [{ sku: 'SAF100', qty: 4 }]);
+    assert.equal(p.products.find((x) => x.sku === 'SAL400').last, null, 'the unpaid order is not "last order" either');
+  }));
   test('products: what they had last first, same as last order, the card on file', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await h.order(sql, c, me, { status: 'shipped', days: 20, lines: [['SAF100', 4], ['MN2550', 1]], paid: true, brand: 'Visa', last4: '4242', method: 'card_on_file' });

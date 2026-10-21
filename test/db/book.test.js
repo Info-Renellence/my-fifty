@@ -195,8 +195,24 @@ describe('dayStats: the day goal and the streak', () => {
     await h.touch(sql, c, me.id, { at: now, kind: 'meeting', mode: 'video' });
     await h.touch(sql, c, me.id, { at: now, status: 'cancelled' });
     await h.touch(sql, c, other.id, { at: now });
+    // Not reached (Q9): a no-answer call, a no-show visit (logged as not reached, or marked no_show).
+    await h.touch(sql, c, me.id, { at: now, outcome: 'no_answer' });
+    await h.touch(sql, c, me.id, { at: now, kind: 'meeting', outcome: 'no_answer' });
+    await h.touch(sql, c, me.id, { at: now, kind: 'meeting', status: 'no_show' });
     const s = await B.dayStats(sql, me, await B.settings(sql));
     assert.equal(s.done, 2);
+  }));
+  test('a weekend or holiday never breaks the streak, and adds one when the goal was met on it (Q10)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const days = lastBusinessDays(3, []);
+    const cfg = Object.assign(await B.settings(sql), { daily_goal: 2, holidays: [days[0]] });   // the latest one is a holiday
+    await day(sql, me, days[0], 2, { c });   // goal met on the holiday: adds one
+    await day(sql, me, days[1], 2, { c });
+    await day(sql, me, days[2], 2, { c });
+    assert.equal((await B.dayStats(sql, me, cfg)).streak, 3);
+    const quiet = Object.assign({}, cfg, { holidays: [days[1]] });
+    await sql`update interactions set deleted_at = now() where user_id = ${me.id} and (occurred_at at time zone 'America/Toronto')::date = ${days[1]}::date`;
+    assert.equal((await B.dayStats(sql, me, quiet)).streak, 2, 'a holiday with nothing logged does not break it');
   }));
   test('the streak counts business days in a row with the goal, skipping weekends and holidays', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
