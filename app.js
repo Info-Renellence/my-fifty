@@ -364,7 +364,7 @@
   });
 
   // Find a person (People and New order): results replace the list while typing.
-  var searchTimer = null;
+  var searchTimer = null, searchSeq = 0;   // only the newest search may fill the results (a slow older answer is dropped)
   $app.addEventListener('input', function (e) {
     var inp = e.target.closest('[data-search]');
     if (!inp) return;
@@ -375,8 +375,10 @@
   function runSearch(where, q) {
     if (where === 'ready') return filterReady(q);
     var out = $app.querySelector('[data-search-results]'), body = $app.querySelector('[data-people-body]');
+    var seq = ++searchSeq;
     if (!q) { out.innerHTML = ''; body.classList.remove('hide'); return; }
     read('search', { q: q }).then(function (d) {
+      if (seq !== searchSeq) return;
       body.classList.add('hide');
       var STAGE = { fifty: 'My Fifty', candidate: 'Candidate', lead: 'Lead' };
       out.innerHTML = d.people.length ? '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:12px">' + d.people.map(function (p, i) {

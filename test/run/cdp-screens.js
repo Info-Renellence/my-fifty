@@ -49,6 +49,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     if (m.method === 'Fetch.requestPaused') {
       const u = m.params.request.url;
       if (/supabase-js/.test(u)) return send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/javascript' }], body: Buffer.from(STUB).toString('base64') });
+      if (SCEN === 'searchrace' && /op=search&q=Fa/.test(u)) { await wait(1500); return send('Fetch.continueRequest', { requestId: m.params.requestId }); }
       if (/^https?:\/\/localhost(:\d+)?\//.test(u)) return send('Fetch.continueRequest', { requestId: m.params.requestId });
       blocked.push(u);
       return send('Fetch.failRequest', { requestId: m.params.requestId, errorReason: 'BlockedByClient' });
@@ -159,6 +160,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(400); await shot('flow-log-visit-picked');
       await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
       await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
+    } else if (SCEN === 'searchrace') {
+      // A slow search answer must not show up after the rep has cleared the box.
+      await go('/people'); await type('[data-search]', 'Fa'); await wait(400); await type('[data-search]', ''); await wait(2500);
+      const r = await evaluate("({ results: document.querySelector('[data-search-results]').innerText.trim(), listHidden: document.querySelector('[data-people-body]').classList.contains('hide') })");
+      note('SEARCHRACE ' + JSON.stringify(r) + (r.results || r.listHidden ? ' STALE' : ' OK'));
+      await shot('search-race');
     } else if (SCEN === 'signedout') {
       await shot('signed-out'); await click('[data-signin]'); note('FLOW sign-in button calls Google: ' + await evaluate('!!window.__oauth'));
       await go('/person/00000000-0000-0000-0000-000000000000'); await shot('signed-out-deep-link');
