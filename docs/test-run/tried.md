@@ -50,3 +50,14 @@ Format: time · area · scenario · result
 - 10:16 · two at once · 3 logs at once, 10 Today reads at once · some never answered (F12, fixed: queries with no parameter hang on Supabase's transaction pooler)
 - 10:30 · rewards screen · Alpha: extra $45 checked by hand (2% of 675 + 900 + 450 + 225) · ok; syringes 13 vs 10 by hand (F14, fixed: headbands counted)
 - 10:36 · History Edit on an email (server side) · allowed (F15, fixed)
+- 10:40 · L5 · a candidate's first paid order arrives (n8n-style write) · "Cass Candtest joined your Fifty!" 6 of 50, 4 more to 10 · ok
+- 10:42 · random input · 300 random write bodies × 5 seeds, 120 random reads × 5 seeds (junk types, huge strings, emoji, bad dates) · no server errors · ok
+- 10:43 · two reps at once · Alpha and Bravo add the same new email at the same moment · the second got a raw database error (F16, fixed)
+- 10:44 · add person / samples MD · email held by a removed person · server error (F16, fixed in both places)
+- 10:45 · sign-in · code trusts an email as verified unless Supabase says "false" (F17, proposal: needs a Supabase setting check)
+- 10:46 · deploy · Vercel serves every file in the repository root: tests, SQL, seed script, docs and this report were public (F18, fixed)
+- 10:47 · timer · new social lead owned by a switched-off rep · push would still go to their phone (F19, fixed)
+- 10:47 · L9 · injector on a signed onboarding · could order but was missing from the Ready list (F20, fixed)
+- 10:48 · push subscribe · any https address is accepted as a phone's push address (F21, low, proposal)
+- 10:48 · leads with no source · not in any of the four lead groups, only findable by search (Q5)
+- 10:48 · Gmail pull · a rep's email to a client in another rep's book lands on that client's history (Q6)

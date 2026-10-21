@@ -1,35 +1,37 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
-**Time:** 10:40 AM
+**Time:** 10:52 AM
 
-**Covered since 10:00:** the timer with fake services (and failing ones); Gemini voice notes; every screen at phone size
-for four test people (one of everything, an empty book, 300 people, an admin); speed with 300 people; two things at once
-(several taps, several phones); the rewards screen checked by hand.
+**Covered since 10:40:** the "joined your Fifty" moment (L5); random input against every read and write (1,500+ random
+requests, no server errors); two reps adding the same person at once; sign-in rules; what the public website serves;
+pushes to switched-off reps; the Ready-to-order list.
 
-**New findings since 10:00 (7):**
-- F9 (medium, data between reps) Voice notes sent Gemini the names of *other reps'* clients at the same clinic (to help spelling). **Fixed** 43621c4.
-- F10 (low) Voice-note drafts kept "Saypha Lips" if the AI wrote it that way. **Fixed** 8b26401 (always "saypha lips").
-- F11 (low, needs your decision) With nobody in My Fifty yet, the MY FIFTY tile on Today shows 5 filled dots. An older test says this is intended, so it was not changed.
-- F12 (high) When several requests reach the same server at once, some database reads never answer (they would hang until the 60-second limit). Cause: queries with no values in them stall on Supabase's connection pooler. **Fixed** 7a8f60c (every query now carries a value). This could have looked like "the app is stuck" on a busy morning.
-- F13 (low) Tapping "Tomorrow" on several people quickly (or on two phones) kept only the last one. **Fixed** eca5dfd.
-- F14 (medium, money screen) "saypha syringes this month" counted free headbands, ice packs, lip balms and fact sheets. **Fixed** f1a1b86 (paid lines only).
-- F15 (low) The server let a rep rewrite the text of a sent or pulled email in History (the screen never offered it). **Fixed** 11c7fcc.
+**New findings since 10:40 (7):**
+- F16 (low) Adding a person (or a samples MD) whose email is still held by a removed person, or that another rep saved a moment earlier, gave a raw database error. **Fixed** bd55357 + 86be39f.
+- F17 (medium, needs a check by you) Sign-in treats an @renellence.com email as verified unless Supabase explicitly says "not verified". If email-and-password sign-ups are open in Supabase without email confirmation, someone could sign up as a staff address and be let in as that person. Proposal: confirm Supabase sign-ups are closed (or confirmation is on), and require Supabase's "email confirmed" date in the code. Not changed (the older sign-in tests would need new fixtures, and the setting cannot be checked from here).
+- F18 (medium) The public website served every file in the project: test scripts, SQL, the demo-data generator and these test-run notes (which describe security findings). **Fixed** 6b585cb (a .vercelignore; the app's own files are unchanged). Until it is pushed, those files stay public.
+- F19 (medium, data) A switched-off rep would still get "New Instagram lead: <name>" pushes on their phone for leads still assigned to them. **Fixed** 2bf152c.
+- F20 (low) The injector on a signed onboarding could order but was missing from the L9 "who is ordering" list. **Fixed** d23cf36.
+- F21 (low) Any https address is accepted as a phone's push address, so the server can be made to call any website. Proposal: accept only the browsers' push services.
+- F22 (medium, Phase 2) If n8n is down or refuses when an order is sent, the order is saved as "Waiting on approval" and nothing ever sends it again. The screen says it will go "once the connection is switched on", but no step does that. Proposal for the n8n branch.
 
-**Questions for you (not changed):** Q2 "Same as last order" copies the newest order even if it is not paid yet;
-Q3 someone whose only order is unpaid (not samples) shows as a Lead, but the rule says a lead has no orders at all;
-Q4 "Resend pay link" has no once-an-hour limit (Remind MD has one).
+**Questions added:** Q5 a lead with no source is in none of the four lead groups (only search finds it); Q6 a rep's email to
+a client in another rep's book lands on that client's history (good for the client's story, but the other rep reads it).
 
-**Pushing:** GitHub has refused pushes since about 10:28 ("permission denied to yousefk07": the computer's saved GitHub
-login seems to switch to another account). Commits F12 to F15 are saved locally and will be pushed as soon as it works.
+**Pushing:** GitHub has refused every push since about 10:28 ("permission denied to yousefk07"); 13 commits are waiting
+locally, including F12 to F20. They will go the moment GitHub accepts the push. The computer's saved GitHub login may need
+switching back to the Info-Renellence account.
 
-**Next:** deeper checks: random input against every write, more two-reps-at-once cases, the L5 "joined your Fifty" moment,
-sign-in rules; then the full re-run at 1:00 PM and the final report.
+**Next:** keep going on deeper checks until 1:00 PM, then the full re-run and the final report.
 
 ## Running totals
-- Findings: 15 (high 2, medium 4, low 9). Fixed: 13. Waiting on you: 2 (F6 database rule, F11 dots) + questions Q1-Q4.
+- Findings: 22 (high 2, medium 9, low 11). Fixed: 18. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11) and questions Q1-Q6.
 - Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
 - Tests: all green except the 10 older tests that need rights the test login does not have (see below).
+
+## Earlier (10:00 to 10:40)
+- F9 voice context had other reps' clients: fixed 43621c4. F10 voice drafts capitalised saypha: fixed 8b26401. F11 empty book shows 5 dots: question. F12 reads at once hung on the pooler: fixed 7a8f60c. F13 quick Tomorrow taps lost: fixed eca5dfd. F14 syringe count included free items: fixed f1a1b86. F15 emails editable through the server: fixed 11c7fcc.
 
 ## Earlier (9:30 to 10:00)
 - F1 (high) wire order wrote a payment row: fixed d7af6a7. F2 (medium) settings saved as a list broke Tomorrow and the
