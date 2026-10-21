@@ -20,10 +20,10 @@ const post = (base, body, raw) => fetch(base + '/api/act', { method: 'POST', hea
   const sql = db();
   const [a] = await sql`select id from users where email = 'test.alpha@demo.invalid'`;
   const [b] = await sql`select id from users where email = 'test.bravo@demo.invalid'`;
-  const alphaPeople = await sql`select id, legacy_id from contacts where owner_id = ${a.id}`;
+  const alphaPeople = (await sql`select id, legacy_id from contacts where owner_id = ${a.id}`).filter((p) => p.legacy_id);
   const by = Object.fromEntries(alphaPeople.map((p) => [p.legacy_id.replace('demo-test-', ''), p.id]));
   const alphaOrders = await sql`select o.id, o.legacy_id from orders o join contacts c on c.id = o.contact_id where c.owner_id = ${a.id}`;
-  const ord = Object.fromEntries(alphaOrders.map((o) => [o.legacy_id.replace('demo-test-order-', ''), o.id]));
+  const ord = Object.fromEntries(alphaOrders.filter((o) => o.legacy_id).map((o) => [o.legacy_id.replace('demo-test-order-', ''), o.id]));
   const [ai] = await sql`select id from interactions where user_id = ${a.id} and contact_id = ${by['a-fifty-visited']} limit 1`;
   const [task] = await sql`select id from tasks where assignee_id = ${a.id} limit 1`;
   const [onb] = await sql`select id from onboardings where primary_contact_id = ${by['a-onb-md']}`;
