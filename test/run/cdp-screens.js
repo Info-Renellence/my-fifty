@@ -61,10 +61,11 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   await send('Fetch.enable', { patterns: [{ urlPattern: '*' }] });
   await send('Runtime.enable');
   await send('Page.enable');
-  await send('Emulation.setDeviceMetricsOverride', { width: 390, height: 844, deviceScaleFactor: 1, mobile: true });
+  await send('Emulation.setDeviceMetricsOverride', { width: Number(process.env.WIDTH || 390), height: 844, deviceScaleFactor: 1, mobile: true });
   await send('Emulation.setTouchEmulationEnabled', { enabled: true });
   const evaluate = async (expr) => { const r = await send('Runtime.evaluate', { expression: expr, awaitPromise: true, returnByValue: true }); return r.result && r.result.value; };
-  const go = async (p) => { await send('Page.navigate', { url: BASE + p }); await wait(1600); };
+  // The L5 "joined your Fifty" moment opens over any screen until it is dismissed; the screen pass dismisses it (it is shot once on its own).
+  const go = async (p) => { await send('Page.navigate', { url: BASE + p }); await wait(1600); if (SCEN !== 'joined') await evaluate("(function(){ var k = document.querySelector('[data-keep]'); if (k) k.click(); })()"); await wait(200); };
   const click = async (sel, i) => { const okk = await evaluate(`(function(){ var els = document.querySelectorAll(${JSON.stringify(sel)}); var el = els[${i || 0}]; if (!el) return false; el.click(); return true; })()`); if (!okk) note('NO ELEMENT ' + sel); await wait(700); return okk; };
   const type = async (sel, text) => { await evaluate(`(function(){ var el = document.querySelector(${JSON.stringify(sel)}); if (!el) return; el.focus(); el.value = ${JSON.stringify(text)}; el.dispatchEvent(new Event('input', { bubbles: true })); })()`); await wait(300); };
   // A screen is checked for: horizontal overflow (wider than the phone), text that leaked raw HTML, "undefined"/"NaN"/"null" shown.
@@ -87,7 +88,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     let params = { format: 'png' };
     if (full) {
       const h = await evaluate('document.documentElement.scrollHeight');
-      params = { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: 390, height: Math.min(h, 6000), scale: 1 } };
+      params = { format: 'png', captureBeyondViewport: true, clip: { x: 0, y: 0, width: Number(process.env.WIDTH || 390), height: Math.min(h, 6000), scale: 1 } };
     }
     const r = await send('Page.captureScreenshot', params);
     fs.writeFileSync(path.join(OUT, name + '.png'), Buffer.from(r.data, 'base64'));

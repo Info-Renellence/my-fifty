@@ -84,3 +84,4 @@ Format: time · area · scenario · result
 - 11:33 · Supabase Auth settings (public read, test database) · sign-ups open, Google and email sign-in on, email confirmation required · F6 is reachable by anyone with any Google account; F17 lowered to low (an unconfirmed staff email cannot sign in)
 - 11:40 · random taps in the browser · 5 starting screens × 25 random taps × 5 runs (Alpha twice, Bravo, Echo, Charlie), no sending · no page errors, no overflow, no undefined/NaN shown · ok
 - 11:42 · index.html · the supabase-js sign-in library comes from a public CDN with no integrity hash (F30, low, proposal: the hash cannot be worked out while offline)
+- 11:50 · screens at 320 px wide (small phone) · no sideways scrolling; a 200-character clinic name is cut at the card edge (cosmetic, not changed) · ok
