@@ -78,7 +78,32 @@ the money received (`api/wire.js`). The daily follow-up list is `GET /api/cron?o
 |---|---|---|
 | 30 | A second fictional demo book owned by info@renellence.com (`db/seed-demo-info.sql`): 4 demo staff `demo.*.info@demo.invalid`, 26 clinics, 53 people, their orders (two unpaid net-30 wire orders), calls, visits, tasks and onboardings, all `legacy_id` `demo-info-…` | So info@ can see the whole app as a rep. Removed with `db/wipe-demo.sql` |
 
-## 9. Still to do in v2 (not done yet)
+## 9. Edge redesign, part A (`renellence-edge/db/v2-005-edge-redesign.sql`), 2026-10-21, approved by Yousef
+
+Additive only, so My Fifty keeps working unchanged. Applied by Yousef from the session; checked afterwards.
+
+| # | Change | Why |
+|---|---|---|
+| 31 | `contacts_role` + `dentist` | Roles become physician · injector · dentist · manager · other (renames in part B) |
+| 32 | `contacts_filler` + `yvoire`, `none` | The owner's filler list |
+| 33 | `contacts_prp` + `alyssamed`, `cellenis`, `world_prp`, `naturagel`, `none` | The owner's PRP/PRF list (renames in part B) |
+| 34 | New `contacts.medical_director_id` (→ contacts), indexed; filled for 3 people from their latest onboarding MD | "MD comes from onboarding, the rep can change it" |
+| 35 | New enum `forecasts_tag` (vienna · event) and `forecasts.tag` | The Vienna / event tag on a forecast (a reward for the customer) |
+| 36 | `events_kind` + `dinner`, `clinic_event` | The owner's event kinds |
+| 37 | Policies `events.rep_read`, `event_attendees.rep_invite`, `event_attendees.rep_update` | Reps see events and invite their own contacts; creating events stays admin-only |
+| 38 | `tasks_source` + `one_on_one` | The 1-on-1 "Focus this week" points are tasks |
+| 39 | `marketing_requests` (0 rows): status re-made as sent · in_design · ready · delivered · declined · cancelled; new `campaign`, `goal`, `details`, `in_design_at`, `ready_at`, `delivered_at`; removed `pillar`, `design_id`, `fields`, `branding`, `brief`, `final_file_id`, `ready_sent_at` | Free-form requests; templates dropped; the file is emailed by hand |
+| 40 | New table `expenses` (16 fields, enums `expenses_type` lunch · snacks_beverages · dinner · parking and `expenses_status` to_submit · submitted), row-level security (own or admin), `touch_updated_at` + `log_changes` triggers | Expenses are in the first Edge build; n8n writes receipts, Edge tags them |
+| 41 | New `files.expense_id` (→ expenses) | The receipt photo |
+| 42 | `settings` row `edge` = stuck 1 day, unshipped 2 business days, sampled-no-order 5 days, event follow-up 2 days, badge 6 months, Fifty 3 months | Edge's thresholds in one place |
+
+**Part B, approved but waiting for My Fifty's code** (these would break My Fifty today):
+- `contacts_role`: rename nurse_injector → injector; clinic_owner → manager (14 people), then drop clinic_owner. My Fifty: `app.js` ROLES, `api/act.js` role check, `api/_voice.js` ROLE labels.
+- `contacts_prp`: rename exprecell → exprecell_prf and arthrex_angel → arthrex_prf; drop emcyte. My Fifty: `app.js` PRPS, `api/act.js` PRPS, `api/_voice.js` PRP labels.
+- `contacts.designation`: text → enum md · rn · rpn · np · dds · other ("MD" → md). My Fifty: `api/act.js` inserts 'MD' for a new MD; `scripts/seed-demo.js`.
+- `contacts.email`: drop UNIQUE, keep a plain index (shared emails allowed with a warning). My Fifty: `api/act.js` relies on the 23505 error for "already yours / already someone's"; it needs to check for the email before saving.
+
+## 10. Still to do in v2 (not done yet)
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.
