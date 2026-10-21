@@ -9,8 +9,12 @@
 //
 // The demo book belongs to the person running the demo (DEMO_OWNER, default admin@renellence.com), so signing in as
 // them shows a full My Fifty. Dates are relative to the day the file is generated.
-//   node scripts/seed-demo.js [owner-email] > db/seed-demo.sql
+//   node scripts/seed-demo.js [owner-email] [tag] > db/seed-demo.sql
+// A tag (letters) makes a second, separate demo book for another person next to the first one: every id, legacy id,
+// email, order number and Stripe id gets the tag, so the two never clash (2026-10-21: a book for info@renellence.com,
+// node scripts/seed-demo.js info@renellence.com info > db/seed-demo-info.sql). db/wipe-demo.sql removes both.
 const OWNER = (process.argv[2] || 'admin@renellence.com').toLowerCase();
+const TAG = String(process.argv[3] || '').toLowerCase().replace(/[^a-z]/g, '');
 const DAY = 86400000;
 const now = Date.now();
 let seq = 0;
@@ -146,6 +150,14 @@ for (const [name, c, d] of [['Gail Sample', 'S', 12], ['Hugo Sample', 'T', 25], 
   warm.push(id);
 }
 
+// Two wire orders still to be paid (net 30): one overdue, one due in a few days (Wire · overdue / due on the order).
+for (const [who, d] of [[warm[4], 41], [warm[6], 26]]) {
+  const id = order(who, { days: d, lines: [[P.filler, 6], [P.lips, 2]], method: 'wire', paid: false, shipped: d - 2 });
+  sql(`update orders set payment_terms_days = 30 where id = ${q(id)};`);
+  sql(`insert into payments (order_id, kind, method, amount, currency, status, provider, is_test, created_at)
+    select ${q(id)}, 'charge', 'wire', sum(quantity * unit_price), 'CAD', 'pending', 'wire', true, ${ts(d, 10)} from order_lines where order_id = ${q(id)};`);
+}
+
 // -- going cold (no order or visit in over 30 days) --
 for (const [name, c, d] of [['Omar Sample', 'S', 38], ['Lina Sample', 'T', 31], ['Dr. Kai Sample', 'Z', 33]]) {
   const id = person({ name, clinic: c, role: 'physician', source: 'warm', detail: 'Clinic visit', created: 150, fillers: ['saypha'] });
@@ -236,4 +248,15 @@ for (const [rep, count] of [['Jordan Demo', 7], ['Casey Demo', 4], ['Riley Demo'
 }
 
 sql('commit;');
-console.log(out.join('\n'));
+let text = out.join('\n');
+if (TAG) {
+  const num = String(TAG.split('').reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) % 9000, 7) + 1000);   // 4 digits from the tag
+  text = text
+    .replace(/de000000-/g, 'de00' + num + '-')
+    .replace(/'demo-(clinic|contact|order|env)-/g, "'demo-" + TAG + '-$1-')
+    .replace(/'demo_pi_/g, "'demo_pi_" + TAG + '_')
+    .replace(/'D5(\d{3})'/g, "'D" + num + "$1'")
+    .replace(/(demo\.[a-z]+)@demo\.invalid/g, '$1.' + TAG + '@demo.invalid')
+    .replace(/@sampleclinic/g, '@' + TAG + '.sampleclinic');   // event names keep their ' (demo)' ending, which db/wipe-demo.sql matches
+}
+console.log(text);
