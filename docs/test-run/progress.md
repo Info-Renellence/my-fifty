@@ -1,6 +1,29 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
+**Time:** 11:55 AM
+
+**Covered since 11:35:** Supabase's public sign-in settings; Remind MD twice (with a fake n8n); random taps in the browser
+(5 runs, no page errors); every screen again at 320 px (small phones); a trial of the full re-run (all green: 424 tests
+pass, only the 10 login-rights ones fail as expected; 108 access checks; every browser check OK).
+
+**New since 11:35:**
+- **F6 raised to high:** Supabase v2 lets anyone sign up and Google sign-in is on, so *anyone with any Google account*
+  can sign in to Supabase directly and read the staff list (names, emails, saved settings). Needs a database-rule change (proposal).
+- **F17 lowered to low:** email-and-password sign-ups need email confirmation, so a staff address cannot be taken over today.
+- F30 (low, proposal) the sign-in library is loaded from a public CDN without an integrity check.
+- Q9: a no-answer call, a text or an email logged today takes the person off Today, and a no-answer call or no-show visit
+  counts as a touchpoint; the rules only exclude scheduled and cancelled ones. Intended?
+- CHANGELOG-v2 row 26 records the run's fake rows.
+
+**Next:** 1:00 PM full re-run from scratch (`test/run/rerun-all.sh`), then the final report (`docs/test-run/report.md`).
+
+## Running totals
+- Findings: 29 (high 3, medium 10, low 16). Fixed: 23. Waiting on you: 5 proposals (F6, F17, F21, F22, F30), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q9.
+- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
+- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
+
+## Earlier (11:15 to 11:35)
 **Time:** 11:35 AM
 
 **Covered since 11:15:** the app left open on a phone; double taps on Undo; a 2,000-person book; the coverage map refreshed.
@@ -13,15 +36,6 @@
 - Two of the run's own tests were flaky (they counted pushes while a test rep's waiting leads were being pushed); made steady in 967ae7b.
 
 **F6 raised to high, F17 lowered to low:** Supabase v2's public settings show sign-ups are open with Google sign-in on, so *anyone with any Google account* can sign in to Supabase directly and read the staff list (F6). Email-and-password sign-ups need email confirmation, so F17 is not open today.
-
-**Draft final report:** written; it will be finished after the full re-run at 1:00 PM.
-
-**Next:** a few more checks, then at 1:00 PM the full re-run of everything and the final report (`docs/test-run/report.md`).
-
-## Running totals
-- Findings: 28 (high 3, medium 10, low 15). Fixed: 23. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
-- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
-- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
 ## Earlier (11:05 to 11:15)
 **Time:** 11:15 AM
