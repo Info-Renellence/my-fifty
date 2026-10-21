@@ -47,17 +47,19 @@ describe('ordersFor', () => {
     assert.equal(B.isSample(older), true);
     assert.equal(newest.summary[0].sku, 'SAF100', 'saypha lines come first');
   }));
-  test('paid: a paid status, a wire order, or a real succeeded payment; not a test payment, not a bare order', () => h.withDb(async (sql) => {
+  test('paid: a paid status or a real succeeded payment; a wire order only once its money is marked received; not a test payment, not a bare order', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const ids = {
       shipped: await h.order(sql, c, me, { status: 'shipped' }),
-      wire: await h.order(sql, c, me, { status: 'submitted', method: 'wire' }),
+      wire: await h.order(sql, c, me, { status: 'shipped', method: 'wire' }),   // wire ships before it is paid
+      wireIn: await h.order(sql, c, me, { status: 'shipped', method: 'wire' }),
       card: await h.order(sql, c, me, { status: 'approved', paid: true }),
       test: await h.order(sql, c, me, { status: 'approved', paid: true, testPayment: true }),
       open: await h.order(sql, c, me, { status: 'approved' }),
     };
+    await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, paid_at, is_test) values (${ids.wireIn}, 'charge', 'wire', 450, 'CAD', 'succeeded', 'wire', now(), false)`;
     const by = Object.fromEntries((await B.ordersFor(sql, [c])).map((o) => [o.id, o]));
-    assert.deepEqual(Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, by[id].paid_flag])), { shipped: true, wire: true, card: true, test: false, open: false });
+    assert.deepEqual(Object.fromEntries(Object.entries(ids).map(([k, id]) => [k, by[id].paid_flag])), { shipped: true, wire: false, wireIn: true, card: true, test: false, open: false });
     assert.ok(by[ids.card].paid_at, 'the payment time is read');
   }));
   test('cancelled, rejected and deleted orders are left out', () => h.withDb(async (sql) => {
@@ -93,10 +95,13 @@ describe('book', () => {
     assert.equal(by[cand].sampleDays, 3, 'days since the samples were delivered');
     assert.equal(by[fifty].totalBought, 450);
   }));
-  test('an unpaid order alone does not make someone Fifty', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await h.contact(sql, me);
-    await h.order(sql, c, me, { status: 'approved' });
-    assert.equal((await B.book(sql, me)).people[0].stage, 'lead');
+  test('an order placed in the last 3 months makes Fifty, paid or not; after 3 months with no order they are a warm lead again', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), recent = await h.contact(sql, me, { source: 'social' }), old = await h.contact(sql, me, { source: 'social' });
+    await h.order(sql, recent, me, { status: 'approved' });
+    await h.order(sql, old, me, { status: 'shipped', days: 100 });
+    const by = Object.fromEntries((await B.book(sql, me)).people.map((p) => [p.id, p]));
+    assert.deepEqual([by[recent].stage, by[recent].totalBought], ['fifty', 0], 'in the Fifty; nothing paid yet');
+    assert.deepEqual([by[old].stage, by[old].leadGroup], ['lead', 'warm']);
   }));
   test('going cold after 30 days with no paid order and no visit', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -114,12 +119,15 @@ describe('book', () => {
     assert.equal(by[visited].lastActiveKind, 'visited');
     assert.equal(by[edge].goingCold, false, 'exactly 30 days is not yet cold');
   }));
-  test('a call does not stop someone going cold; a video call is not a visit', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await h.contact(sql, me);
+  test('a call does not stop someone going cold; a video call counts as a visit', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me), v = await h.contact(sql, me);
     await h.order(sql, c, me, { status: 'shipped', days: 40 });
     await h.touch(sql, c, me.id, { kind: 'call', days: 1 });
-    await h.touch(sql, c, me.id, { kind: 'meeting', mode: 'video', days: 1 });
-    assert.equal((await B.book(sql, me)).people[0].goingCold, true);
+    await h.order(sql, v, me, { status: 'shipped', days: 40 });
+    await h.touch(sql, v, me.id, { kind: 'meeting', mode: 'video', days: 1 });
+    const by = Object.fromEntries((await B.book(sql, me)).people.map((p) => [p.id, p]));
+    assert.equal(by[c].goingCold, true);
+    assert.equal(by[v].goingCold, false);
   }));
   test('a lead is new until anyone calls, texts, emails or visits; notes do not count', () => h.withDb(async (sql) => {
     const me = await h.user(sql);

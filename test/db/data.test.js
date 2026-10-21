@@ -158,7 +158,7 @@ describe('person', () => {
     await h.touch(sql, c, me.id, { at: new Date() });
     await h.task(sql, c, me.id, { due: h.ago(-2), title: 'Call back' });
     const p = await D.person(sql, me, Q({ id: c }));
-    assert.equal(p.label, 'MY FIFTY · GOING COLD');
+    assert.equal(p.label, 'MY FIFTY', 'the order placed today keeps her warm (an order counts, paid or not)');
     assert.equal(p.name, 'Dr. Maya Unit');
     assert.equal(p.totalBought, '$900');
     assert.equal(p.lastOrder.total, '$900');
@@ -199,7 +199,7 @@ describe('person', () => {
     const one = async (o) => { const c = await h.contact(sql, me); await h.order(sql, c, me, o); return (await D.person(sql, me, Q({ id: c }))).status; };
     assert.equal((await one({ status: 'submitted' })).label, 'Waiting on approval');
     assert.equal((await one({ status: 'awaiting_md', lines: [['SAL400', 1, true]] })).label, 'Waiting on MD signature');
-    assert.equal((await one({ status: 'approved', method: 'wire' })).label, 'Preparing to ship');
+    assert.equal((await one({ status: 'approved', method: 'wire' })).label, 'Waiting on payment', 'a wire order waits until the money is marked received');
     const s = await one({ status: 'approved', lines: [['SAL400', 1, true]] });
     assert.deepEqual([s.kind, s.label, s.sub], ['samples', 'Preparing to ship', 'Samples · Free']);
     assert.equal(await one({ status: 'shipped', shipped: 1 }), null);

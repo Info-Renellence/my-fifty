@@ -45,8 +45,9 @@ const OPS = {
     const fifty = people.filter((p) => p.stage === 'fifty');
     // "Joined your Fifty" (L5): the newest person whose first paid order came after the last one shown.
     const seenAt = me.settings.fifty_seen_at ? new Date(me.settings.fifty_seen_at) : null;
-    const fresh = fifty.filter((p) => p.firstPaidAt && (!seenAt || new Date(p.firstPaidAt) > seenAt))
-      .sort((a, b) => new Date(b.firstPaidAt) - new Date(a.firstPaidAt));
+    // Joining = their first order (the Fifty is worked out from orders placed, paid or not: Edge decisions 2026-10-21).
+    const fresh = fifty.filter((p) => p.firstOrderAt && (!seenAt || new Date(p.firstOrderAt) > seenAt))
+      .sort((a, b) => new Date(b.firstOrderAt) - new Date(a.firstOrderAt));
     const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
     const gmail = await sql`select status from user_connections where user_id = ${me.id} and kind = 'gmail' order by updated_at desc limit 1`;
     return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, joined, firstVisit: !seenAt,
@@ -71,7 +72,7 @@ const OPS = {
       .sort((a, b) => (b.sampleDays == null ? -1 : b.sampleDays) - (a.sampleDays == null ? -1 : a.sampleDays));
     const leads = people.filter((p) => p.stage === 'lead');
     const groups = Object.keys(LEAD_GROUPS).map((k) => {
-      const g = leads.filter((p) => p.sourceKind === k);
+      const g = leads.filter((p) => p.leadGroup === k);   // someone who left the Fifty is a warm lead
       return { key: k, label: LEAD_GROUPS[k] === 'Events and training' ? 'Event and training leads' : k === 'social' ? 'Social media leads' : LEAD_GROUPS[k], count: g.length, fresh: g.filter((p) => p.isNew).length };
     });
     const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub });
@@ -90,7 +91,7 @@ const OPS = {
     const group = q.get('group');
     if (!own(LEAD_GROUPS, group)) throw fail(400, 'bad_group');
     const { people } = await B.book(sql, me);
-    const leads = people.filter((p) => p.stage === 'lead' && p.sourceKind === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    const leads = people.filter((p) => p.stage === 'lead' && p.leadGroup === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const added = group === 'cold' || group === 'warm' ? await addedBy(sql, leads.map((p) => p.id), me) : {};
     return { group, title: LEAD_GROUPS[group], leads: leads.map((p) => ({
       id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt),
@@ -106,7 +107,7 @@ const OPS = {
     return {
       id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold,
       label: p.stage === 'fifty' ? (p.goingCold ? 'MY FIFTY · GOING COLD' : 'MY FIFTY') : p.stage === 'candidate' ? 'CANDIDATE'
-        : 'LEAD · ' + ({ social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.sourceKind] || 'NEW'),
+        : 'LEAD · ' + ({ social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
       totalBought: p.stage === 'fifty' ? money(p.totalBought) : null,
       lastOrder: p.lastPaid ? { total: money(p.lastPaid.total), date: T.short(B.paidAt(p.lastPaid)) } : null,
       status, followUp: p.followUp ? { id: p.followUp.id, date: T.ymd(p.followUp.due_at), label: T.short(p.followUp.due_at), title: p.followUp.title } : null,
@@ -433,7 +434,9 @@ function orderSteps(o, x, pays, wire) {
   const paid = x && x.paid_flag;
   const pay = pays[0];
   let payWhen = '';
-  if (paid) payWhen = o.payment_method === 'wire' ? (wire ? wire.text : 'Wire / e-transfer') : pay && pay.paid_at ? fmtTime(pay.paid_at) : 'Paid';
+  // A wire order is paid only once the money is marked received (Edge decisions 2026-10-21); until then its due date shows.
+  if (o.payment_method === 'wire') payWhen = wire ? wire.text : 'Wire';
+  else if (paid) payWhen = pay && pay.paid_at ? fmtTime(pay.paid_at) : 'Paid';
   else if (pay && pay.status === 'failed') payWhen = 'Card declined' + (pay.pay_link_url ? ' · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '') : '');
   else if (pay && pay.method === 'pay_link') payWhen = 'No card on file · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '');
   const steps = [

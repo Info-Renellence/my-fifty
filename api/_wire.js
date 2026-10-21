@@ -41,7 +41,7 @@ function state(o, pay, fallbackTerms, now) {
     return { status: 'received', due, terms, receivedAt: pay.paid_at, text: 'Wire · received ' + T.short(pay.paid_at) };
   }
   if (days > 0) return { status: 'overdue', due, terms, daysLate: days, text: 'Wire · ' + days + (days === 1 ? ' day' : ' days') + ' overdue' };
-  return { status: 'open', due, terms, daysToDue: -days, text: 'Wire · due ' + dueText };
+  return { status: 'open', due, terms, daysToDue: -days, text: 'Wire · net ' + terms + ', due ' + dueText };   // 'Wire · net 30, due Nov 20'
 }
 
 // Today's follow-up for one open wire: 'heads_up' 5 days before the due date, 'overdue' on day 1 late and every 7

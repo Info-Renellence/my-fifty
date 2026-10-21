@@ -13,7 +13,7 @@ describe('wire state', () => {
   test('not a wire order: nothing', () => assert.equal(W.state(order({ payment_method: 'card_on_file' }), null, 30, at('2026-10-05')), null));
   test('due date = order date + the order\'s terms', () => {
     const s = W.state(order(), null, 30, at('2026-10-05'));
-    assert.deepEqual([s.status, s.due, s.daysToDue, s.text], ['open', '2026-10-31', 26, 'Wire · due Oct 31']);
+    assert.deepEqual([s.status, s.due, s.daysToDue, s.text], ['open', '2026-10-31', 26, 'Wire · net 30, due Oct 31']);
   });
   test('counted from the invoice date once invoiced', () => assert.equal(W.state(order({ invoiced_at: T.atLocal('2026-10-04', 9, 0) }), null, 30).due, '2026-11-03'));
   test('the order\'s own terms win; orders placed before terms existed use the standard', () => {

@@ -1119,10 +1119,10 @@
       } else {
         h += smallLabel('PAYMENT')
           + '<div style="display:grid;grid-template-columns:1fr 1fr;background:#E3E6EC;border-radius:10px;padding:2px;margin-bottom:6px">'
-          + [['card_on_file', 'Card on file'], ['wire', 'Wire / e-transfer']].map(function (x) {
+          + [['card_on_file', 'Card on file'], ['wire', 'Wire']].map(function (x) {
             return '<button type="button" data-pay="' + x[0] + '" style="height:36px;border:0;border-radius:8px;font-size:14px;font-weight:600;' + (dft.payment === x[0] ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + x[1] + '</button>';
           }).join('') + '</div>'
-          + '<span style="display:block;font-size:13px;color:#6B7486;padding:0 4px 12px">' + (dft.payment === 'wire' ? 'They pay by wire or e-transfer within their payment terms. It counts as sold now and ships once approved.'
+          + '<span style="display:block;font-size:13px;color:#6B7486;padding:0 4px 12px">' + (dft.payment === 'wire' ? 'They pay by wire (e-transfer counts as wire) within their payment terms, usually net 30. It counts as ordered now and as paid once the money is marked received.'
             : d.card.saved ? esc(d.card.text) + ' · charged once approved. No card or declined? They get a pay link.' : 'No card on file. They get a pay link once approved.') + '</span>';
       }
       function noteRow(key, label, first) {

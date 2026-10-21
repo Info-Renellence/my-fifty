@@ -138,8 +138,8 @@ describe('Mark as received (api/wire.js)', () => {
   }));
 });
 
-describe('rewards date a wire order by when it was placed, also after the money arrives', () => {
-  test('marking it received weeks later does not move it', () => h.withDb(async (sql) => {
+describe('rewards count a wire order only once its money is marked received, on that day', () => {
+  test('placed before the period, received inside it: counts in the period', () => h.withDb(async (sql) => {
     const keep = JSON.parse(JSON.stringify(R.PROGRAMS));
     const from = T.addDays(T.ymd(), -10);
     for (const k of ['booster', 'trip']) { R.PROGRAMS[k].from = from; R.PROGRAMS[k].to = T.addDays(T.ymd(), 5); }
@@ -147,8 +147,9 @@ describe('rewards date a wire order by when it was placed, also after the money 
       const me = await h.user(sql), c = await h.contact(sql, me);
       const id = await wireOrder(sql, me, c, T.addDays(T.ymd(), -20), 30);   // placed before the period
       await sql`update payments set status = 'succeeded', paid_at = now() where order_id = ${id}`;   // money arrives inside it
-      const r = await R.rewards(sql, me);
-      assert.equal(r.booster.onNew, '$0');
+      assert.equal((await R.rewards(sql, me)).booster.onNew, '$9', '2% of 450, counted when the money arrived');
+      await sql`update payments set status = 'pending', paid_at = null where order_id = ${id}`;
+      assert.equal((await R.rewards(sql, me)).booster.onNew, '$0', 'unpaid: nothing');
     } finally { for (const k of ['booster', 'trip']) Object.assign(R.PROGRAMS[k], keep[k]); }
   }));
 });

@@ -22,7 +22,7 @@ async function ready(sql, me) {
 
 
 describe('R1-R4 stages, odd orders', () => {
-  test('every order status: only paid ones make Fifty; rejected/cancelled/deleted are ignored', () => h.withDb(async (sql) => {
+  test('every order status makes Fifty (ordered, paid or not); rejected/cancelled/deleted are ignored', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const out = {};
     for (const s of ['submitted', 'approved', 'rejected', 'awaiting_md', 'invoiced', 'paid', 'sent_to_warehouse', 'shipped', 'delivered', 'cancelled']) {
@@ -35,7 +35,7 @@ describe('R1-R4 stages, odd orders', () => {
     await sql`update orders set deleted_at = now() where id = ${od}`;
     const by = await byId(sql, me);
     const fifty = Object.entries(out).filter(([, c]) => by[c].stage === 'fifty').map(([s]) => s);
-    assert.deepEqual(fifty, ['paid', 'sent_to_warehouse', 'shipped', 'delivered']);
+    assert.deepEqual(fifty, ['submitted', 'approved', 'awaiting_md', 'invoiced', 'paid', 'sent_to_warehouse', 'shipped', 'delivered']);
     assert.equal(by[out.rejected].stage, 'lead');
     assert.equal(by[out.cancelled].stage, 'lead');
     assert.equal(by[d].stage, 'lead');
@@ -52,11 +52,12 @@ describe('R1-R4 stages, odd orders', () => {
     await h.order(sql, c, me, { status: 'delivered', delivered: 2, lines: [['SAL400', 2, true]], paid: true });
     assert.equal((await byId(sql, me))[c].stage, 'candidate');
   }));
-  test('samples plus an unpaid order stays a candidate; a test payment never makes Fifty', () => h.withDb(async (sql) => {
+  test('samples plus an order (even one paid only by a test payment) is Fifty: ordering is what counts', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await h.order(sql, c, me, { lines: [['SAL400', 1, true]], delivered: 4 });
     await h.order(sql, c, me, { status: 'approved', paid: true, testPayment: true });
-    assert.equal((await byId(sql, me))[c].stage, 'candidate');
+    const p = (await byId(sql, me))[c];
+    assert.deepEqual([p.stage, p.totalBought], ['fifty', 0], 'a test payment never counts as paid');
   }));
 });
 
@@ -114,15 +115,18 @@ describe('R10 Toronto time across daylight saving', () => {
 
 describe('R15-R19 rewards edge cases', () => {
   function around(from, to) { const keep = JSON.parse(JSON.stringify(R.PROGRAMS)); for (const k of ['booster', 'trip']) { R.PROGRAMS[k].from = from; R.PROGRAMS[k].to = to; } return () => { for (const k of ['booster', 'trip']) Object.assign(R.PROGRAMS[k], keep[k]); }; }
-  test('a wire order counts on the day it was placed', () => h.withDb(async (sql) => {
+  test('a wire order earns nothing until its money is marked received, then counts on that day', () => h.withDb(async (sql) => {
     const back = around(T.addDays(T.ymd(), -5), T.addDays(T.ymd(), 5));
     try {
       const me = await h.user(sql), c = await h.contact(sql, me);
-      await h.order(sql, c, me, { status: 'submitted', method: 'wire', days: 2, lines: [['SAF100', 4]] });
-      await h.order(sql, c, me, { status: 'submitted', method: 'wire', days: 10, lines: [['SAF100', 4]] });
+      const first = await h.order(sql, c, me, { status: 'shipped', method: 'wire', days: 20, lines: [['SAF100', 4]] });
+      const second = await h.order(sql, c, me, { status: 'shipped', method: 'wire', days: 10, lines: [['SAF100', 4]] });
+      assert.deepEqual([(await R.rewards(sql, me)).booster.onNew, (await R.rewards(sql, me)).booster.onReorders], ['$0', '$0'], 'unpaid wire orders earn nothing');
+      const pay = (id, day) => sql`insert into payments (order_id, kind, method, amount, currency, status, provider, paid_at, is_test) values (${id}, 'charge', 'wire', 900, 'CAD', 'succeeded', 'wire', ${T.atLocal(day, 12, 0)}, false)`;
+      await pay(first, T.addDays(T.ymd(), -8)); await pay(second, T.addDays(T.ymd(), -1));
       const r = await R.rewards(sql, me);
-      assert.equal(r.booster.onNew, '$0', 'the first order was placed before the period');
-      assert.equal(r.booster.onReorders, '$36', '4% of 900');
+      assert.equal(r.booster.onNew, '$0', 'the first order\'s money arrived before the period');
+      assert.equal(r.booster.onReorders, '$36', '4% of 900, counted on the day it was marked received');
     } finally { back(); }
   }));
   test('the last evening of the quarter (Dec 31, 11:30 PM Toronto) is still in the Q4 Booster', () => h.withDb(async (sql) => {

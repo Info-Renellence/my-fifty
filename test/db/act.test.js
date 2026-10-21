@@ -291,7 +291,7 @@ describe('order (L10 / L15 Send for approval)', () => {
     assert.deepEqual([...lines], [{ sku: 'HDB100', quantity: 1, p: 0, is_free: true }, { sku: 'SAF100', quantity: 2, p: 225, is_free: false }]);
     assert.equal((await sql`select count(*)::int n from payments where order_id = ${r.orderId}`)[0].n, 0);
   }));
-  test('a wire order counts as paid at once, with one pending wire payment to collect and its terms', () => h.withDb(async (sql) => {
+  test('a wire order is ordered at once but not paid: one pending wire payment to collect, and its terms', () => h.withDb(async (sql) => {
     // Yousef 2026-10-21: sold when placed; collecting is tracked by one pending wire payment row (marked received later).
     const me = await h.user(sql), c = await ready(sql, me);
     const r = await A.order(me, { contactId: c, payment: 'wire', lines: [{ sku: 'SAF100', qty: 2 }] });
@@ -301,7 +301,7 @@ describe('order (L10 / L15 Send for approval)', () => {
     assert.equal(o.m, 'wire');
     assert.equal(o.t, await require('../../api/_wire').defaultTerms(sql));
     const [x] = (await require('../../api/_book').ordersFor(sql, [c])).filter((y) => y.id === r.orderId);
-    assert.equal(x.paid_flag, true);
+    assert.equal(x.paid_flag, false, 'not paid until the money is marked received');
     assert.equal(x.total, 450);
   }));
   test('samples: every line free, the MD found by email and marked as an MD', () => h.withDb(async (sql) => {

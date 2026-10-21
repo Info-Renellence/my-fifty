@@ -1,11 +1,16 @@
 // A rep's book, with everything My Fifty shows worked out from v2's records (nothing derived is stored,
 // SOP section 9):
 //
-//   stage      lead       no paid order and no sample order (an unpaid order alone is still a lead: Yousef 2026-10-21, Q3)
-//              candidate  has a sample order (every line free) and no paid order
-//              fifty      any paid order (a wire order counts as paid as soon as it is placed)
-//   goingCold  a Fifty person with no paid order and no visit in the last N days (settings, default 30)
+// Stages (Edge decisions 2026-10-21, shared with the data-model SOP; worked out, never stored):
+//   stage      fifty      a (non-sample) order placed in the last 3 months (settings fifty_months), paid or not
+//              candidate  has a sample order (every line free), and is not in the Fifty
+//              lead       otherwise. Someone who left the Fifty (no order for 3 months) is a lead again and shows as
+//                         a WARM lead (leadGroup), whatever their first source
+//   goingCold  a Fifty person with no order and no visit (in person or video) in the last N days (settings, default 30)
 //   isNew      a lead nobody has called, texted, emailed or visited yet
+// Ordered and paid are different: "ordered" is every placed order that isn't cancelled or rejected; "paid" (used for
+// rewards and Total bought) needs the money: a paid status or a succeeded payment, and for a wire order only its wire
+// payment marked received (a wire order ships before it is paid, so its status says nothing about payment).
 //
 // Reached (Yousef 2026-10-21, Q9): a call or in-person visit counts towards the day goal, and takes the person off
 // Today, only when they were reached: a no-answer call or a no-show visit does neither. An email never does; a text
@@ -17,7 +22,7 @@ const T = require('./_time');
 const NOT_REACHED = ['no_answer', 'voicemail', 'busy', 'no_show'];
 const REACHED = (sql) => sql`(coalesce(i.outcome, 'connected') <> all(${NOT_REACHED}) and i.status is distinct from 'no_show')`;
 
-const DEFAULTS = { daily_goal: 8, going_cold_days: 30, fifty_goal: 50, new_lead_hours: 24 };
+const DEFAULTS = { daily_goal: 8, going_cold_days: 30, fifty_goal: 50, new_lead_hours: 24, fifty_months: 3 };
 
 async function settings(sql) {
   const rows = await sql`select key, value from settings where key = any(${['my_fifty', 'holidays']})`;
@@ -37,10 +42,9 @@ async function ordersFor(sql, contactIds) {
            o.created_at,
            coalesce(l.total, 0)::float8 as total, coalesce(l.n, 0)::int as n_lines, coalesce(l.all_free, false) as all_free,
            l.summary,
-           coalesce(o.status = any(${PAID_STATUSES}) or o.payment_method = 'wire'
+           coalesce((o.payment_method is distinct from 'wire' and o.status = any(${PAID_STATUSES}))
              or exists (select 1 from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true), false) as paid_flag,
-           (select min(p.paid_at) from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true
-               and o.payment_method is distinct from 'wire') as paid_at   -- a wire order is dated by when it was placed, not when the money arrived
+           (select min(p.paid_at) from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true) as paid_at
       from orders o
       left join lateral (
         select sum(case when coalesce(ol.is_free, false) then 0 else ol.quantity * coalesce(ol.unit_price, 0) end) as total,
@@ -55,7 +59,9 @@ async function ordersFor(sql, contactIds) {
 
 const isSample = (o) => o.n_lines > 0 && o.all_free;
 const isPaid = (o) => !isSample(o) && o.n_lines > 0 && o.paid_flag;
-const paidAt = (o) => o.paid_at || o.submitted_at || o.created_at;
+const paidAt = (o) => o.paid_at || o.submitted_at || o.created_at;   // a wire order: the day the money was marked received
+const placedAt = (o) => o.submitted_at || o.created_at;
+const isOrder = (o) => !isSample(o) && o.n_lines > 0;   // "ordered": placed, not cancelled or rejected, not samples
 
 // The whole book of one person. opts.contactId limits it to one contact (still owned by them).
 async function book(sql, me, opts) {
@@ -80,7 +86,7 @@ async function book(sql, me, opts) {
       select i.contact_id,
              max(i.occurred_at) filter (where i.kind <> 'note') as last_touch_at,
              (array_agg(i.kind::text order by i.occurred_at desc) filter (where i.kind <> 'note'))[1] as last_touch_kind,
-             max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode = 'in_person' and i.status is distinct from 'cancelled') as last_visit_at,
+             max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode in ('in_person', 'video') and i.status is distinct from 'cancelled') as last_visit_at,   -- a video call counts as a visit
              count(*) filter (where i.kind <> 'note') as touches,
              bool_or(i.user_id = ${me.id} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today
@@ -100,6 +106,7 @@ async function book(sql, me, opts) {
   const people = contacts.map((c) => {
     const os = ordersBy[c.id] || [];
     const paid = os.filter(isPaid);
+    const ordered = os.filter(isOrder);
     const samples = os.filter(isSample);
     const t = touchBy[c.id] || {};
     const p = {
@@ -116,11 +123,16 @@ async function book(sql, me, opts) {
       touches: Number(t.touches || 0), touchedToday: !!t.touched_today,
       followUp: taskBy[c.id] || null,
     };
-    p.stage = paid.length ? 'fifty' : samples.length ? 'candidate' : 'lead';
+    const lastOrderAt = ordered.length ? ordered.map(placedAt).reduce((a, x) => (x > a ? x : a)) : null;
+    p.lastOrderAt = lastOrderAt;
+    p.firstOrderAt = ordered.length ? ordered.map(placedAt).reduce((a, x) => (x < a ? x : a)) : null;
+    const inFifty = lastOrderAt && new Date(lastOrderAt) > monthsAgo(cfg.fifty_months, now);
+    p.stage = inFifty ? 'fifty' : samples.length && !ordered.length ? 'candidate' : 'lead';
+    p.leadGroup = ordered.length ? 'warm' : p.sourceKind;   // left the Fifty: a warm lead
     if (p.stage === 'fifty') {
-      const lastActive = [p.lastPaid && paidAt(p.lastPaid), p.lastVisitAt].filter(Boolean).reduce((a, x) => (x > a ? x : a));
+      const lastActive = [lastOrderAt, p.lastVisitAt].filter(Boolean).reduce((a, x) => (x > a ? x : a));
       p.lastActiveAt = lastActive;
-      p.lastActiveKind = p.lastVisitAt && p.lastVisitAt >= paidAt(p.lastPaid) ? 'visited' : 'ordered';
+      p.lastActiveKind = p.lastVisitAt && p.lastVisitAt >= lastOrderAt ? 'visited' : 'ordered';
       p.coldDays = T.daysBetween(lastActive, now);
       p.goingCold = p.coldDays > cfg.going_cold_days;
     }
@@ -148,6 +160,8 @@ function addr(c, k) {
   a.line = [a.street, a.city].filter(Boolean).join(', ');
   return a;
 }
+// The moment n months before now (calendar months, Toronto day).
+function monthsAgo(n, now) { const d = new Date(now); d.setMonth(d.getMonth() - (Number(n) || 3)); return d; }
 function group(rows, key) { const out = {}; for (const r of rows) (out[r[key]] = out[r[key]] || []).push(r); return out; }
 
 // The day goal and streak: a touchpoint is a call or an in-person visit the person logged where they were reached
@@ -221,4 +235,4 @@ function ago(at) {
 // The next milestone: every 5 people (the Fifty tile shows the last 10 dots towards it).
 const nextMilestone = (n) => Math.floor(n / 5) * 5 + 5;
 
-module.exports = { settings, book, ordersFor, dayStats, todayList, isSample, isPaid, paidAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };
+module.exports = { settings, book, ordersFor, dayStats, todayList, isSample, isPaid, isOrder, paidAt, placedAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };

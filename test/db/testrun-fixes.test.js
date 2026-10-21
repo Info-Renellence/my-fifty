@@ -20,8 +20,8 @@ void T; void R;
 
 // F1 was withdrawn (Yousef 2026-10-21): a wire order writes one *pending* wire payment row (the SOP), which is how
 // collecting the money is tracked; it still counts as sold when placed.
-describe('R24 wire orders: counted as paid when placed, the money tracked by a pending wire payment', () => {
-  test('placing a wire order writes one pending wire payment, and the person is Fifty at once', () => h.withDb(async (sql) => {
+describe('R24 wire orders: ordered when placed, paid when the money is marked received', () => {
+  test('placing a wire order writes one pending wire payment, and the person is Fifty at once (nothing bought yet)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
     const r = await A.order(me, { contactId: c, payment: 'wire', lines: [{ sku: 'SAF100', qty: 2 }] });
     const pays = await sql`select status::text from payments where order_id = ${r.orderId}`;
@@ -30,7 +30,7 @@ describe('R24 wire orders: counted as paid when placed, the money tracked by a p
     assert.equal(o.m, 'wire');
     const p = (await byId(sql, me))[c];
     assert.equal(p.stage, 'fifty');
-    assert.equal(p.totalBought, 450);
+    assert.equal(p.totalBought, 0, 'not paid until the money is marked received');
   }));
 });
 describe('users.settings that are not an object (seen live on a real row)', () => {

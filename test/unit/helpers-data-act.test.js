@@ -132,11 +132,11 @@ describe('data: order words and steps', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: placed }, { paid_flag: false }, [{ method: 'card_on_file', status: 'failed', created_at: placed }]);
     assert.equal(steps[2].when, 'Card declined');
   });
-  test('orderSteps: wire is paid at once', () => {
-    const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, payment_method: 'wire' }, { paid_flag: true }, []);
-    assert.equal(steps[2].done, true);
-    assert.equal(steps[2].when, 'Wire / e-transfer');
-    assert.equal(steps[3].current, true);
+  test('orderSteps: a wire order is paid only once received; until then the Payment step waits', () => {
+    const open = D.orderSteps({ submitted_at: placed, approved_at: placed, payment_method: 'wire' }, { paid_flag: false }, [], { text: 'Wire · net 30, due Nov 20' });
+    assert.deepEqual([open[2].done, open[2].current, open[2].when], [false, true, 'Wire · net 30, due Nov 20']);
+    const paid = D.orderSteps({ submitted_at: placed, approved_at: placed, payment_method: 'wire' }, { paid_flag: true }, [], { text: 'Wire · received Nov 18' });
+    assert.deepEqual([paid[2].done, paid[2].when], [true, 'Wire · received Nov 18']);
   });
   test('orderSteps: a wire order shows where its payment stands', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, payment_method: 'wire' }, { paid_flag: true }, [], { text: 'Wire · 3 days overdue' });
