@@ -82,3 +82,4 @@ Format: time · area · scenario · result
 - 11:32 · load · a 2,000-person book (rolled back): Today 0.7 s (690 on the list), People 0.6 s, Rewards 0.6 s, Ready 0.7 s · ok
 - 11:30 · Remind MD (fake n8n on) · twice for a samples order and twice for an onboarding · first sent, second "Already reminded in the last hour" · ok
 - 11:33 · Supabase Auth settings (public read, test database) · sign-ups open, Google and email sign-in on, email confirmation required · F6 is reachable by anyone with any Google account; F17 lowered to low (an unconfirmed staff email cannot sign in)
+- 11:40 · random taps in the browser · 5 starting screens × 25 random taps × 5 runs (Alpha twice, Bravo, Echo, Charlie), no sending · no page errors, no overflow, no undefined/NaN shown · ok

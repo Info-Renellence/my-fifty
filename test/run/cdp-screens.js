@@ -174,6 +174,24 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       const after = await evaluate("document.getElementById('app').innerText.indexOf('" + LAST + "') >= 0");
       note('STALE before=' + before + ' after=' + after + (after ? ' OK' : ' STALE TODAY'));
       await shot('stale-today');
+    } else if (SCEN === 'monkey') {
+      // Random taps on every screen (no order sending, no emails, no outside apps): looking for page errors and broken screens.
+      let seed = Number(process.env.MONKEY_SEED || 3);
+      const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+      const SKIP = '[data-send-order],[data-send],[data-push-on],[data-connect],[data-signin],[data-quo],[data-call],[data-mic],[data-email]';
+      for (const start of ['/', '/people', '/order', '/rewards', '/people/leads/social']) {
+        await go(start);
+        for (let i = 0; i < 25; i++) {
+          const n = await evaluate(`document.querySelectorAll('#app button, #app a[data-nav], #sheet button').length`);
+          if (!n) break;
+          const k = rnd(n);
+          await evaluate(`(function(){ var els = Array.from(document.querySelectorAll('#app button, #app a[data-nav], #sheet button')); var el = els[${k}]; if (el && !el.matches(${JSON.stringify(SKIP)})) el.click(); })()`);
+          await wait(450);
+          const r = await check('monkey ' + start + ' #' + i);
+          void r;
+        }
+      }
+      note('MONKEY done');
     } else if (SCEN === 'undotwice') {
       // Log a call, then tap Undo twice quickly: the rep should only ever see "Undone".
       const all = await api('op=search&q=Wren');
