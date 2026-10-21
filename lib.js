@@ -22,7 +22,7 @@
   var ERR = {
     note_required: 'Say or type what happened first.', pick_a_follow_up: 'Pick a follow-up date.', name_required: 'Add a name.',
     bad_email: 'That email doesn’t look right.', bad_phone: 'That phone number doesn’t look right.',
-    already_yours: 'This person is already in your book.', already_someones: 'This person is already in someone else’s book.',
+    already_yours: 'This person is already in your book.', email_yours: 'Someone in your book already has this email.', email_someones: 'Someone in another rep’s book already has this email.', already_someones: 'This person is already in someone else’s book.',
     no_products: 'Add products first.', md_required: 'Add the medical director’s name and email.', not_ready_to_order: 'They need to finish onboarding before ordering.',
     voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
     gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.', resent_recently: 'Pay link already resent in the last hour.',

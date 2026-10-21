@@ -425,9 +425,11 @@
   }
 
   // ---- L7 / L8 Person card -----------------------------------------------------------------------------
-  var FILLERS = [['saypha', 'saypha'], ['juvederm', 'Juvéderm'], ['restylane', 'Restylane'], ['teoxane_rha', 'Teoxane (RHA)'], ['belotero', 'Belotero'], ['revanesse', 'Revanesse'], ['stylage', 'Stylage'], ['other', 'Other']];
-  var PRPS = [['eclipse_prp', 'Eclipse PRP'], ['regenlab', 'RegenLab'], ['arthrex_angel', 'Arthrex Angel'], ['emcyte', 'EmCyte'], ['exprecell', 'Exprecell'], ['other', 'Other']];
-  function names(list, keys) { var m = {}; list.forEach(function (x) { m[x[0]] = x[1]; }); return keys.map(function (k) { return m[k] || k; }).join(' · '); }
+  // The lists as the Edge redesign agreed them (v2 part B; the server reads old names as these). 'None' is picked on its own.
+  var FILLERS = [['saypha', 'saypha'], ['juvederm', 'Juvéderm'], ['restylane', 'Restylane'], ['teoxane_rha', 'Teoxane (RHA)'], ['belotero', 'Belotero'], ['revanesse', 'Revanesse'], ['stylage', 'Stylage'], ['yvoire', 'Yvoire'], ['other', 'Other'], ['none', 'None']];
+  var PRPS = [['eclipse_prp', 'Eclipse PRP'], ['regenlab', 'RegenLab'], ['arthrex_prf', 'Arthrex PRF'], ['exprecell_prf', 'Exprecell PRF'], ['alyssamed', 'AlyssaMed'], ['cellenis', 'Cellenis'], ['world_prp', 'World PRP'], ['naturagel', 'NaturaGel'], ['other', 'Other'], ['none', 'None']];
+  var RETIRED = { emcyte: 'EmCyte' };   // no longer offered, still shown if someone has it
+  function names(list, keys) { var m = Object.assign({}, RETIRED); list.forEach(function (x) { m[x[0]] = x[1]; }); return keys.map(function (k) { return m[k] || k; }).join(' · '); }
   var STATUS_ICON = { order: 'box', samples: 'gift', onboarding: 'pen' };
   var current = null;   // the person on screen (for the Log sheet header etc.)
   function screenPerson(id) {
@@ -524,7 +526,13 @@
     draw();
     sheetHandler = function (e) {
       var b = e.target.closest('[data-pick]');
-      if (b) { var k = b.getAttribute('data-pick'), i = picked.indexOf(k); if (i >= 0) picked.splice(i, 1); else picked.push(k); draw(); return; }
+      if (b) {
+        var k = b.getAttribute('data-pick'), i = picked.indexOf(k);
+        if (i >= 0) picked.splice(i, 1);
+        else if (k === 'none') picked = ['none'];   // 'None' clears the rest, and anything else clears 'None'
+        else { picked = picked.filter(function (x) { return x !== 'none'; }); picked.push(k); }
+        draw(); return;
+      }
       if (e.target.closest('[data-save]')) {
         var body = { contactId: p.id }; body[which === 'fillers' ? 'fillers' : 'prp'] = picked;
         act('set_uses', body).then(function () { closeSheet(); screenPerson(p.id); }, function (err) { toast(errText(err)); });
@@ -745,7 +753,8 @@
   }
 
   // ---- L13 Add a person -------------------------------------------------------------------------------------
-  var ROLES = [['physician', 'Physician'], ['nurse_injector', 'Nurse injector'], ['clinic_owner', 'Clinic owner'], ['manager', 'Manager'], ['other', 'Other']];
+  // Roles as the Edge redesign agreed them (v2 part B); the server writes whichever name v2 has (api/_lists.js).
+  var ROLES = [['physician', 'Physician'], ['injector', 'Injector'], ['dentist', 'Dentist'], ['manager', 'Manager'], ['other', 'Other']];
   function openAddPerson() {
     var st = { role: null, warm: true, busy: false };
     var IN = 'flex:1 1 auto;min-width:0;height:50px;border:0;background:transparent;padding:0 14px;font-size:17px;color:#062064;outline:none';
@@ -786,11 +795,29 @@
         if (st.busy) return;
         var v = function (n) { return $sheet.querySelector('[name="' + n + '"]').value.trim(); };
         st.busy = true; b.textContent = 'Saving…';
-        act('add_person', { firstName: v('firstName'), lastName: v('lastName'), clinic: v('clinic'), phone: v('phone'), email: v('email'), role: st.role, warm: st.warm })
+        act('add_person', { firstName: v('firstName'), lastName: v('lastName'), clinic: v('clinic'), phone: v('phone'), email: v('email'), role: st.role, warm: st.warm, sharedEmailOk: st.sharedEmailOk })
           .then(function (r) { closeSheet(); toast('Saved'); go('/person/' + r.id); },
-            function (err) { st.busy = false; b.textContent = 'Save person'; toast(errText(err)); if (err.message === 'already_yours' && err.detail) { closeSheet(); go('/person/' + err.detail); } });
+            function (err) {
+              st.busy = false; b.textContent = 'Save person';
+              // Someone already has this email (clinics may share one, v2 part B): warn, and let the rep save anyway.
+              if (err.message === 'email_yours' || err.message === 'email_someones') { showEmailWarning(err); return; }
+              toast(errText(err));
+              if (err.message === 'already_yours' && err.detail) { closeSheet(); go('/person/' + err.detail); }
+            });
+        return;
       }
+      if ((b = e.target.closest('[data-open-dupe]'))) { closeSheet(); go('/person/' + b.getAttribute('data-open-dupe')); return; }
+      if (e.target.closest('[data-save-anyway]')) { st.sharedEmailOk = true; var s = $sheet.querySelector('[data-save]'); if (s) s.click(); }
     };
+    function showEmailWarning(err) {
+      var box = $sheet.querySelector('[data-email-warn]');
+      if (!box) { box = document.createElement('div'); box.setAttribute('data-email-warn', ''); $sheet.querySelector('[data-save]').insertAdjacentElement('beforebegin', box); }
+      box.innerHTML = '<div style="background:#FFF1D6;color:#8A5A00;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.35">'
+        + '<span>' + esc(errText(err)) + ' Clinics can share an email, so you can still save this person.</span>'
+        + '<span style="display:flex;gap:8px;flex-wrap:wrap">'
+        + (err.message === 'email_yours' && err.detail ? '<button type="button" data-open-dupe="' + esc(err.detail) + '" style="height:36px;padding:0 14px;border-radius:18px;border:0;background:#FFFFFF;color:#062064;font-size:14px;font-weight:600">Open them</button>' : '')
+        + '<button type="button" data-save-anyway style="height:36px;padding:0 14px;border-radius:18px;border:0;background:#8A5A00;color:#FFFFFF;font-size:14px;font-weight:600">Save anyway</button></span></div>';
+    }
   }
 
   // ---- Email (L7 Email): sent from the rep's Gmail ------------------------------------------------------------

@@ -73,7 +73,7 @@ function person(o) {
   values (${q(id)}, ${o.clinic ? q(clinic[o.clinic]) : 'null'}, ${o.noOwner ? 'null' : o.owner ? q(o.owner) : ME}, ${q(first)}, ${q(rest.join(' '))}, ${q(email)}, ${q(o.role || null)}, ${q('+1555020' + String(10000 + n).slice(1))},
     ${q((12 + n) + ' Sample St')}, 'Sampleton', 'ON', 'Z9Z 9Z9', ${q(o.source || 'warm')}, ${q(o.detail || null)}, ${o.event ? q(EV[o.event]) : 'null'},
     ${q('{' + (o.fillers || []).join(',') + '}')}::contacts_filler[], ${q('{' + (o.prp || []).join(',') + '}')}::contacts_prp[], ${q('demo-contact-' + n)}, ${o.createdAt ? q(o.createdAt) : o.created != null ? ts(o.created, 9) : ts(120)});`);
-  if (o.name.startsWith('Dr. ')) sql(`update contacts set designation = 'MD' where id = ${q(id)};`);
+  if (o.name.startsWith('Dr. ')) sql(`update contacts set designation = 'md' where id = ${q(id)};`);
   sql("select set_config('app.user_id', '', true);");
   return id;
 }
@@ -135,7 +135,7 @@ const warmNames = [['Dr. Ben Sample', 'A'], ['Zoe Sample', 'D'], ['Raj Sample', 
   ['Owen Sample', 'K'], ['Dr. Priya Sample', 'L'], ['Quinn Sample', 'M'], ['Rosa Sample', 'N'], ['Tobi Sample', 'O'], ['Tess Sample', 'P'], ['Uri Sample', 'R'], ['Vera Sample', 'U'],
   ['Will Sample', 'V'], ['Xena Sample', 'W'], ['Yuki Sample', 'X']];
 const warm = warmNames.map(([name, c], i) => {
-  const id = person({ name, clinic: c, role: i % 3 === 0 ? 'physician' : i % 3 === 1 ? 'nurse_injector' : 'clinic_owner', source: i % 4 === 0 ? 'social' : i % 4 === 1 ? 'event' : 'warm', detail: i % 4 === 0 ? 'Instagram' : i % 4 === 2 ? 'Referral' : null, event: i % 4 === 1 ? 'academy' : null, created: 200 - i * 5, fillers: i % 2 ? ['saypha'] : ['saypha', 'juvederm'], prp: i % 5 === 0 ? ['exprecell'] : [] });
+  const id = person({ name, clinic: c, role: i % 3 === 0 ? 'physician' : i % 3 === 1 ? 'injector' : 'manager', source: i % 4 === 0 ? 'social' : i % 4 === 1 ? 'event' : 'warm', detail: i % 4 === 0 ? 'Instagram' : i % 4 === 2 ? 'Referral' : null, event: i % 4 === 1 ? 'academy' : null, created: 200 - i * 5, fillers: i % 2 ? ['saypha'] : ['saypha', 'juvederm'], prp: i % 5 === 0 ? ['exprecell'] : [] });
   const first = order(id, { days: 120 - i * 4, lines: [[P.filler, 4 + (i % 3)], [P.lips, 2]], shipped: 118 - i * 4, method: i % 6 === 5 ? 'wire' : 'card_on_file' });
   void first;
   // A reorder in the last month keeps them warm; some of the reorders are in this quarter (Rewards).
@@ -144,7 +144,7 @@ const warm = warmNames.map(([name, c], i) => {
 });
 // Two people whose first order ever is this quarter (new orders for the Q4 Booster and the Trip to Vienna).
 for (const [name, c, d] of [['Gail Sample', 'S', 12], ['Hugo Sample', 'T', 25], ['Iris Sample', 'Y', 9]]) {
-  const id = person({ name, clinic: c, role: 'nurse_injector', source: 'social', detail: 'Facebook', created: d + 20 });
+  const id = person({ name, clinic: c, role: 'injector', source: 'social', detail: 'Facebook', created: d + 20 });
   order(id, { days: 40, samples: true, lines: [[P.lips, 2]], shipped: 39, delivered: 37 });
   order(id, { days: d, lines: [[P.filler, 6], [P.lips, 4], [P.volume, 2]], shipped: d - 1 });
   warm.push(id);
@@ -189,7 +189,7 @@ followUp(warm[1], 'Drop off the lips kit', 1, 'visit');
 followUp(warm[5], 'Ask about the Christmas order', 6);
 
 // -- candidates: samples, no paid order yet --
-const leo = person({ name: 'Leo Sample', clinic: 'K', role: 'nurse_injector', source: 'event', event: 'launch', created: 30 });
+const leo = person({ name: 'Leo Sample', clinic: 'K', role: 'injector', source: 'event', event: 'launch', created: 30 });
 order(leo, { days: 23, samples: true, lines: [[P.lips, 2], [P.mask, 2]], shipped: 22, delivered: 20 });
 sql(`insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values (${q(leo)}, ${q(leo)}, ${ts(25)}, 'complete', ${ts(24)}, ${ts(24)});`);
 const sara = person({ name: 'Dr. Sara Sample', clinic: 'H', role: 'physician', source: 'social', detail: 'Instagram', created: 25, fillers: ['juvederm'] });
@@ -203,13 +203,13 @@ sql(`insert into agreement_signers (agreement_id, contact_id, name, email, role,
   (${q(agr)}, ${q(lee)}, 'Dr. Lee Sample', 'lee@sampleclinich.example', 'md', 2, 'sent', null);`);
 sql(`insert into onboardings (primary_contact_id, injector_contact_id, md_contact_id, submitted_at, status, card_saved_at, agreement_id) values (${q(sara)}, ${q(sara)}, ${q(lee)}, ${ts(17)}, 'submitted', ${ts(17)}, ${q(agr)});`);
 sql(`update agreements set sent_at = ${ts(2)} where id = ${q(agr)};`);
-const mia = person({ name: 'Mia Sample', clinic: 'M', role: 'clinic_owner', source: 'warm', detail: 'Referral', created: 14 });
+const mia = person({ name: 'Mia Sample', clinic: 'M', role: 'manager', source: 'warm', detail: 'Referral', created: 14 });
 order(mia, { days: 9, samples: true, lines: [[P.filler, 1], [P.lips, 1]], shipped: 8, delivered: 7 });
 touch(mia, { kind: 'call', days: 3, body: 'Tried the lips sample on a client, loved it.' });
-const noah = person({ name: 'Noah Sample', clinic: 'N', role: 'nurse_injector', source: 'event', event: 'webinar', created: 6 });
+const noah = person({ name: 'Noah Sample', clinic: 'N', role: 'injector', source: 'event', event: 'webinar', created: 6 });
 order(noah, { days: 4, samples: true, lines: [[P.lips, 2]], shipped: 3, delivered: 2 });
 // A sample order still waiting on the MD (L21).
-const nina = person({ name: 'Nina Sample', clinic: 'E', role: 'nurse_injector', source: 'warm', detail: 'Clinic visit', created: 8 });
+const nina = person({ name: 'Nina Sample', clinic: 'E', role: 'injector', source: 'warm', detail: 'Clinic visit', created: 8 });
 const ninaOrder = order(nina, { days: 0, hour: 8, min: 47, samples: true, lines: [[P.lips, 2], [P.mask, 2]], md: lee, status: 'awaiting_md' });
 sql(`insert into agreements (kind, contact_id, order_id, envelope_id, status, sent_at) values ('md_pdr', ${q(nina)}, ${q(ninaOrder)}, 'demo-env-2', 'waiting', ${ts(0, 9, 12)});`);
 
@@ -217,7 +217,7 @@ sql(`insert into agreements (kind, contact_id, order_id, envelope_id, status, se
 // Social media (newest first: two brand new today, the rest already touched)
 for (const [name, c, detail, d, h, t] of [['Nadia Sample', 'L', 'Instagram', 0, 7, null], ['Tara Sample', 'U', 'Instagram', 0, 4, null], ['Jay Sample', 'E', 'Facebook', 1, 9, ['call', 1]],
   ['Kim Sample', 'Z', 'Instagram', 3, 10, ['text', 3]], ['Amy Sample', 'O', 'Facebook', 5, 10, ['call', 4]], ['Liam Sample', 'I', 'Instagram', 8, 10, ['meeting', 8]], ['Pia Sample', 'P', 'Instagram', 14, 10, ['email', 12]]]) {
-  const id = person({ name, clinic: c, source: 'social', detail, created: d, createdAt: d === 0 ? new Date(now - h * 3600000).toISOString() : null, role: 'nurse_injector' });
+  const id = person({ name, clinic: c, source: 'social', detail, created: d, createdAt: d === 0 ? new Date(now - h * 3600000).toISOString() : null, role: 'injector' });
   if (t) touch(id, { kind: t[0], days: t[1], body: t[0] === 'text' ? 'Sent the saypha lips info.' : 'Intro, interested in a visit.' });
 }
 // Events and training

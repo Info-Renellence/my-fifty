@@ -193,7 +193,7 @@ describe('orders and money through the app (act.order)', () => {
     const [x] = await sql`select bool_and(is_free) f, sum(unit_price)::float8 p from order_lines where order_id = ${r.orderId}`;
     assert.deepEqual([x.f, x.p], [true, 0]);
     const [md] = await sql`select first_name, last_name, designation, is_medical_director, owner_id from contacts where email = 'testa.medic@demo.invalid'`;
-    assert.deepEqual([md.first_name, md.last_name, md.designation, md.is_medical_director], ['Testa', 'Medic', 'MD', true]);
+    assert.deepEqual([md.first_name, md.last_name, md.designation, md.is_medical_director], ['Testa', 'Medic', 'md', true]);
   }));
   test('not ready: no onboarding and only rejected or cancelled orders', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
@@ -261,12 +261,11 @@ describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () 
     const r2 = await A.add_person(me, { firstName: 'Intl', phone: '+44 20 7946 0958' });
     assert.equal((await sql`select mobile from contacts where id = ${r2.id}`)[0].mobile, '+442079460958');
   }));
-  test('add a person who is already in another rep\'s book: refused without telling who or which record', () => h.withDb(async (sql) => {
+  test('add a person who is already in another rep\'s book: warned (email) or refused (phone), without telling who or which record', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
     await h.contact(sql, other, { email: 'taken.testrun@demo.invalid', phone: '+14165550111' });
-    for (const body of [{ firstName: 'X', email: 'Taken.Testrun@demo.invalid' }, { firstName: 'X', phone: '416 555 0111' }]) {
-      await assert.rejects(A.add_person(me, body), (e) => e.status === 409 && e.message === 'already_someones' && e.detail === undefined);
-    }
+    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'Taken.Testrun@demo.invalid' }), (e) => e.status === 409 && e.message === 'email_someones' && e.detail === undefined);
+    await assert.rejects(A.add_person(me, { firstName: 'X', phone: '416 555 0111' }), (e) => e.status === 409 && e.message === 'already_someones' && e.detail === undefined);
   }));
   test('two reps adding the same new clinic name share one clinic', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);

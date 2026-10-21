@@ -205,18 +205,21 @@ describe('add_person (L13)', () => {
     const [c] = await sql`select clinic_id from contacts where id = ${r.id}`;
     assert.equal(c.clinic_id, null);
   }));
-  test('a duplicate email or phone is refused, saying whose it is', () => h.withDb(async (sql) => {
+  test('an email someone has is a warning (saying whose); a duplicate phone is refused (v2 part B)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
     const mine = await h.contact(sql, me, { email: 'dup.mine@test.invalid' });
     await h.contact(sql, other, { email: 'dup.theirs@test.invalid', phone: '+16475550199' });
-    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'DUP.MINE@test.invalid' }), (e) => e.status === 409 && e.message === 'already_yours' && e.detail === mine);
-    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'dup.theirs@test.invalid' }), (e) => e.message === 'already_someones' && e.detail === undefined);
+    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'DUP.MINE@test.invalid' }), (e) => e.status === 409 && e.message === 'email_yours' && e.detail === mine);
+    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'dup.theirs@test.invalid' }), (e) => e.message === 'email_someones' && e.detail === undefined);
+    // Save anyway: allowed once v2 lets two people share an email; until then the database still refuses it clearly.
+    const r = await sql.savepoint((t) => A.add_person(me, { firstName: 'X', email: 'dup.mine@test.invalid', sharedEmailOk: true }).then((x) => x, (e) => e));
+    assert.ok(r.ok === true || (r.status === 409 && /^already_/.test(r.message)), JSON.stringify(r && r.message));
     await assert.rejects(A.add_person(me, { firstName: 'X', phone: '(647) 555-0199' }), st(409, 'already_someones'));
   }));
   test('a secondary email also counts as taken', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await sql`update contacts set secondary_email = 'acct@test.invalid' where id = ${c}`;
-    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'acct@test.invalid' }), st(409, 'already_yours'));
+    await assert.rejects(A.add_person(me, { firstName: 'X', email: 'acct@test.invalid' }), st(409, 'email_yours'));
   }));
 });
 
@@ -235,9 +238,15 @@ describe('set_follow_up, set_uses, edit_note, invoice_email', () => {
   test('set_uses keeps the known names and ignores the rest', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await A.set_uses(me, { contactId: c, fillers: ['saypha', 'botox', 'saypha', 'other'] });
-    await A.set_uses(me, { contactId: c, prp: ['emcyte'] });
+    await A.set_uses(me, { contactId: c, prp: ['emcyte', 'exprecell_prf', 'arthrex_angel'] });   // emcyte is no longer offered (v2 part B)
     const [r] = await sql`select fillers_used::text[] f, prp_used::text[] p from contacts where id = ${c}`;
-    assert.deepEqual(r, { f: ['saypha', 'other'], p: ['emcyte'] });
+    assert.deepEqual(r.f, ['saypha', 'other']);
+    const L = require('../../api/_lists');
+    assert.deepEqual(L.canonAll('contacts_prp', r.p), ['exprecell_prf', 'arthrex_prf'], 'stored under whichever name v2 has, read as the new names');
+    await A.set_uses(me, { contactId: c, fillers: ['none', 'saypha'] });
+    assert.deepEqual((await sql`select fillers_used::text[] f from contacts where id = ${c}`)[0].f, ['saypha'], '"none" never sits next to a filler');
+    await A.set_uses(me, { contactId: c, fillers: ['none'] });
+    assert.deepEqual((await sql`select fillers_used::text[] f from contacts where id = ${c}`)[0].f, ['none']);
     await A.set_uses(me, { contactId: c, fillers: [] });
     assert.deepEqual((await sql`select fillers_used::text[] f from contacts where id = ${c}`)[0].f, []);
   }));
@@ -318,7 +327,7 @@ describe('order (L10 / L15 Send for approval)', () => {
     const email = 'md.new.' + h.uid() + '@test.invalid';
     const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr. Lee Unit', mdEmail: email });
     const [md] = await sql`select first_name, last_name, designation, owner_id, is_medical_director, role::text from contacts where id = (select md_contact_id from orders where id = ${r.orderId})`;
-    assert.deepEqual(md, { first_name: 'Lee', last_name: 'Unit', designation: 'MD', owner_id: null, is_medical_director: true, role: 'physician' });
+    assert.deepEqual(md, { first_name: 'Lee', last_name: 'Unit', designation: 'md', owner_id: null, is_medical_director: true, role: 'physician' });
   }));
   test('with n8n connected, the order is sent with its id and the key', () => h.withDb(async (sql) => {
     process.env.N8N_MYFIFTY_URL = 'https://n8n.test/hook';

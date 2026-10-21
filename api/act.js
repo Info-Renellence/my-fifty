@@ -135,7 +135,7 @@ const OPS = {
   async add_person(me, b) {
     const first = clean(b.firstName, 80), last = clean(b.lastName, 80);
     if (!first && !last) throw fail(400, 'name_required');
-    const role = ['physician', 'nurse_injector', 'clinic_owner', 'manager', 'other'].includes(b.role) ? b.role : null;
+    const Ls = require('./_lists');
     const warm = b.warm !== false;
     const email = clean(b.email, 200).toLowerCase();
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw fail(400, 'bad_email');
@@ -143,9 +143,13 @@ const OPS = {
     if (b.phone && !phone) throw fail(400, 'bad_phone');
     const clinicName = clean(b.clinic, 160);
     const sql = db();
-    if (email) {
-      const [dupe] = await sql`select id, owner_id from contacts where (lower(email::text) = ${email} or lower(secondary_email::text) = ${email}) and deleted_at is null`;
-      if (dupe) throw fail(409, dupe.owner_id === me.id ? 'already_yours' : 'already_someones', dupe.owner_id === me.id ? dupe.id : undefined);
+    const role = b.role ? await Ls.toDb(sql, 'contacts_role', b.role) : null;   // new or old role names (v2 part B)
+    // An email someone already has is a warning, not a stop (v2 part B: clinics can share a front-desk email).
+    // It is looked up first; the rep sees who has it and can save anyway (sharedEmailOk).
+    if (email && !b.sharedEmailOk) {
+      const [dupe] = await sql`select id, owner_id from contacts where (lower(email::text) = ${email} or lower(secondary_email::text) = ${email}) and deleted_at is null
+        order by (owner_id = ${me.id}) desc limit 1`;
+      if (dupe) throw fail(409, dupe.owner_id === me.id ? 'email_yours' : 'email_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     if (phone) {
       const [dupe] = await sql`select id, owner_id from contacts where (phone = ${phone} or mobile = ${phone}) and deleted_at is null`;
@@ -166,7 +170,8 @@ const OPS = {
         returning id`;
       return c.id;
     }).catch(async (e) => {
-      // Someone else saved the same email first (two reps at once), or a removed person still holds it: a clear answer, not an error.
+      // While v2 still has one-email-per-person (until part B): someone else saved the same email first (two reps at
+      // once), or a removed person still holds it: a clear answer, not an error.
       if (e && e.code === '23505' && /email/.test(e.constraint_name || e.message || '')) {
         const [d] = await sql`select id, owner_id, deleted_at from contacts where lower(email::text) = ${email} limit 1`;
         const yours = d && d.owner_id === me.id && !d.deleted_at;
@@ -191,12 +196,12 @@ const OPS = {
   },
 
   async set_uses(me, b) {
-    const FILLERS = ['saypha', 'juvederm', 'restylane', 'teoxane_rha', 'belotero', 'revanesse', 'stylage', 'other'];
-    const PRPS = ['eclipse_prp', 'regenlab', 'arthrex_angel', 'emcyte', 'exprecell', 'other'];
+    // The lists and the old/new names are in api/_lists.js (v2 part B); "none" is only ever saved on its own.
+    const Ls = require('./_lists');
     const sql = db();
     const c = await mine(sql, me, b.contactId);
-    const pick = (list, allowed) => (Array.isArray(list) ? [...new Set(list.filter((x) => allowed.includes(x)))] : null);
-    const fillers = pick(b.fillers, FILLERS), prp = pick(b.prp, PRPS);
+    const fillers = Array.isArray(b.fillers) ? await Ls.listToDb(sql, 'contacts_filler', b.fillers) : null;
+    const prp = Array.isArray(b.prp) ? await Ls.listToDb(sql, 'contacts_prp', b.prp) : null;
     await asUser(me.id, async (tx) => {
       if (fillers) await tx`update contacts set fillers_used = ${fillers}::contacts_filler[] where id = ${c.id}`;
       if (prp) await tx`update contacts set prp_used = ${prp}::contacts_prp[] where id = ${c.id}`;
@@ -278,7 +283,7 @@ const OPS = {
         else {
           const parts = md.name.replace(/^dr\.?\s+/i, '').split(/\s+/);
           [{ id: mdId }] = await tx`insert into contacts (clinic_id, first_name, last_name, email, is_medical_director, role, designation)
-            values (${c.clinic_id}, ${parts[0]}, ${parts.slice(1).join(' ') || null}, ${md.email}, true, 'physician', ${/^dr\.?\s/i.test(md.name) ? 'MD' : null}) returning id`;
+            values (${c.clinic_id}, ${parts[0]}, ${parts.slice(1).join(' ') || null}, ${md.email}, true, 'physician', ${/^dr\.?\s/i.test(md.name) ? 'md' : null}) returning id`;   // designation list is lower case (v2 part B)
         }
       }
       const [o] = await tx`

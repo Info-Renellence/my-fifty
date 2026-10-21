@@ -18,6 +18,7 @@
 //
 // Everything is scoped to contacts the person owns (owner_id), the same rule as row-level security.
 const T = require('./_time');
+const L = require('./_lists');
 
 const NOT_REACHED = ['no_answer', 'voicemail', 'busy', 'no_show'];
 const REACHED = (sql) => sql`(coalesce(i.outcome, 'connected') <> all(${NOT_REACHED}) and i.status is distinct from 'no_show')`;
@@ -111,9 +112,10 @@ async function book(sql, me, opts) {
     const t = touchBy[c.id] || {};
     const p = {
       id: c.id, name: fullName(c), first: c.first_name || '', clinic: c.clinic || '', clinicId: c.clinic_id,
-      email: c.email || '', secondaryEmail: c.secondary_email || '', phone: c.mobile || c.phone || '', role: c.role,
+      email: c.email || '', secondaryEmail: c.secondary_email || '', phone: c.mobile || c.phone || '', role: L.canon('contacts_role', c.role),
       sourceKind: c.source_kind, sourceDetail: c.source_detail || '', eventName: c.event_name || '', createdAt: c.created_at,
-      fillers: c.fillers_used || [], prp: c.prp_used || [],
+      // Old list names read as the new ones (v2 part B renames; api/_lists.js).
+      fillers: L.canonAll('contacts_filler', c.fillers_used), prp: L.canonAll('contacts_prp', c.prp_used),
       shipping: addr(c, 'shipping'), billing: addr(c, 'billing'),
       orders: os, paidOrders: paid.length, sampleOrders: samples.length,
       totalBought: paid.reduce((a, x) => a + x.total, 0),

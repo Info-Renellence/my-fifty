@@ -14,9 +14,11 @@ const { fail, clean } = require('./_http');
 
 const MAX_AUDIO_B64 = 3600000;   // about 2.7 MB of sound; the platform refuses bodies over 4.5 MB
 const MIMES = ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/mpeg', 'audio/wav', 'audio/aac', 'audio/m4a', 'audio/x-m4a'];
-const ROLE = { physician: 'physician', nurse_injector: 'nurse injector', clinic_owner: 'clinic owner', manager: 'manager', other: '' };
-const FILLER = { saypha: 'saypha', juvederm: 'Juvéderm', restylane: 'Restylane', teoxane_rha: 'Teoxane (RHA)', belotero: 'Belotero', revanesse: 'Revanesse', stylage: 'Stylage', other: 'another filler' };
-const PRP = { eclipse_prp: 'Eclipse PRP', regenlab: 'RegenLab', arthrex_angel: 'Arthrex Angel', emcyte: 'EmCyte', exprecell: 'Exprecell', other: 'another PRP system' };
+// Labels for the new and the old list names (v2 part B renames them; api/_lists.js).
+const ROLE = { physician: 'physician', injector: 'injector', dentist: 'dentist', manager: 'manager', other: '', nurse_injector: 'injector', clinic_owner: 'manager' };
+const FILLER = { saypha: 'saypha', juvederm: 'Juvéderm', restylane: 'Restylane', teoxane_rha: 'Teoxane (RHA)', belotero: 'Belotero', revanesse: 'Revanesse', stylage: 'Stylage', yvoire: 'Yvoire', other: 'another filler', none: '' };
+const PRP = { eclipse_prp: 'Eclipse PRP', regenlab: 'RegenLab', arthrex_prf: 'Arthrex PRF', exprecell_prf: 'Exprecell PRF', alyssamed: 'AlyssaMed', cellenis: 'Cellenis', world_prp: 'World PRP',
+  naturagel: 'NaturaGel', other: 'another PRP system', none: '', arthrex_angel: 'Arthrex PRF', exprecell: 'Exprecell PRF', emcyte: 'EmCyte' };
 
 const SCHEMA = { type: 'OBJECT', properties: { note: { type: 'STRING' }, nextStep: { type: 'STRING' }, followUpDate: { type: 'STRING' }, transcript: { type: 'STRING' } },
   required: ['note', 'nextStep', 'followUpDate', 'transcript'] };
