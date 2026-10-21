@@ -59,6 +59,7 @@ Every change below was made on 2026-10-20. The SQL is in `db/`.
 |---|---|---|
 | 24 | pg_cron job `my-fifty-tick` paused (`active = false`) for the run | No pushes or Gmail pulls on the test data. Turned back on after the run |
 | 25 | New login role `test_agent`: reads and writes rows only (no right to change tables, fields or rules), skips row-level security like the app server, and can switch to `authenticated`/`anon` to test the RLS rules | The 4-hour testing agent (`docs/test-run-rules.md`) uses this login, not the master key. Dropped after the run |
+| 26 | Rows only, all fictional: 6 test users (`test.alpha` … `test.foxtrot` `@demo.invalid`), about 330 people and 170 orders (`legacy_id` `demo-test-…`), clinics "Testrun …", 2 `ad_objects` (`meta_id` `demo-test-…`), a Gmail `ingest_events` row, and the calls, texts, tasks, payments, onboardings, notifications, voice drafts and connections hanging off them (`test/run/seed-test-data.js`, plus what the run did through the app) | Test data for the run; kept for the owner to look at. Removed with `db/wipe-demo.sql` (extended for these rows). No structure changed |
 
 ## 7. Still to do in v2 (not done yet)
 
