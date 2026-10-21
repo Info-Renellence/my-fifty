@@ -1,0 +1,21 @@
+[no-network] guard on: only localhost and Supabase v2 (ojphplepzuwchjtuycpv) may be reached
+ok    fetch refused: generativelanguage.googleapis.com
+ok    fetch refused: renellence.app.n8n.cloud
+ok    fetch refused: oauth2.googleapis.com
+ok    fetch refused: gmail.googleapis.com
+ok    fetch refused: fcm.googleapis.com
+ok    fetch refused: api.openphone.com
+ok    fetch refused: graph.facebook.com
+ok    fetch refused: my-fifty.vercel.app
+ok    fetch refused: example.com
+ok    https.get refused: generativelanguage.googleapis.com
+ok    raw socket refused: gmail.googleapis.com:443
+ok    Gemini connector could not reach Google (gemini_unreachable)
+ok    n8n connector could not reach n8n (n8n_unreachable)
+ok    Gmail connector could not reach Google OAuth (NETWORK_BLOCKED: fetch to oauth2.googleapis.com is not allowed during the test run)
+ok    web push could not reach the push service (NETWORK_BLOCKED: https.request to fcm.googleapis.com is not allowed during the t)
+ok    Supabase v2 reachable as test_agent (47 products)
+ok    Supabase v2 API host allowed (HTTP 200)
+
+17 passed, 0 failed. Blocked attempts logged: 15
+Assertion failed: !(handle->flags & UV_HANDLE_CLOSING), file src\win\async.c, line 94

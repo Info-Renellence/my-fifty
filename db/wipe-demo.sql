@@ -1,6 +1,9 @@
 -- Removes every row made by scripts/seed-demo.js (run before go-live). Real setup data (products, settings, staff) stays.
 -- Demo rows are: users @demo.invalid; clinics, contacts and orders with legacy_id 'demo-…'; events named '… (demo)';
 -- and everything hanging off them, including their change_log rows.
+-- Test run 2026-10-21 (test/run/seed-test-data.js and the testing agent) adds: users test.*@demo.invalid; legacy_id 'demo-test-…';
+-- contacts owned by a demo user or with an @demo.invalid email (people added through the app during the run);
+-- clinics named 'Testrun …' that nobody is left at; ad_objects with meta_id 'demo-test-…'; ingest_events with a 'demo-test' key.
 --
 -- change_log is append-only and has real foreign keys to contacts and users, so this one clean-up runs with triggers
 -- off (session_replication_role = replica, which also turns off the foreign-key checks for this transaction). That is
@@ -8,9 +11,10 @@
 begin;
 set local session_replication_role = replica;
 
-create temp table demo_contacts on commit drop as select id from contacts where legacy_id like 'demo-%';
-create temp table demo_orders on commit drop as select id from orders where legacy_id like 'demo-%' or contact_id in (select id from demo_contacts);
 create temp table demo_users on commit drop as select id from users where email like '%@demo.invalid';
+create temp table demo_contacts on commit drop as select id from contacts where legacy_id like 'demo-%' or email::text like '%@demo.invalid'
+  or owner_id in (select id from demo_users);
+create temp table demo_orders on commit drop as select id from orders where legacy_id like 'demo-%' or contact_id in (select id from demo_contacts);
 
 delete from notifications where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders) or user_id in (select id from demo_users);
 delete from ai_outputs where contact_id in (select id from demo_contacts) or interaction_id in (select id from interactions where contact_id in (select id from demo_contacts));
@@ -28,7 +32,10 @@ update contacts set source_event_id = null where id in (select id from demo_cont
 delete from events where name like '% (demo)';
 delete from forecasts where contact_id in (select id from demo_contacts);
 delete from contacts where id in (select id from demo_contacts);
-delete from clinics where legacy_id like 'demo-%';
+delete from clinics where legacy_id like 'demo-%' or (name like 'Testrun %' and not exists (select 1 from contacts c where c.clinic_id = clinics.id));
+delete from ad_objects where meta_id like 'demo-test-%' and parent_id is not null;
+delete from ad_objects where meta_id like 'demo-test-%';
+delete from ingest_events where external_key like '%demo-test%';
 delete from user_connections where user_id in (select id from demo_users);
 delete from change_log where contact_id in (select id from demo_contacts) or actor_user_id in (select id from demo_users)
    or entity_id in (select id from demo_contacts) or entity_id in (select id from demo_orders) or entity_id in (select id from demo_users)
