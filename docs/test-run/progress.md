@@ -1,6 +1,27 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
+**Time:** 11:35 AM
+
+**Covered since 11:15:** the app left open on a phone; double taps on Undo; a 2,000-person book; the coverage map refreshed.
+
+**New findings since 11:15:**
+- F28 (medium) Screens could stay out of date while the app was left open: answers were kept until the rep saved
+  something, so Today missed new leads and kept yesterday's list. **Fixed** 2b03eb5 (an answer is reused for one minute
+  at most, and refreshed when the app comes back to the front).
+- F29 (low) Tapping Undo twice showed "Something went wrong" next to "Undone". **Fixed** 8c48261.
+- Two of the run's own tests were flaky (they counted pushes while a test rep's waiting leads were being pushed); made steady in 967ae7b.
+
+**Draft final report:** written; it will be finished after the full re-run at 1:00 PM.
+
+**Next:** a few more checks, then at 1:00 PM the full re-run of everything and the final report (`docs/test-run/report.md`).
+
+## Running totals
+- Findings: 28 (high 2, medium 12, low 14). Fixed: 23. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
+- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
+- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
+
+## Earlier (11:05 to 11:15)
 **Time:** 11:15 AM
 
 **Covered since 11:05:** the data-model SOP compared with the app; sign-in screen; people with no clinic, email or phone;
@@ -17,13 +38,6 @@ the product picker's "Same as last order"; slow answers on the phone (search and
 - F26 (low) People search: a slow older answer could show after the rep cleared the box. **Fixed** 96aca0d.
 - F27 (medium) On a slow connection, tapping a person and then another tab could leave the person's card on screen while the app was on the other tab. **Fixed** ee2d6e6.
 - F11 detail: the MY FIFTY dots fill for people who do not exist below 5 (0 people: 5 dots, 1: 6, 3: 8, 4: 9, then 5 people: 5 dots).
-
-**Next:** more checks until 1:00 PM, then the full re-run and the final report.
-
-## Running totals
-- Findings: 26 (high 2, medium 11, low 13). Fixed: 21. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
-- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
-- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
 ## Earlier (10:40 to 11:05)
 - F16 email held by a removed person (or saved a moment earlier by another rep) gave a database error: fixed bd55357, 86be39f. F17 sign-in trusts unverified emails unless told: proposal. F18 public site served tests, SQL and these notes: fixed 6b585cb. F19 pushes to a switched-off rep: fixed 2bf152c. F21 any https address accepted as a push address: proposal. F22 orders n8n refused are never resent: proposal. F23 candidate with a second sample order showed "Not shipped": fixed f558770. F24 "Next:"-only note shown twice: fixed 09bfc62. Random input (1,500+ requests) gave no server errors.
