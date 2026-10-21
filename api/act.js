@@ -262,7 +262,8 @@ const OPS = {
       let mdId = null;
       if (md) {
         // The medical director is a contact (SOP section 4), found by email or added.
-        const [found] = await tx`select id from contacts where (lower(email::text) = ${md.email} or lower(secondary_email::text) = ${md.email}) and deleted_at is null limit 1`;
+        const [found] = await tx`select id from contacts where (lower(email::text) = ${md.email} or lower(secondary_email::text) = ${md.email})
+          order by (deleted_at is null) desc limit 1`;   // a removed person still holds their email (it is unique), so they are found too
         if (found) { mdId = found.id; await tx`update contacts set is_medical_director = true where id = ${mdId} and is_medical_director is not true`; }
         else {
           const parts = md.name.replace(/^dr\.?\s+/i, '').split(/\s+/);

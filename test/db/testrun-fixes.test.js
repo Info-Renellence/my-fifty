@@ -169,3 +169,13 @@ describe('Add a person whose email is already taken in the database', () => {
     await assert.rejects(A.add_person(me, { firstName: 'Again', email: 'gone.testrun@demo.invalid' }), (e) => e.status === 409);
   }));
 });
+
+describe('Samples: the MD\'s email belongs to a removed person', () => {
+  test('the order goes through, linked to that person, instead of a server error', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready(sql, me);
+    const gone = await h.contact(sql, null, { owner: null, email: 'gone.md.testrun@demo.invalid' });
+    await sql`update contacts set deleted_at = now() where id = ${gone}`;
+    const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr. Gone Testmd', mdEmail: 'gone.md.testrun@demo.invalid' });
+    assert.equal((await sql`select md_contact_id from orders where id = ${r.orderId}`)[0].md_contact_id, gone);
+  }));
+});
