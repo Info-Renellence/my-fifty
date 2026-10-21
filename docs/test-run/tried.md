@@ -85,3 +85,4 @@ Format: time · area · scenario · result
 - 11:40 · random taps in the browser · 5 starting screens × 25 random taps × 5 runs (Alpha twice, Bravo, Echo, Charlie), no sending · no page errors, no overflow, no undefined/NaN shown · ok
 - 11:42 · index.html · the supabase-js sign-in library comes from a public CDN with no integrity hash (F30, low, proposal: the hash cannot be worked out while offline)
 - 11:50 · screens at 320 px wide (small phone) · no sideways scrolling; a 200-character clinic name is cut at the card edge (cosmetic, not changed) · ok
+- 12:00 · clock frozen · 11:59 PM Toronto is still the old day; EOD and Tomorrow just after midnight on the November clock change; a past date refused on Dec 31; spring change · ok (test/unit/testrun-clock.test.js)
