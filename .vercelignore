@@ -1,0 +1,7 @@
+# Not published by Vercel (test run 2026-10-21): tests, database scripts, the seed generator, docs and notes.
+# Everything else in the root is served as a public file.
+/test
+/db
+/docs
+/scripts
+*.md
