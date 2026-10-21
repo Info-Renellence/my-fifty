@@ -42,3 +42,11 @@ Format: time · area · scenario · result
 - 10:05 · voice · mime with codecs (audio/webm;codecs=opus), audio/mp4 · accepted · ok
 - 10:10 · timer · no key, empty key, wrong key of the same length, longer key · 401 · ok
 - 10:10 · timer · full tick: new-lead push to an unreachable phone, Gmail answering junk HTML · 200; push logged failed; Gmail error counted · ok
+- 10:12 · screens · every screen at phone size for Alpha (one of everything), Foxtrot (empty book), Echo (300 people), Charlie (admin); headless Chrome, outside requests refused (only Google Fonts were attempted) · no page errors, no overflow, odd characters shown as text (never run)
+- 10:12 · screens · empty book: MY FIFTY tile shows 5 filled dots for 0 people (F11, an older test asserts this: question for you)
+- 10:12 · screens · Review "Same as last order" uses the newest order even when it is unpaid (question Q2)
+- 10:14 · load · Echo's 300-person book: today 0.7 s, people/leads/rewards/search/ready 0.2-0.3 s · ok
+- 10:15 · two at once · 4 "Tomorrow" taps at once · 3 of 4 lost (F13, fixed)
+- 10:16 · two at once · 3 logs at once, 10 Today reads at once · some never answered (F12, fixed: queries with no parameter hang on Supabase's transaction pooler)
+- 10:30 · rewards screen · Alpha: extra $45 checked by hand (2% of 675 + 900 + 450 + 225) · ok; syringes 13 vs 10 by hand (F14, fixed: headbands counted)
+- 10:36 · History Edit on an email (server side) · allowed (F15, fixed)
