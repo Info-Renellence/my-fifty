@@ -62,7 +62,7 @@ async function morning(sql) {
        and not exists (select 1 from notifications n where n.dedupe_key = 'morning:' || u.id::text || ':' || ${today})`;
   let sent = 0;
   for (const u of users) {
-    const me = { id: u.id, name: u.name, settings: u.settings || {} };
+    const me = { id: u.id, name: u.name, settings: u.settings && typeof u.settings === 'object' && !Array.isArray(u.settings) ? u.settings : {} };
     const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg }), B.dayStats(sql, me, cfg)]);
     const list = B.todayList(people, me, cfg);
     if (!list.length && !day.streak) continue;   // nothing worth a notification

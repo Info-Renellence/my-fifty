@@ -30,3 +30,17 @@ describe('R24 wire orders: counted as paid, never a payment row', () => {
     assert.equal(p.totalBought, 450);
   }));
 });
+describe('users.settings that are not an object (seen live on a real row)', () => {
+  test('seen_fifty and snooze still work when settings were saved as a list', () => h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    await sql`update users set settings = '[{}, "{\\"fifty_seen_at\\":\\"2026-10-20T20:03:31.675Z\\"}"]'::jsonb where id = ${me.id}`;
+    me.settings = (await sql`select settings from users where id = ${me.id}`)[0].settings;
+    const c = await h.contact(sql, me);
+    await A.seen_fifty(me);
+    await A.snooze(me, { contactId: c });
+    const [u] = await sql`select settings, jsonb_typeof(settings) t from users where id = ${me.id}`;
+    assert.equal(u.t, 'object', 'settings are an object again');
+    assert.ok(u.settings.fifty_seen_at, 'the bookmark is kept');
+    assert.ok(u.settings.snoozed && u.settings.snoozed[c], 'the snooze is kept');
+  }));
+});

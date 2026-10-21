@@ -49,7 +49,7 @@ async function signedIn(req) {
   }
   if (!row || row.active === false) throw fail(403, 'not_set_up');
   return { id: row.id, email: row.email, name: row.name || email, first: String(row.name || email).split(/\s+/)[0],
-    initials: initials(row.name || email), kind: row.kind, settings: row.settings || {}, authUserId: u.id };
+    initials: initials(row.name || email), kind: row.kind, settings: row.settings && typeof row.settings === 'object' && !Array.isArray(row.settings) ? row.settings : {}, authUserId: u.id };
 }
 
 module.exports = { signedIn, initials, SUPABASE_URL, ANON };

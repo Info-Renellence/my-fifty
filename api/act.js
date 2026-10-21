@@ -113,16 +113,17 @@ const OPS = {
     await asUser(me.id, async (tx) => {
       if (isUuid(b.taskId)) await tx`update tasks set due_at = ${T.atLocal(tomorrow, 9, 0)} where id = ${b.taskId} and assignee_id = ${me.id} and status = 'open'`;
       // Hidden from Today until tomorrow (SOP: dismissals of derived to-dos live in users.settings).
-      const snoozed = Object.assign({}, me.settings.snoozed || {});
+      // Settings saved as anything but an object (seen in v2) are started again as an object.
+      const snoozed = Object.assign({}, (objectOrEmpty(me.settings).snoozed) || {});
       for (const k of Object.keys(snoozed)) if (snoozed[k] <= T.ymd()) delete snoozed[k];
       snoozed[c.id] = tomorrow;
-      await tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${tx.json({ snoozed })} where id = ${me.id}`;
+      await tx`update users set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end) || ${tx.json({ snoozed })} where id = ${me.id}`;
     });
     return { ok: true };
   },
 
   async seen_fifty(me) {
-    await asUser(me.id, (tx) => tx`update users set settings = coalesce(settings, '{}'::jsonb) || ${tx.json({ fifty_seen_at: new Date().toISOString() })} where id = ${me.id}`);
+    await asUser(me.id, (tx) => tx`update users set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end) || ${tx.json({ fifty_seen_at: new Date().toISOString() })} where id = ${me.id}`);
     return { ok: true };
   },
 
@@ -347,6 +348,8 @@ async function logResend(me, table, id, contactId, note) {
     insert into change_log (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
     values (${me.id}, 'user', 'my_fifty', 'resend', ${table}, ${id}, ${contactId}, ${note})`);
 }
+
+const objectOrEmpty = (x) => (x && typeof x === 'object' && !Array.isArray(x) ? x : {});
 
 // One standard form: +1 and ten digits for North American numbers (SOP section 3).
 function normalPhone(s) {
