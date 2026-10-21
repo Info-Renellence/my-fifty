@@ -170,3 +170,50 @@ describe('R11 today\'s list', () => {
     assert.ok(!list.some((x) => x.id === oldLead));
   }));
 });
+
+describe('orders and money through the app (act.order)', () => {
+  const ready2 = async (sql, me) => { const c = await h.contact(sql, me); await sql`insert into onboardings (primary_contact_id, status, submitted_at) values (${c}, 'signed', now())`; return c; };
+  test('quantities: 0, negative and junk lines are dropped; decimals round; unknown or inactive products are refused', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready2(sql, me);
+    const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2.6 }, { sku: 'SAL400', qty: 0 }, { sku: 'SAV200', qty: -3 }, { sku: 'SAF100', qty: 'x' }, null, 'junk'].filter(Boolean).map((l) => (typeof l === 'string' ? {} : l)) });
+    const lines = await sql`select sku, quantity from order_lines where order_id = ${r.orderId}`;
+    assert.deepEqual([...lines], [{ sku: 'SAF100', quantity: 3 }]);
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'NOPE', qty: 1 }] }), (e) => e.message === 'unknown_product');
+    const [p] = await sql`select sku from products where not active limit 1`;
+    if (p) await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: p.sku, qty: 1 }] }), (e) => e.message === 'unknown_product');
+  }));
+  test('only free products on an order is refused; samples make every line free whatever the price', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready2(sql, me);
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] }), (e) => e.message === 'nothing_to_charge');
+    const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAF100', qty: 2 }], mdName: 'Dr. Testa Medic', mdEmail: 'testa.medic@demo.invalid' });
+    const [x] = await sql`select bool_and(is_free) f, sum(unit_price)::float8 p from order_lines where order_id = ${r.orderId}`;
+    assert.deepEqual([x.f, x.p], [true, 0]);
+    const [md] = await sql`select first_name, last_name, designation, is_medical_director, owner_id from contacts where email = 'testa.medic@demo.invalid'`;
+    assert.deepEqual([md.first_name, md.last_name, md.designation, md.is_medical_director], ['Testa', 'Medic', 'MD', true]);
+  }));
+  test('not ready: no onboarding and only rejected or cancelled orders', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.order(sql, c, me, { status: 'rejected' });
+    await h.order(sql, c, me, { status: 'cancelled' });
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] }), (e) => e.message === 'not_ready_to_order');
+    assert.deepEqual((await D.ready(sql, me)).people, []);
+  }));
+  test('n8n replies: refused (500), timeout-like failure and success are reported as they are, the order is kept', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready2(sql, me);
+    process.env.N8N_MYFIFTY_URL = 'http://localhost:9/n8n-fake';
+    f = h.fakeFetch(() => ({ status: 500, text: 'Workflow could not be started' }));
+    const r1 = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] });
+    assert.deepEqual([r1.ok, r1.sentToN8n, r1.reason], [true, false, 'n8n_500']);
+    f.restore();
+    f = h.fakeFetch(() => { const e = new Error('aborted'); e.name = 'AbortError'; throw e; });
+    const r2 = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] });
+    assert.equal(r2.reason, 'n8n_timeout');
+    f.restore();
+    f = h.fakeFetch(() => ({ status: 200, text: '<<not json>>' }));
+    const r3 = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] });
+    assert.equal(r3.sentToN8n, true);
+    const body = JSON.parse(f.calls[0].body);
+    assert.deepEqual(Object.keys(body).sort(), ['action', 'orderId']);
+    assert.equal((await sql`select count(*)::int n from orders where contact_id = ${c}`)[0].n, 3);
+  }));
+});

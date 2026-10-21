@@ -82,3 +82,13 @@ describe('R18 rewards: the day an order was paid ignores test payments', () => {
     } finally { back(); }
   }));
 });
+
+describe('orders: a line over the 999 limit', () => {
+  test('a line over 999 is not dropped without a word', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready(sql, me);
+    let err = null, r = null;
+    try { r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2 }, { sku: 'MN2550', qty: 1000 }] }); } catch (e) { err = e; }
+    const n = r ? (await sql`select count(*)::int n from order_lines where order_id = ${r.orderId}`)[0].n : 0;
+    assert.ok(err || n === 2, 'either refused, or both lines kept (got ' + n + ' line(s))');
+  }));
+});
