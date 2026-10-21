@@ -44,3 +44,27 @@ describe('users.settings that are not an object (seen live on a real row)', () =
     assert.ok(u.settings.snoozed && u.settings.snoozed[c], 'the snooze is kept');
   }));
 });
+describe('R5 / R12 cancelled visits are not visits', () => {
+  test('a lead whose only visit was cancelled is still a new lead', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.touch(sql, c, me.id, { kind: 'meeting', status: 'cancelled', days: 1 });
+    assert.equal((await byId(sql, me))[c].isNew, true);
+  }));
+  test('a visit cancelled today does not take someone off today\'s list', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.task(sql, c, me.id, { due: h.ago(1) });
+    await h.touch(sql, c, me.id, { kind: 'meeting', status: 'cancelled', at: new Date() });
+    assert.equal((await byId(sql, me))[c].touchedToday, false);
+  }));
+});
+describe('R5 cancelled visits: the new-lead push', () => {
+  test('a new social lead whose only visit was cancelled is still found for the new-lead push', () => h.withDb(async (sql) => {
+    const cron = require('../../api/cron')._;
+    const me = await h.user(sql);
+    await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
+    const before = (await cron.newLeads(sql)).found;
+    const c = await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
+    await h.touch(sql, c, me.id, { kind: 'meeting', status: 'cancelled', at: new Date() });
+    assert.equal((await cron.newLeads(sql)).found, before + 1);
+  }));
+});

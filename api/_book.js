@@ -77,7 +77,7 @@ async function book(sql, me, opts) {
              bool_or(i.user_id = ${me.id} and i.kind in ('call', 'meeting', 'text', 'email')
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today
         from interactions i
-       where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled'
+       where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled' and i.status is distinct from 'cancelled'
        group by i.contact_id`,
     sql`
       select distinct on (t.contact_id) t.id, t.contact_id, t.title, t.type, t.due_at
