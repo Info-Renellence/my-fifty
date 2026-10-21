@@ -12,12 +12,14 @@
 - F29 (low) Tapping Undo twice showed "Something went wrong" next to "Undone". **Fixed** 8c48261.
 - Two of the run's own tests were flaky (they counted pushes while a test rep's waiting leads were being pushed); made steady in 967ae7b.
 
+**F6 raised to high, F17 lowered to low:** Supabase v2's public settings show sign-ups are open with Google sign-in on, so *anyone with any Google account* can sign in to Supabase directly and read the staff list (F6). Email-and-password sign-ups need email confirmation, so F17 is not open today.
+
 **Draft final report:** written; it will be finished after the full re-run at 1:00 PM.
 
 **Next:** a few more checks, then at 1:00 PM the full re-run of everything and the final report (`docs/test-run/report.md`).
 
 ## Running totals
-- Findings: 28 (high 2, medium 12, low 14). Fixed: 23. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
+- Findings: 28 (high 3, medium 10, low 15). Fixed: 23. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q8.
 - Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
 - Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 

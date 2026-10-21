@@ -80,3 +80,5 @@ Format: time · area · scenario · result
 - 11:25 · app left open · a new Instagram lead arrives; two minutes later the rep goes back to Today · the old list was shown (the "short-lived" cache never expired; a phone keeps the app open for days, so Today, the day count and the date could stay stale until the rep saved something) (F28, fixed; check: `node test/run/cdp-screens.js <dir> 5201 stale`, failed on the old app.js, passes now)
 - 11:28 · double tap · Undo tapped twice on L4 · "Something went wrong. Try again." shown next to "Undone" (F29, fixed; check: `node test/run/cdp-screens.js <dir> 5201 undotwice`)
 - 11:32 · load · a 2,000-person book (rolled back): Today 0.7 s (690 on the list), People 0.6 s, Rewards 0.6 s, Ready 0.7 s · ok
+- 11:30 · Remind MD (fake n8n on) · twice for a samples order and twice for an onboarding · first sent, second "Already reminded in the last hour" · ok
+- 11:33 · Supabase Auth settings (public read, test database) · sign-ups open, Google and email sign-in on, email confirmation required · F6 is reachable by anyone with any Google account; F17 lowered to low (an unconfirmed staff email cannot sign in)
