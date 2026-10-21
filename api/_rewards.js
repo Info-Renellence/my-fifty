@@ -36,7 +36,7 @@ async function rewards(sql, me) {
   for (const o of orders) {
     if (o.rep_id !== me.id || T.ymd(B.paidAt(o)).slice(0, 7) !== month) continue;
     for (const l of o.summary || []) {
-      if (l.free) continue;
+      if (l.free || !(Number(l.price) > 0)) continue;   // paid lines only: no-charge items (headbands, ice packs, fact sheets) never count
       if (/^SA/i.test(l.sku || '') || /saypha/i.test(l.name || '')) syringes += Number(l.qty) || 0;
       if (/exprecell/i.test(l.sku || '') || /exprecell/i.test(l.name || '')) exprecell += Number(l.qty) || 0;
     }

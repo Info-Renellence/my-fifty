@@ -138,3 +138,16 @@ describe('Tomorrow on two people at once (two phones, or two quick taps)', () =>
     assert.deepEqual(Object.keys(u.settings.snoozed).sort(), [a, b].sort());
   }));
 });
+
+describe('Rewards: saypha syringes this month', () => {
+  test('headbands, ice packs, fact sheets and other no-charge saypha items are not syringes', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const o = await h.order(sql, c, me, { status: 'shipped', lines: [['SAF100', 2]] });
+    for (const [sku, q] of [['HDB100', 3], ['SAYPHA-PAMPHLET', 1], ['ICE102', 2], ['LIP100', 1]]) {
+      await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+        select ${o}, id, sku, name, ${q}, 0, list_price, false from products where sku = ${sku}`;
+    }
+    const r = await R.rewards(sql, me);
+    assert.equal(r.syringes, 2);
+  }));
+});
