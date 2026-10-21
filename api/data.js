@@ -131,21 +131,23 @@ const OPS = {
   },
 
   async products(sql, me, q) {
+    // The L9 product step as the mockup has it (Yousef 2026-10-21): products by category (saypha, Magic Needle,
+    // Mesbio, Skin care, Exprecell, Other), each at its list price, which the rep may change. Free-only items (price 0,
+    // the "Other" extras) have no price. A product that is not active shows as Unavailable only in the Exprecell
+    // category (the mockup's one unavailable product); other inactive products are left out. No "Same as last order"
+    // and no "Last order" hints (dropped to match the mockup).
     const p = await one(sql, me, q.get('id'));
-    const products = await sql`select id, sku, name, family::text as family, line, unit, list_price::float8 as price from products where active = ${true} order by name`;
-    const lastQty = {};
-    // "Same as last order" and "Last order: n" come from paid orders only (Yousef 2026-10-21, Q2), never an unpaid one.
-    const paid = p.orders.filter(B.isPaid);
-    const latestPaid = paid[0];
-    for (const o of paid.slice().reverse()) for (const l of o.summary || []) if (!l.free) lastQty[l.sku] = { qty: l.qty, unit: unitWord(l.sku) };
+    const products = await sql`select sku, name, line, list_price::float8 as price, active from products where active = ${true} or line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
     return {
-      person: { id: p.id, name: p.name, clinic: p.clinic, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
+      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
       card,
-      sameAsLast: latestPaid ? (latestPaid.summary || []).filter((l) => !l.free && products.some((x) => x.sku === l.sku)).map((l) => ({ sku: l.sku, qty: l.qty })) : [],   // only what can still be ordered
-      products: products.map((x) => ({ sku: x.sku, name: shortProduct(x.name), price: x.price, family: x.family, alwaysFree: !(x.price > 0),
-        last: lastQty[x.sku] ? lastQty[x.sku].qty : null, unit: unitWord(x.sku) }))
-        .sort((a, b) => (b.last != null) - (a.last != null) || a.name.localeCompare(b.name)),
+      cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
+      products: products.map((x) => {
+        const cat = orderCat(x);
+        return { sku: x.sku, cat, name: rowName(x, cat), fullName: shortProduct(x.name), price: x.price, freeOnly: !(x.price > 0), unavailable: !x.active, sort: rowSort(x, cat) };
+      }).sort((a, b) => ORDER_CATS.findIndex((c) => c[0] === a.cat) - ORDER_CATS.findIndex((c) => c[0] === b.cat) || (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0))
+        .map(({ sort, ...x }) => x),
     };
   },
 
@@ -225,6 +227,31 @@ function shortProduct(name) {
 }
 
 function unitWord(sku) { return /^(MN|MES|EXPRECELL)/i.test(sku) ? 'box' : ''; }
+
+// The product step's categories, in the mockup's order.
+const ORDER_CATS = [['saypha', 'saypha'], ['cannula', 'Magic Needle'], ['mesbio', 'Mesbio'], ['skin', 'Skin care'], ['prp', 'Exprecell'], ['other', 'Other']];
+function orderCat(x) {
+  if (x.line === 'prp' || /^EXPRECELL/i.test(x.sku)) return 'prp';
+  if (/^MN/i.test(x.sku)) return 'cannula';
+  if (/^MES/i.test(x.sku)) return 'mesbio';
+  if (x.line === 'skin_care') return 'skin';
+  if (/^SA/i.test(x.sku) && x.price > 0) return 'saypha';
+  return 'other';
+}
+// Row names as in the mockup: "saypha® filler", cannulas and needles by size only ("25G 50mm"), the rest as named.
+function rowName(x, cat) {
+  const m = String(x.name).match(/(\d+G)\s+(\d+)MM/i);
+  if ((cat === 'cannula' || cat === 'mesbio') && m) return m[1] + ' ' + m[2] + 'mm';
+  if (cat === 'prp') return String(x.name).replace(/\s*\((\d+) Syringes\/Box\)/i, '');
+  return shortProduct(x.name);
+}
+// saypha in the mockup's order (filler, lips, volume, volume plus); sizes by gauge then length; the rest by name.
+function rowSort(x, cat) {
+  const m = String(x.name).match(/(\d+)G\s+(\d+)MM/i);
+  if ((cat === 'cannula' || cat === 'mesbio') && m) return String(m[1]).padStart(3, '0') + String(m[2]).padStart(3, '0');
+  if (cat === 'saypha') return String(['SAF', 'SAL', 'SAV2', 'SAVP'].findIndex((s) => String(x.sku).toUpperCase().startsWith(s))) + x.sku;
+  return String(x.name).toLowerCase();
+}
 
 async function one(sql, me, id) {
   if (!isUuid(id)) throw fail(400, 'bad_id');

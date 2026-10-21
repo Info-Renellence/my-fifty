@@ -73,29 +73,28 @@ describe('Today pieces', () => {
 
 describe('ordering pieces', () => {
   const products = [
-    { sku: 'SAF100', price: 225, alwaysFree: false, last: 10, unit: '' },
-    { sku: 'MN2550', price: 185, alwaysFree: false, last: 1, unit: 'box' },
-    { sku: 'MN1490', price: 185, alwaysFree: false, last: 2, unit: 'box' },
-    { sku: 'HDB100', price: 0, alwaysFree: true, last: null, unit: '' },
+    { sku: 'SAF100', price: 225, freeOnly: false },
+    { sku: 'MN2550', price: 185, freeOnly: false },
+    { sku: 'HDB100', price: 0, freeOnly: true },
   ];
-  test('productSub for an order shows last order and price', () => {
-    assert.equal(L.productSub(products[0], 'order'), 'Last order: 10 · $225');
-    assert.equal(L.productSub(products[1], 'order'), 'Last order: 1 box · $185');
-    assert.equal(L.productSub(products[2], 'order'), 'Last order: 2 boxes · $185');
+  const draft = (o) => Object.assign({ qty: {}, free: {}, price: {} }, o);
+  test('priceOf: the rep\'s price, else the list price', () => {
+    assert.equal(L.priceOf(products[0], draft()), 225);
+    assert.equal(L.priceOf(products[0], draft({ price: { SAF100: 199.5 } })), 199.5);
+    assert.equal(L.priceOf(products[0], draft({ price: { SAF100: 0 } })), 0);
   });
-  test('productSub marks free items and new products', () => assert.equal(L.productSub(products[3], 'order'), 'New for them · Free'));
-  test('productSub for samples shows no price', () => assert.equal(L.productSub(products[0], 'samples'), 'Last order: 10'));
-  test('visibleProducts hides free-only items from an order unless added', () => {
-    assert.deepEqual(L.visibleProducts(products, {}, 'order').map((p) => p.sku), ['SAF100', 'MN2550', 'MN1490']);
-    assert.equal(L.visibleProducts(products, { HDB100: 1 }, 'order').length, 4);
-    assert.equal(L.visibleProducts(products, {}, 'samples').length, 4);
+  test('parsePrice keeps cents and ignores junk', () => assert.deepEqual(['$1,250.505', '12', 'abc', '', '-5'].map(L.parsePrice), [1250.51, 12, 0, 0, 5]));
+  test('draftSummary: paid items and money, then free units', () => {
+    const s = L.draftSummary(products, draft({ qty: { SAF100: 2, MN2550: 1, HDB100: 3 }, free: { SAF100: 1 } }));
+    assert.deepEqual([s.paid, s.free, s.total, s.samples, s.line, s.sub], [3, 4, 635, false, '3 items · $635', '+ 4 free']);
+    assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 1 } })).sub, 'Paid order');
   });
-  test('draftTotals counts items and paid money only', () => {
-    assert.deepEqual(L.draftTotals(products, { SAF100: 2, MN2550: 1, HDB100: 3 }, 'order'), { count: 6, total: 635 });
-    assert.deepEqual(L.draftTotals(products, { SAF100: 2 }, 'samples'), { count: 2, total: 0 });
-    assert.deepEqual(L.draftTotals(products, {}, 'order'), { count: 0, total: 0 });
+  test('draftSummary: only free units is a sample order', () => {
+    const s = L.draftSummary(products, draft({ free: { SAF100: 2 } }));
+    assert.deepEqual([s.samples, s.line, s.sub], [true, '2 free samples', 'MD signs after approval']);
+    assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 1 }, price: { SAF100: 0 } })).samples, true, 'a $0 line is free');
+    assert.equal(L.draftSummary(products, draft()).empty, true);
   });
-  test('sameAsLast adds up the last order, joining repeated products', () => assert.deepEqual(L.sameAsLast([{ sku: 'A', qty: 2 }, { sku: 'B', qty: 1 }, { sku: 'A', qty: 3 }]), { A: 5, B: 1 }));
   test('billingSame when there is no billing address or it matches', () => {
     assert.equal(L.billingSame({ billing: { street: '' }, shipping: { street: '1 A', city: 'X' } }), true);
     assert.equal(L.billingSame({ billing: { street: '1 A', city: 'X' }, shipping: { street: '1 A', city: 'X' } }), true);

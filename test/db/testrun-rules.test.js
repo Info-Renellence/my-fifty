@@ -182,9 +182,9 @@ describe('orders and money through the app (act.order)', () => {
     const [p] = await sql`select sku from products where not active limit 1`;
     if (p) await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: p.sku, qty: 1 }] }), (e) => e.message === 'unknown_product');
   }));
-  test('only free products on an order is refused; samples make every line free whatever the price', () => h.withDb(async (sql) => {
+  test('only free products make a sample order (MD needed); samples make every line free whatever the price', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready2(sql, me);
-    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] }), (e) => e.message === 'nothing_to_charge');
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] }), (e) => e.message === 'md_required');
     const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAF100', qty: 2 }], mdName: 'Dr. Testa Medic', mdEmail: 'testa.medic@demo.invalid' });
     const [x] = await sql`select bool_and(is_free) f, sum(unit_price)::float8 p from order_lines where order_id = ${r.orderId}`;
     assert.deepEqual([x.f, x.p], [true, 0]);

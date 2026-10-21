@@ -210,16 +210,23 @@ describe('Candidates with a second sample order on the way', () => {
   }));
 });
 
-describe('#12 "Same as last order" with a product that is no longer sold', () => {
-  test('only products that can still be ordered are copied (otherwise Send fails with no way to remove the line)', () => h.withDb(async (sql) => {
-    const D = require('../../api/data').OPS;
-    const me = await h.user(sql), c = await h.contact(sql, me);
-    const o = await h.order(sql, c, me, { status: 'shipped', days: 3, lines: [['SAF100', 2]] });
-    await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
-      select ${o}, id, 'OLD-SAF050', 'saypha® filler 0.5 ml (discontinued)', 1, 120, 120, false from products where sku = 'SAF100'`;
-    const r = await D.products(sql, me, new URLSearchParams({ id: c }));
-    const sellable = new Set(r.products.map((p) => p.sku));
-    assert.ok(r.sameAsLast.every((l) => sellable.has(l.sku)), JSON.stringify(r.sameAsLast));
-    assert.deepEqual(r.sameAsLast, [{ sku: 'SAF100', qty: 2 }]);
+describe('L9 product step: prices and free units (the mockup, 2026-10-21)', () => {
+  test('a changed price is kept, with the list price beside it; "+ Free" units are free lines; no MD needed when something is paid', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready(sql, me);
+    const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2, price: 199.5 }, { sku: 'SAF100', qty: 1, free: true }, { sku: 'HDB100', qty: 1 }] });
+    const lines = await sql`select sku, quantity, unit_price::float8 p, list_price::float8 l, is_free from order_lines where order_id = ${r.orderId} order by is_free, sku`;
+    assert.deepEqual(lines.map((x) => [x.sku, x.quantity, x.p, x.l, x.is_free]), [['SAF100', 2, 199.5, 225, false], ['HDB100', 1, 0, 0, true], ['SAF100', 1, 0, 225, true]]);
+    const [o] = await sql`select md_contact_id, payment_method::text m from orders where id = ${r.orderId}`;
+    assert.deepEqual([o.md_contact_id, o.m], [null, 'card_on_file'], 'mixed paid + free: no MD sign-off');
+  }));
+  test('only free units make a sample order, which needs the MD; a bad price is refused', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await ready(sql, me);
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }] }), (e) => e.message === 'md_required');
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 1, price: 0 }] }), (e) => e.message === 'md_required', 'a $0 price is free too');
+    const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }], mdName: 'Dr. Free Testmd', mdEmail: 'free.testmd.' + h.uid() + '@demo.invalid' });
+    const [o] = await sql`select md_contact_id, payment_method from orders where id = ${r.orderId}`;
+    assert.ok(o.md_contact_id);
+    assert.equal(o.payment_method, null);
+    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1, price: -5 }] }), (e) => e.message === 'bad_price');
   }));
 });

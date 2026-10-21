@@ -275,26 +275,22 @@ describe('ready, products and search', () => {
     assert.deepEqual((await D.ready(sql, me)).people.map((p) => p.name.split(' ')[0]), ['Ace', 'Bea']);
   }));
   test('ready to order with an empty book', () => h.withDb(async (sql) => assert.deepEqual((await D.ready(sql, await h.user(sql))).people, [])));
-  test('same as last order copies the last *paid* order, never a newer unpaid one (Q2)', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await h.contact(sql, me);
-    await h.order(sql, c, me, { status: 'shipped', days: 20, lines: [['SAF100', 4]] });
-    await h.order(sql, c, me, { status: 'submitted', days: 1, method: 'card_on_file', lines: [['SAL400', 9]] });
-    const p = await D.products(sql, me, Q({ id: c }));
-    assert.deepEqual(p.sameAsLast, [{ sku: 'SAF100', qty: 4 }]);
-    assert.equal(p.products.find((x) => x.sku === 'SAL400').last, null, 'the unpaid order is not "last order" either');
-  }));
-  test('products: what they had last first, same as last order, the card on file', () => h.withDb(async (sql) => {
+  test('products in the mockup\'s categories and order, sizes as names, free-only extras, Exprecell unavailable, the card on file', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await h.order(sql, c, me, { status: 'shipped', days: 20, lines: [['SAF100', 4], ['MN2550', 1]], paid: true, brand: 'Visa', last4: '4242', method: 'card_on_file' });
-    await h.order(sql, c, me, { status: 'shipped', days: 5, lines: [['SAL400', 2], ['HDB100', 1, true]] });
     const p = await D.products(sql, me, Q({ id: c }));
-    assert.deepEqual(p.sameAsLast, [{ sku: 'SAL400', qty: 2 }]);
+    assert.deepEqual(p.cats.map((x) => x.label), ['saypha', 'Magic Needle', 'Mesbio', 'Skin care', 'Exprecell', 'Other']);
     assert.deepEqual(p.card, { saved: true, text: 'Visa •••• 4242' });
-    assert.deepEqual(p.products.slice(0, 3).map((x) => x.sku).sort(), ['MN2550', 'SAF100', 'SAL400']);
+    assert.equal(p.sameAsLast, undefined, 'no Same as last order (the mockup has none)');
+    assert.deepEqual(p.products.filter((x) => x.cat === 'saypha').map((x) => x.sku), ['SAF100', 'SAL400', 'SAV200', 'SAVP300']);
     const mn = p.products.find((x) => x.sku === 'MN2550');
-    assert.deepEqual([mn.name, mn.last, mn.unit], ['Magic Needle 25G 50mm', 1, 'box']);
-    assert.equal(p.products.find((x) => x.sku === 'HDB100').alwaysFree, true);
-    assert.ok(p.products.every((x) => x.sku !== 'EXPRECELL'), 'inactive products are hidden');
+    assert.deepEqual([mn.cat, mn.name, mn.fullName, mn.price], ['cannula', '25G 50mm', 'Magic Needle 25G 50mm', 185]);
+    assert.deepEqual(p.products.filter((x) => x.cat === 'mesbio').slice(0, 3).map((x) => x.name), ['27G 4mm', '27G 8mm', '27G 12mm']);
+    const hb = p.products.find((x) => x.sku === 'HDB100');
+    assert.deepEqual([hb.cat, hb.freeOnly], ['other', true]);
+    const ex = p.products.find((x) => x.sku === 'EXPRECELL');
+    assert.deepEqual([ex.cat, ex.unavailable], ['prp', true], 'Exprecell is shown as Unavailable');
+    assert.ok(p.products.filter((x) => x.unavailable).every((x) => x.cat === 'prp'), 'no other inactive product is shown');
   }));
   test('a saved card from onboarding counts as card on file; otherwise none', () => h.withDb(async (sql) => {
     const me = await h.user(sql);

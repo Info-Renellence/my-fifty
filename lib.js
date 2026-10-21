@@ -55,22 +55,23 @@
   }
   // L6 Candidates pill: days since the samples arrived (Yousef 2026-10-20: no "Ask now").
   function candidatePill(days) { return days == null ? 'Not shipped' : days + (days === 1 ? ' day' : ' days'); }
-  // #12 product row's grey line.
-  function productSub(p, kind) {
-    var sub = p.last != null ? 'Last order: ' + p.last + (p.unit ? ' ' + p.unit + (p.last === 1 ? '' : 'es') : '') : 'New for them';
-    if (kind === 'order') sub += p.alwaysFree ? ' · Free' : ' · ' + money(p.price);
-    return sub;
+  // L9 product step (the mockup's New order): a line's price is the rep's price, or the list price.
+  function priceOf(p, draft) { var v = draft.price && draft.price[p.sku]; return v != null ? v : p.price; }
+  // What the rep typed in a price box: a number of dollars (cents kept), never below 0; junk is 0.
+  function parsePrice(s) { var v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return isNaN(v) ? 0 : Math.round(v * 100) / 100; }
+  // The bottom bar: paid items and money, free units, and whether it is a sample order (only free units: MD signs).
+  function draftSummary(products, draft) {
+    var paid = 0, free = 0, total = 0;
+    products.forEach(function (p) {
+      var q = (draft.qty && draft.qty[p.sku]) || 0, f = (draft.free && draft.free[p.sku]) || 0, pr = priceOf(p, draft);
+      if (q) { if (p.freeOnly || !(pr > 0)) free += q; else { paid += q; total += q * pr; } }
+      free += f;
+    });
+    var samples = paid === 0 && free > 0;
+    return { paid: paid, free: free, total: Math.round(total * 100) / 100, samples: samples, empty: paid + free === 0,
+      line: samples ? free + ' free sample' + (free === 1 ? '' : 's') : paid + (paid === 1 ? ' item' : ' items') + ' · ' + money(total),
+      sub: samples ? 'MD signs after approval' : free ? '+ ' + free + ' free' : 'Paid order' };
   }
-  // Products shown in #12: in Samples everything; in Order the free-only items are hidden unless already added.
-  function visibleProducts(products, qty, kind) { return products.filter(function (p) { return kind === 'samples' || !p.alwaysFree || qty[p.sku]; }); }
-  // Item count and money of a draft order (samples and free items never cost anything).
-  function draftTotals(products, qty, kind) {
-    var count = 0, total = 0;
-    products.forEach(function (p) { var q = qty[p.sku] || 0; count += q; if (kind === 'order' && !p.alwaysFree) total += q * p.price; });
-    return { count: count, total: total };
-  }
-  // "Same as last order": the quantities of the last paid order.
-  function sameAsLast(lines) { var qty = {}; lines.forEach(function (l) { qty[l.sku] = (qty[l.sku] || 0) + l.qty; }); return qty; }
   // L10 Billing row: the same as shipping when there is no billing street or it matches.
   function billingSame(who) { return !who.billing.street || (who.billing.street === who.shipping.street && who.billing.city === who.shipping.city); }
   // A note without its "Next:" line (History shows that line on its own).
@@ -86,7 +87,7 @@
 
   var L = { MONTHS: MONTHS, LONG_DAYS: LONG_DAYS, LONG_MONTHS: LONG_MONTHS, esc: esc, nb: nb, ymd: ymd, addDays: addDays, shortDate: shortDate, longDate: longDate,
     ERR: ERR, errText: errText, initials: initials, money: money, ringDash: ringDash, fiftyTile: fiftyTile, dayLeftText: dayLeftText, winLine: winLine,
-    candidatePill: candidatePill, productSub: productSub, visibleProducts: visibleProducts, draftTotals: draftTotals, sameAsLast: sameAsLast,
+    candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, draftSummary: draftSummary,
     billingSame: billingSame, stripNext: stripNext, b64ToBytes: b64ToBytes };
   if (typeof module !== 'undefined' && module.exports) module.exports = L;
   else root.MFLib = L;

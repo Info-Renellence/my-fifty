@@ -227,8 +227,11 @@ const OPS = {
     return { ok: true, email };
   },
 
+  // lines: [{ sku, qty, price?, free? }] (L9 product step, the mockup since 2026-10-21). A paid line carries the rep's
+  // price (any amount from $0; list price when left out; the list price is kept on the line too, so the approver sees
+  // a changed price). free: true lines are free units ("+ Free"). An order whose every line is free is a sample order
+  // (MD required). kind: 'samples' (older app versions) makes every line free.
   async order(me, b) {
-    const samples = b.kind === 'samples';
     const sql = db();
     const c = await mine(sql, me, b.contactId);
     // Only people who are ready to order (L9): the main contact of a signed onboarding (never the injector on it,
@@ -237,14 +240,26 @@ const OPS = {
       select (exists (select 1 from onboardings where status in ('signed', 'complete') and coalesce(primary_contact_id, injector_contact_id) = ${c.id})
            or exists (select 1 from orders where contact_id = ${c.id} and deleted_at is null and status not in ('rejected', 'cancelled'))) as ok`;
     if (!ready.ok) throw fail(409, 'not_ready_to_order');
-    const asked = (Array.isArray(b.lines) ? b.lines : []).map((l) => ({ sku: clean(l && l.sku, 40), qty: Math.round(Number(l && l.qty) || 0) })).filter((l) => l.sku && l.qty > 0);
+    const allFree = b.kind === 'samples';
+    const asked = (Array.isArray(b.lines) ? b.lines : []).map((l) => ({
+      sku: clean(l && l.sku, 40), qty: Math.round(Number(l && l.qty) || 0), free: allFree || !!(l && l.free),
+      price: l && l.price != null && l.price !== '' ? Math.round(Number(l.price) * 100) / 100 : null,
+    })).filter((l) => l.sku && l.qty > 0);
     const want = asked.filter((l) => l.qty <= 999);
     if (!want.length) throw fail(400, 'no_products');
     // More than 999 of one product is refused, never silently left off the order.
     if (want.length < asked.length) throw fail(400, 'too_many');
+    if (want.some((l) => l.price != null && !(l.price >= 0 && l.price <= 100000))) throw fail(400, 'bad_price');
     const prods = await sql`select id, sku, name, list_price::float8 as price from products where active and sku = any(${want.map((l) => l.sku)})`;
     const by = Object.fromEntries(prods.map((p) => [p.sku, p]));
     if (want.some((l) => !by[l.sku])) throw fail(400, 'unknown_product');
+    const lines = want.map((l) => {
+      const p = by[l.sku];
+      const unit = l.free ? 0 : l.price != null ? l.price : (p.price || 0);
+      return { product_id: p.id, sku: p.sku, name: p.name, quantity: l.qty, unit_price: unit, list_price: p.price, is_free: !(unit > 0) };
+    });
+    const total = lines.reduce((a, l) => a + l.quantity * l.unit_price, 0);
+    const samples = !(total > 0);   // nothing to pay: a sample order, which needs the MD
     const method = samples ? null : b.payment === 'wire' ? 'wire' : 'card_on_file';
     let md = null;
     if (samples) {
@@ -252,13 +267,6 @@ const OPS = {
       if (!mdName || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mdEmail)) throw fail(400, 'md_required');
       md = { name: mdName, email: mdEmail };
     }
-    const lines = want.map((l) => {
-      const p = by[l.sku];
-      const free = samples || !(p.price > 0);
-      return { product_id: p.id, sku: p.sku, name: p.name, quantity: l.qty, unit_price: free ? 0 : p.price, list_price: p.price, is_free: free };
-    });
-    const total = lines.reduce((a, l) => a + l.quantity * l.unit_price, 0);
-    if (!samples && !(total > 0)) throw fail(400, 'nothing_to_charge');
     const terms = method === 'wire' ? await require('./_wire').termsFor(sql, c.id) : null;
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;

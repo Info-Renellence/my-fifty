@@ -987,70 +987,107 @@
     $app.querySelector('[data-ready]').innerHTML = readyRows(readyPeople.filter(function (p) { return !t || (p.name + ' ' + p.clinic).toLowerCase().indexOf(t) >= 0; }));
   }
 
-  // ---- #12 Order or samples: the products ---------------------------------------------------------------------
-  // The draft order lives here until it is sent: { contactId, kind, qty: { sku: n }, payment, approvalNote, shippingNote, mdName, mdEmail }.
+  // ---- L9 New order: the products (the mockup's product step, Yousef 2026-10-21) -----------------------------
+  // The draft order lives here until it is sent: { contactId, cat, qty: { sku: n }, free: { sku: n }, price: { sku: $ },
+  // payment, approvalNote, shippingNote, mdName, mdEmail }. Only free units = a sample order (MD signs; Review samples).
   var draft = null;
   function draftFor(contactId) {
-    if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, kind: 'order', qty: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '', mdName: '', mdEmail: '' };
+    if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, cat: 'saypha', qty: {}, free: {}, price: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '', mdName: '', mdEmail: '' };
     return draft;
+  }
+  var PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
+  var MINUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>';
+  var NEXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+  function fmtPrice(v) { return v % 1 ? v.toFixed(2) : String(v); }
+  function productRow(p, i, dft) {
+    var q = dft.qty[p.sku] || 0, f = dft.free[p.sku] || 0, pr = L.priceOf(p, dft), isFree = !p.freeOnly && !(pr > 0);
+    var row = '<div style="display:flex;align-items:center;gap:10px;min-height:72px;padding:10px 12px 10px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
+      + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:15px;font-weight:600' + (p.unavailable ? ';color:#9AA1AD' : '') + '">' + esc(p.name) + '</span>';
+    if (!p.unavailable && !p.freeOnly) {
+      row += '<span style="display:flex;gap:6px;align-items:center;margin-top:6px;white-space:nowrap">';
+      if (isFree) row += '<span style="height:18px;padding:0 7px;border-radius:9px;background:#EAF3FC;color:#1170C0;font-size:11px;font-weight:700;display:flex;align-items:center">Free sample</span>';
+      else if (!f) row += '<button type="button" data-addfree="' + esc(p.sku) + '" style="height:32px;padding:0 12px;border-radius:16px;border:1.5px solid #1170C0;background:transparent;color:#1170C0;font-size:14px;font-weight:700">+ Free</button>';
+      else row += '<span style="height:36px;border-radius:18px;background:#EAF3FC;color:#1170C0;display:flex;align-items:center;gap:2px;padding:0 4px;font-size:14px;font-weight:700">'
+        + '<button type="button" data-freeless="' + esc(p.sku) + '" aria-label="Fewer free" style="width:30px;height:30px;border:0;border-radius:50%;background:#FFFFFF;color:#1170C0;font-size:18px;font-weight:700;line-height:1;padding:0">−</button>'
+        + '<span style="padding:0 8px">' + f + ' free</span>'
+        + '<button type="button" data-freemore="' + esc(p.sku) + '" aria-label="More free" style="width:30px;height:30px;border:0;border-radius:50%;background:#FFFFFF;color:#1170C0;font-size:18px;font-weight:700;line-height:1;padding:0">+</button></span>';
+      row += '</span>';
+    }
+    row += '</span>';
+    if (!p.unavailable && !p.freeOnly) {
+      row += '<label style="width:70px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:1px;font-size:14px;font-weight:600;flex:none;' + (isFree ? 'background:#EAF3FC;color:#1170C0' : 'background:#EEF2F8;color:#062064') + '">$'
+        + '<input type="text" inputmode="decimal" data-price="' + esc(p.sku) + '" value="' + fmtPrice(pr) + '" aria-label="Price" style="width:40px;border:0;background:transparent;font:inherit;font-size:16px;color:inherit;text-align:left;outline:none;padding:0"></label>';
+    }
+    if (p.unavailable) return row + '<span style="font-size:13px;font-weight:600;color:#9AA1AD">Unavailable</span></div>';
+    return row + '<span style="display:flex;align-items:center;gap:6px;flex:none">'
+      + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="Less" style="width:40px;height:40px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center">' + MINUS + '</button>'
+      + '<span style="min-width:22px;text-align:center;font-size:17px;font-weight:700">' + q + '</span>'
+      + '<button type="button" data-more="' + esc(p.sku) + '" aria-label="More" style="width:40px;height:40px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;background:#1170C0;color:#FFFFFF">' + PLUS + '</button></span></div>';
   }
   function screenProducts(contactId) {
     var dft = draftFor(contactId);
     return paint(read('products', { id: contactId }), function (d) {
-      var list = L.visibleProducts(d.products, dft.qty, dft.kind);
-      var tot = L.draftTotals(d.products, dft.qty, dft.kind), count = tot.count, total = tot.total;
-      var h = '<div class="scr" style="gap:14px">'
-        + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;padding:0 4px">New order</span>'
-        + '<div role="tablist" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));background:#E4E8EF;border-radius:12px;padding:3px;gap:3px">'
-        + [['order', 'Order'], ['samples', 'Samples']].map(function (t) {
-          return '<button type="button" role="tab" data-okind="' + t[0] + '" aria-selected="' + (dft.kind === t[0]) + '" style="height:40px;border-radius:9px;border:0;font-size:15px;font-weight:600;' + (dft.kind === t[0] ? SEG_ON : SEG_OFF + ';background:transparent') + '">' + t[1] + '</button>';
-        }).join('') + '</div>'
-        + '<section style="background:#FFFFFF;border-radius:22px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px">'
-        + '<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;color:#6B7486">For</span><span style="font-size:20px;font-weight:600;letter-spacing:-0.3px">' + esc(d.person.name) + '</span>'
-        + (d.person.clinic ? '<span style="font-size:14px;color:#6B7486">' + nb(d.person.clinic) + '</span>' : '') + '</span>'
-        + '<a href="/order" data-nav style="height:34px;padding:0 14px;border-radius:17px;background:#EEF2F8;font-size:15px;font-weight:600;display:flex;align-items:center;flex:none">Change</a></section>'
-        + (d.sameAsLast.length && dft.kind === 'order' ? '<button type="button" data-same style="height:52px;border-radius:14px;border:0;background:#FFFFFF;color:#1170C0;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">' + ic('redo', 18) + 'Same as last order</button>' : '')
-        + '<section style="background:#FFFFFF;border-radius:16px;padding:0 14px">' + list.map(function (p, i) {
-          var q = dft.qty[p.sku] || 0;
-          var sub = L.productSub(p, dft.kind);
-          return '<div style="display:flex;align-items:center;gap:12px;padding:12px 0' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
-            + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(p.name) + '</span><span style="font-size:13px;color:#6B7486">' + esc(sub) + '</span></span>'
-            + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="Fewer" style="width:40px;height:40px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;font-size:22px;font-weight:600;flex:none"' + (q ? '' : ' disabled') + '>−</button>'
-            + '<span style="width:26px;text-align:center;font-size:18px;font-weight:700;flex:none">' + q + '</span>'
-            + '<button type="button" data-more="' + esc(p.sku) + '" aria-label="More" style="width:40px;height:40px;border-radius:50%;border:0;background:#1170C0;color:#FFFFFF;font-size:22px;font-weight:600;flex:none">+</button></div>';
-        }).join('') + '</section>'
-        + '<section style="display:flex;flex-direction:column;gap:10px;position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 4px">'
-        + '<div style="display:flex;justify-content:space-between;font-size:17px;font-weight:700;padding:0 4px"><span>Total</span><span>' + count + (count === 1 ? ' item' : ' items') + (dft.kind === 'order' && total ? ' · ' + money(total) : dft.kind === 'samples' && count ? ' · Free' : '') + '</span></div>'
-        + (count ? '<a href="/order/' + contactId + '/review" data-nav style="height:56px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Review ' + (dft.kind === 'samples' ? 'samples' : 'order') + '</a>'
-          : '<span style="height:56px;border-radius:14px;border:2px dashed #C4C7CE;color:#6B7486;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;box-sizing:border-box">Add products to review</span>')
-        + '</section></div>';
       dft.products = d;
-      return h;
+      var sum = L.draftSummary(d.products, dft);
+      var list = d.products.filter(function (p) { return p.cat === dft.cat; });
+      return '<div class="scr" style="gap:0">'
+        + '<div style="flex:none;display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 10px"><span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">New order</span></div>'
+        + '<div style="flex:none;background:#FFFFFF;border-radius:16px;min-height:56px;padding:0 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">'
+        + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">' + esc(d.person.initials) + '</span>'
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(d.person.name) + '</span><span style="font-size:13px;color:#6B7486">' + nb(d.person.clinic) + '</span></span>'
+        + '<a href="/order" data-nav style="font-size:15px;font-weight:600;color:#1170C0;padding:8px 0 8px 8px">Change</a></div>'
+        + '<div style="flex:none;display:flex;gap:6px;overflow-x:auto;margin:0 -16px 10px;padding:0 16px;scrollbar-width:none">'
+        + d.cats.map(function (c) {
+          return '<button type="button" data-cat="' + c.key + '" style="height:32px;padding:0 12px;border-radius:16px;border:0;font-size:13px;font-weight:600;white-space:nowrap;flex:none;' + (dft.cat === c.key ? 'background:#062064;color:#FFFFFF' : 'background:#FFFFFF;color:#062064') + '">' + esc(c.label) + '</button>';
+        }).join('') + '</div>'
+        + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + list.map(function (p, i) { return productRow(p, i, dft); }).join('') + '</section>'
+        + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 4px;margin-top:auto;z-index:5">'
+        + (sum.empty ? '<span style="height:56px;border-radius:16px;background:#E3E6EC;color:#A3A9B6;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Review</span>'
+          : '<a href="/order/' + contactId + '/review" data-nav style="height:56px;border-radius:16px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px">'
+            + '<span style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:700">' + esc(sum.line) + '</span><span style="font-size:12px;opacity:0.85">' + esc(sum.sub) + '</span></span>'
+            + '<span style="font-size:17px;font-weight:600;display:flex;align-items:center;gap:4px">Review' + NEXT + '</span></a>')
+        + '</div></div>';
     }, 'order');
   }
   $app.addEventListener('click', function (e) {
     if (!draft) return;
-    var b = e.target.closest('[data-okind]');
-    if (b) { draft.kind = b.getAttribute('data-okind'); draft.qty = {}; screenProducts(draft.contactId); return; }
-    if (e.target.closest('[data-same]') && draft.products) {
-      draft.qty = L.sameAsLast(draft.products.sameAsLast);
-      screenProducts(draft.contactId); return;
-    }
-    if ((b = e.target.closest('[data-more]'))) { var s = b.getAttribute('data-more'); draft.qty[s] = (draft.qty[s] || 0) + 1; keepScroll(function () { return screenProducts(draft.contactId); }); return; }
-    if ((b = e.target.closest('[data-less]'))) { var k = b.getAttribute('data-less'); draft.qty[k] = Math.max(0, (draft.qty[k] || 0) - 1); if (!draft.qty[k]) delete draft.qty[k]; keepScroll(function () { return screenProducts(draft.contactId); }); }
+    var b = e.target.closest('[data-cat]');
+    if (b) { draft.cat = b.getAttribute('data-cat'); screenProducts(draft.contactId); return; }
+    function bump(map, key, by) { map[key] = Math.max(0, (map[key] || 0) + by); if (!map[key]) delete map[key]; keepScroll(function () { return screenProducts(draft.contactId); }); }
+    if ((b = e.target.closest('[data-more]'))) return bump(draft.qty, b.getAttribute('data-more'), 1);
+    if ((b = e.target.closest('[data-less]'))) return bump(draft.qty, b.getAttribute('data-less'), -1);
+    if ((b = e.target.closest('[data-addfree]'))) return bump(draft.free, b.getAttribute('data-addfree'), 1);
+    if ((b = e.target.closest('[data-freemore]'))) return bump(draft.free, b.getAttribute('data-freemore'), 1);
+    if ((b = e.target.closest('[data-freeless]'))) return bump(draft.free, b.getAttribute('data-freeless'), -1);
+  });
+  // A price typed by the rep (any amount, no approval needed; the list price is kept on the line). Applied when the box is left.
+  $app.addEventListener('change', function (e) {
+    var t = e.target.closest('[data-price]');
+    if (!t || !draft) return;
+    draft.price[t.getAttribute('data-price')] = L.parsePrice(t.value);
+    keepScroll(function () { return screenProducts(draft.contactId); });
   });
   function keepScroll(fn) { var y = window.scrollY; Promise.resolve(fn()).then(function () { window.scrollTo(0, y); }); }
 
   // ---- L10 / L15 Review and send ------------------------------------------------------------------------------
+  // The draft as order lines: paid lines at the rep's price, then the free units ("+ Free", free-only extras).
+  function orderLines(d, dft) {
+    var out = [];
+    d.products.forEach(function (p) {
+      var q = dft.qty[p.sku] || 0, f = dft.free[p.sku] || 0, pr = L.priceOf(p, dft);
+      if (q) out.push(p.freeOnly || !(pr > 0) ? { p: p, qty: q, free: true, price: 0 } : { p: p, qty: q, free: false, price: pr });
+      if (f) out.push({ p: p, qty: f, free: true, price: 0 });
+    });
+    return out.filter(function (l) { return !l.free; }).concat(out.filter(function (l) { return l.free; }));
+  }
+  function moneyCents(n) { return '$' + (Math.round(n * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
   function screenReview(contactId) {
     var dft = draftFor(contactId);
     return paint(read('products', { id: contactId }), function (d) {
       dft.products = d;
-      var by = {}; d.products.forEach(function (p) { by[p.sku] = p; });
-      var lines = Object.keys(dft.qty).filter(function (s) { return by[s] && dft.qty[s] > 0; }).map(function (s) { return { p: by[s], q: dft.qty[s] }; });
+      var lines = orderLines(d, dft);
       if (!lines.length) { setTimeout(function () { go('/order/' + contactId, true); }, 0); return loading(); }
-      var samples = dft.kind === 'samples';
-      var total = samples ? 0 : lines.reduce(function (a, l) { return a + (l.p.alwaysFree ? 0 : l.q * l.p.price); }, 0);
+      var sum = L.draftSummary(d.products, dft), samples = sum.samples, total = sum.total;
       var who = d.person;
       function infoRow(label, value, first) {
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #E3E6EC') + '">'
@@ -1067,10 +1104,9 @@
         + (who.secondaryEmail ? '' : '<button type="button" data-invoice-email style="display:block;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px 10px">+ Add an invoice email</button>')
         + smallLabel('ITEMS', '<a href="/order/' + contactId + '" data-nav style="font-size:14px;font-weight:600;color:#1170C0">Edit</a>')
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + lines.map(function (l, i) {
-          var free = samples || l.p.alwaysFree;
-          return infoRow(esc(l.p.name) + ' · ' + l.q, free ? FREE : money(l.q * l.p.price), !i).replace('font-size:15px;color:#6B7486;flex:none', 'font-size:15px;color:#6B7486;flex:0 1 auto');
+          return infoRow(esc(l.p.fullName) + ' · ' + l.qty, l.free ? FREE : moneyCents(l.qty * l.price), !i).replace('font-size:15px;color:#6B7486;flex:none', 'font-size:15px;color:#6B7486;flex:0 1 auto');
         }).join('')
-          + (samples ? '' : '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px;border-top:0.5px solid #E3E6EC"><b style="color:#062064;font-size:15px">Total</b><b style="font-size:17px">' + money(total) + '</b></div>')
+          + (samples ? '' : '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px;border-top:0.5px solid #E3E6EC"><b style="color:#062064;font-size:15px">Total</b><b style="font-size:17px">' + moneyCents(total) + '</b></div>')
           + '</section>';
       if (samples) {
         h += smallLabel('MEDICAL DIRECTOR')
@@ -1126,8 +1162,8 @@
       if (b.disabled) return;
       b.disabled = true; b.textContent = 'Sending…';
       var d = draft;
-      act('order', { contactId: d.contactId, kind: d.kind, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
-        lines: Object.keys(d.qty).map(function (s) { return { sku: s, qty: d.qty[s] }; }) })
+      act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
+        lines: orderLines(d.products, d).map(function (l) { return l.free ? { sku: l.p.sku, qty: l.qty, free: true } : { sku: l.p.sku, qty: l.qty, price: l.price }; }) })
         .then(function (r) { draft = null; toast(r.sentToN8n ? 'Sent for approval' : 'Saved. It goes for approval automatically as soon as the order connection answers.'); go('/orders/' + r.orderId, true); },
           function (err) { b.disabled = false; b.textContent = 'Send for approval'; toast(errText(err)); });
     }
