@@ -32,7 +32,7 @@ async function ordersFor(sql, contactIds) {
            l.summary,
            coalesce(o.status = any(${PAID_STATUSES}) or o.payment_method = 'wire'
              or exists (select 1 from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true), false) as paid_flag,
-           (select min(p.paid_at) from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded') as paid_at
+           (select min(p.paid_at) from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true) as paid_at
       from orders o
       left join lateral (
         select sum(case when coalesce(ol.is_free, false) then 0 else ol.quantity * coalesce(ol.unit_price, 0) end) as total,

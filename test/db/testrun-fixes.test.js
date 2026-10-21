@@ -68,3 +68,17 @@ describe('R5 cancelled visits: the new-lead push', () => {
     assert.equal((await cron.newLeads(sql)).found, before + 1);
   }));
 });
+describe('R18 rewards: the day an order was paid ignores test payments', () => {
+  function around(from, to) { const keep = JSON.parse(JSON.stringify(R.PROGRAMS)); for (const k of ['booster', 'trip']) { R.PROGRAMS[k].from = from; R.PROGRAMS[k].to = to; } return () => { for (const k of ['booster', 'trip']) Object.assign(R.PROGRAMS[k], keep[k]); }; }
+  test('an order counts on the day it was really paid, not the day of an earlier test payment', () => h.withDb(async (sql) => {
+    const back = around(T.addDays(T.ymd(), -5), T.addDays(T.ymd(), 5));
+    try {
+      const me = await h.user(sql), c = await h.contact(sql, me);
+      const o = await h.order(sql, c, me, { status: 'approved', days: 20, lines: [['SAF100', 2]] });
+      await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, paid_at, is_test) values (${o}, 'charge', 'card_on_file', 1, 'CAD', 'succeeded', 'stripe', ${h.ago(20)}, true)`;
+      await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, paid_at, is_test) values (${o}, 'charge', 'card_on_file', 450, 'CAD', 'succeeded', 'stripe', ${h.ago(1)}, false)`;
+      const r = await R.rewards(sql, me);
+      assert.equal(r.booster.onNew, '$9', 'paid yesterday (in the period): 2% of 450');
+    } finally { back(); }
+  }));
+});
