@@ -1,6 +1,22 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
+**Time:** 12:26 PM
+
+**Covered since 11:55:** follow-up times frozen at Toronto midnight and both clock changes (new unit test); a fake
+"failed" push result row; a last proof-read of the screens; the final report drafted.
+
+**New since 11:55:** no new bugs. One more question: **Q10** meeting the goal on a weekend or holiday adds that day to
+the streak shown that day, but on the next business day it no longer counts, so the number can drop by one.
+
+**Next:** 1:00 PM full re-run from scratch (`test/run/rerun-all.sh`), then the final report (`docs/test-run/report.md`) by 1:30 PM.
+
+## Running totals
+- Findings: 29 (high 3, medium 10, low 16). Fixed: 23. Waiting on you: 5 proposals (F6, F17, F21, F22, F30), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q10.
+- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
+- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
+
+## Earlier (11:35 to 11:55)
 **Time:** 11:55 AM
 
 **Covered since 11:35:** Supabase's public sign-in settings; Remind MD twice (with a fake n8n); random taps in the browser
@@ -15,13 +31,6 @@ pass, only the 10 login-rights ones fail as expected; 108 access checks; every b
 - Q9: a no-answer call, a text or an email logged today takes the person off Today, and a no-answer call or no-show visit
   counts as a touchpoint; the rules only exclude scheduled and cancelled ones. Intended?
 - CHANGELOG-v2 row 26 records the run's fake rows.
-
-**Next:** 1:00 PM full re-run from scratch (`test/run/rerun-all.sh`), then the final report (`docs/test-run/report.md`).
-
-## Running totals
-- Findings: 29 (high 3, medium 10, low 16). Fixed: 23. Waiting on you: 5 proposals (F6, F17, F21, F22, F30), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q9.
-- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
-- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
 ## Earlier (11:15 to 11:35)
 **Time:** 11:35 AM

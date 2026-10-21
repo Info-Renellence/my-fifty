@@ -86,3 +86,4 @@ Format: time · area · scenario · result
 - 11:42 · index.html · the supabase-js sign-in library comes from a public CDN with no integrity hash (F30, low, proposal: the hash cannot be worked out while offline)
 - 11:50 · screens at 320 px wide (small phone) · no sideways scrolling; a 200-character clinic name is cut at the card edge (cosmetic, not changed) · ok
 - 12:00 · clock frozen · 11:59 PM Toronto is still the old day; EOD and Tomorrow just after midnight on the November clock change; a past date refused on Dec 31; spring change · ok (test/unit/testrun-clock.test.js)
+- 12:16 · streak on a weekend or holiday · meeting the goal on a Saturday adds that day to the streak shown that day; next business day it no longer counts (Q10)
