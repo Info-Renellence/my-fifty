@@ -49,6 +49,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     if (m.method === 'Fetch.requestPaused') {
       const u = m.params.request.url;
       if (/supabase-js/.test(u)) return send('Fetch.fulfillRequest', { requestId: m.params.requestId, responseCode: 200, responseHeaders: [{ name: 'Content-Type', value: 'text/javascript' }], body: Buffer.from(STUB).toString('base64') });
+      if (SCEN === 'navrace' && /op=person&/.test(u)) { await wait(1500); return send('Fetch.continueRequest', { requestId: m.params.requestId }); }
       if (SCEN === 'searchrace' && /op=search&q=Fa/.test(u)) { await wait(1500); return send('Fetch.continueRequest', { requestId: m.params.requestId }); }
       if (/^https?:\/\/localhost(:\d+)?\//.test(u)) return send('Fetch.continueRequest', { requestId: m.params.requestId });
       blocked.push(u);
@@ -160,6 +161,14 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(400); await shot('flow-log-visit-picked');
       await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
       await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
+    } else if (SCEN === 'navrace') {
+      // Tap a person, then the People tab before their card has loaded: the slow card must not cover the People screen.
+      await go('/people');
+      await evaluate("(function(){ var a = document.querySelector('#app a[href^=\"/person/\"]'); a.click(); setTimeout(function(){ document.querySelector('nav.tabs a[href=\"/people\"]').click(); }, 300); })()");
+      await wait(3000);
+      const r = await evaluate("({ path: location.pathname, peopleScreen: !!document.querySelector('#app [data-pview]'), title: (document.querySelector('#app') || {}).innerText.slice(0, 60) })");
+      note('NAVRACE ' + JSON.stringify(r) + (r.path === '/people' && r.peopleScreen ? ' OK' : ' WRONG SCREEN'));
+      await shot('nav-race');
     } else if (SCEN === 'searchrace') {
       // A slow search answer must not show up after the rep has cleared the box.
       await go('/people'); await type('[data-search]', 'Fa'); await wait(400); await type('[data-search]', ''); await wait(2500);

@@ -72,3 +72,8 @@ Format: time · area · scenario · result
 - 11:08 · SOP check · the data-model SOP says a wire order *does* get a payment row; the test-run rules say never. The rules win (F1 kept); flagged for you as the top decision
 - 11:09 · SOP check · SOP says the onboarding's primary contact is the account that orders, so the F20 change (listing the injector on L9) was withdrawn (b7acbbe) and turned into question Q8
 - 11:10 · signed out · sign-in screen, Google button starts Google sign-in, deep link to a person while signed out shows sign-in · ok
+- 11:12 · sparse person · no clinic, no email, no phone, follow-up today · Today row and card fine; "Follow up" shown · ok
+- 11:13 · MY FIFTY tile dots by people count (next milestone) · 0→5 filled, 1→6, 3→8, 4→9, then 5→5: below 5 people the tile fills dots for people who do not exist (F11, older test asserts 0→5; your call)
+- 11:15 · #12 · last order had a product that is no longer sold, rep taps "Same as last order" then Send · Send fails with "Something went wrong" and the hidden line cannot be removed (F25, fixed)
+- 11:16 · People search · typing then clearing quickly can briefly show the older results (a slow answer arrives after a newer one) · reproduced in the browser by slowing one answer (F26, fixed 96aca0d; check: `node test/run/cdp-screens.js <dir> 5201 searchrace`)
+- 11:20 · navigation · tap a person, then the People tab before the card loads (card answer slowed) · the person's card covered the People screen while the address said /people (F27, fixed; check: `node test/run/cdp-screens.js <dir> 5201 navrace`); all Alpha screens re-shot after the fix · ok

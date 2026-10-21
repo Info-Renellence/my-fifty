@@ -145,15 +145,19 @@
     go('/', true);
   }
   // Paints a screen: shows a spinner only if loading is slow, then the HTML.
+  // Only the newest screen asked for may paint: a slow answer for a screen the rep already left is dropped.
+  var paintSeq = 0;
   function paint(promise, view, tab) {
-    var shown = false;
-    var t = setTimeout(function () { shown = true; $app.innerHTML = loading() + (tab ? tabs(tab) : ''); }, 120);
+    var shown = false, mine = ++paintSeq;
+    var t = setTimeout(function () { if (mine !== paintSeq) return; shown = true; $app.innerHTML = loading() + (tab ? tabs(tab) : ''); }, 120);
     return promise.then(function (data) {
       clearTimeout(t);
+      if (mine !== paintSeq) return data;
       $app.innerHTML = view(data) + (tab ? tabs(tab) : '');
       return data;
     }, function (e) {
       clearTimeout(t);
+      if (mine !== paintSeq) return;
       if (e.message === 'signed_out') return;
       $app.innerHTML = failed(e) + (tab ? tabs(tab) : '');
       void shown;
