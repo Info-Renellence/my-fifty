@@ -179,3 +179,13 @@ describe('Samples: the MD\'s email belongs to a removed person', () => {
     assert.equal((await sql`select md_contact_id from orders where id = ${r.orderId}`)[0].md_contact_id, gone);
   }));
 });
+
+describe('New-lead pushes to a switched-off rep', () => {
+  test('a rep who has been switched off gets no new-lead push on their phone', () => h.withDb(async (sql) => {
+    const cron = require('../../api/cron')._;
+    const off = await h.user(sql, { active: false });
+    const before = (await cron.newLeads(sql)).found;
+    await h.contact(sql, off, { source: 'social', createdAt: h.ago(0, 1) });
+    assert.equal((await cron.newLeads(sql)).found, before);
+  }));
+});
