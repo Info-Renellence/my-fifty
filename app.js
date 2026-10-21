@@ -10,6 +10,11 @@
   var sb = null, session = null, ME = null, BOOT = null, CONFIG = null;
   var cache = {};
 
+  // No zooming (Yousef 2026-10-21). iPhone Safari ignores user-scalable=no, so pinch gestures and two-finger moves are
+  // stopped here too; double-tap zoom is off through touch-action in app.css.
+  ['gesturestart', 'gesturechange', 'gestureend'].forEach(function (t) { document.addEventListener(t, function (e) { e.preventDefault(); }, { passive: false }); });
+  document.addEventListener('touchmove', function (e) { if (e.touches.length > 1 && e.cancelable) e.preventDefault(); }, { passive: false });
+
   // Pure helpers live in lib.js (unit tested in test/unit/lib.test.js).
   var L = window.MFLib;
   var esc = L.esc, nb = L.nb, MONTHS = L.MONTHS, ymd = L.ymd, addDays = L.addDays, shortDate = L.shortDate, errText = L.errText, initials = L.initials, money = L.money;
@@ -536,6 +541,35 @@
   $sheet.addEventListener('click', function (e) {
     if (e.target.closest('[data-close]')) { closeSheet(); return; }
     if (sheetHandler) sheetHandler(e);
+  });
+  // Swipe a sheet down to close it, like a phone sheet: from its handle or header, or anywhere once it is scrolled to
+  // the top. A short pull springs back; past 90px (or a quick flick) it closes.
+  var drag = null;
+  $sheet.addEventListener('touchstart', function (e) {
+    var s = e.target.closest('.sheet');
+    if (!s || e.touches.length !== 1 || e.target.closest('input, textarea, select')) { drag = null; return; }
+    drag = { s: s, y: e.touches[0].clientY, t: Date.now(), dy: 0, on: false, top: s.scrollTop <= 0 };
+  }, { passive: true });
+  $sheet.addEventListener('touchmove', function (e) {
+    if (!drag) return;
+    var dy = e.touches[0].clientY - drag.y;
+    if (!drag.on) {
+      if (dy > 8 && drag.top && drag.s.scrollTop <= 0) { drag.on = true; drag.s.classList.add('dragging'); }
+      else if (Math.abs(dy) > 8) { drag = null; return; }
+      else return;
+    }
+    drag.dy = Math.max(0, dy);
+    drag.s.style.transform = 'translate(-50%, ' + drag.dy + 'px)';
+    if (e.cancelable) e.preventDefault();
+  }, { passive: false });
+  $sheet.addEventListener('touchend', function () {
+    if (!drag || !drag.on) { drag = null; return; }
+    var s = drag.s, fast = drag.dy > 40 && drag.dy / Math.max(1, Date.now() - drag.t) > 0.6;
+    s.classList.remove('dragging');
+    s.classList.add('closing');
+    if (drag.dy > 90 || fast) { s.style.transform = 'translate(-50%, 100%)'; setTimeout(closeSheet, 180); }
+    else { s.style.transform = ''; setTimeout(function () { s.classList.remove('closing'); }, 200); }
+    drag = null;
   });
   $sheet.addEventListener('input', function (e) { if (sheetHandler) sheetHandler(e, 'input'); });
   $sheet.addEventListener('change', function (e) { if (sheetHandler) sheetHandler(e, 'change'); });

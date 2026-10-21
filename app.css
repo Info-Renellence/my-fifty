@@ -15,6 +15,9 @@
 }
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+/* No zooming, like a native app (Yousef 2026-10-21): no double-tap zoom, no pinch (with the viewport tag and the
+   gesture guard in app.js for iPhone Safari, which ignores the tag). Inputs stay at 16px+ so iOS never zooms on focus. */
+html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { min-height: 100dvh; overscroll-behavior-y: none; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; cursor: pointer; }
@@ -40,9 +43,14 @@ svg { flex: none; }
 #sheet:empty { display: none; }
 .dim { position: fixed; inset: 0; background: rgba(40, 52, 75, 0.62); z-index: 40; animation: fade .18s ease; }
 .sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 430px; z-index: 41; max-height: calc(100dvh - var(--safe-top) - 24px);
-  overflow: auto; background: #fff; border-radius: 30px 30px 0 0; padding: 10px 18px calc(var(--safe-bottom) + 24px);
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
+  background: #fff; border-radius: 30px 30px 0 0; padding: 10px 18px calc(var(--safe-bottom) + 24px);
   display: flex; flex-direction: column; gap: 16px; animation: up .22s ease; }
+/* Rows keep their height so a tall sheet scrolls instead of squashing (L13 Add a person could not be scrolled). */
+.sheet > * { flex-shrink: 0; }
 .sheet.tall { top: calc(var(--safe-top) + 24px); }
+.sheet.dragging { animation: none; transition: none; }
+.sheet.closing { transition: transform .18s ease; }
 .grab { align-self: center; width: 38px; height: 5px; border-radius: 3px; background: #d0d5de; flex: none; }
 @keyframes up { from { transform: translate(-50%, 40px); opacity: .4; } to { transform: translate(-50%, 0); opacity: 1; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
