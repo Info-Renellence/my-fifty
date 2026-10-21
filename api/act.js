@@ -223,10 +223,11 @@ const OPS = {
       select (exists (select 1 from onboardings where status in ('signed', 'complete') and (primary_contact_id = ${c.id} or injector_contact_id = ${c.id}))
            or exists (select 1 from orders where contact_id = ${c.id} and deleted_at is null and status not in ('rejected', 'cancelled'))) as ok`;
     if (!ready.ok) throw fail(409, 'not_ready_to_order');
-    const want = (Array.isArray(b.lines) ? b.lines : []).map((l) => ({ sku: clean(l && l.sku, 40), qty: Math.round(Number(l && l.qty) || 0) })).filter((l) => l.sku && l.qty > 0);
-    // More than 999 of one product is refused, never silently left off the order.
-    if (want.some((l) => l.qty > 999)) throw fail(400, 'too_many');
+    const asked = (Array.isArray(b.lines) ? b.lines : []).map((l) => ({ sku: clean(l && l.sku, 40), qty: Math.round(Number(l && l.qty) || 0) })).filter((l) => l.sku && l.qty > 0);
+    const want = asked.filter((l) => l.qty <= 999);
     if (!want.length) throw fail(400, 'no_products');
+    // More than 999 of one product is refused, never silently left off the order.
+    if (want.length < asked.length) throw fail(400, 'too_many');
     const prods = await sql`select id, sku, name, list_price::float8 as price from products where active and sku = any(${want.map((l) => l.sku)})`;
     const by = Object.fromEntries(prods.map((p) => [p.sku, p]));
     if (want.some((l) => !by[l.sku])) throw fail(400, 'unknown_product');
