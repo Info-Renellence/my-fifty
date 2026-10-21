@@ -272,3 +272,25 @@ describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () 
     assert.equal(new Set(rows.map((r) => r.clinic_id)).size, 1);
   }));
 });
+
+describe('the timer, called directly, with every outside service faked or failing', () => {
+  const cron = require('../../api/cron');
+  const call = async (key) => { const res = h.fakeRes(); await cron({ method: 'GET', url: '/api/cron?op=tick', headers: key === undefined ? {} : { 'x-cron-key': key } }, res); return res; };
+  test('no key, a wrong key of the same length, a longer key: refused', async () => {
+    for (const k of [undefined, '', 'x'.repeat(process.env.CRON_SECRET.length), process.env.CRON_SECRET + 'x']) assert.equal((await call(k)).statusCode, 401);
+  });
+  test('a full tick with junk Gmail answers and an unreachable push service still answers, and logs what failed', () => h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const c = await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
+    await sql`insert into user_connections (user_id, kind, account, credentials, status) values (${me.id}, 'gmail', ${me.email}, ${require('../../api/_crypto').seal('fake-refresh')}, 'connected')`;
+    await require('../../api/_push').subscribe(sql, me, { endpoint: 'https://push.demo.invalid/abc', keys: { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' } });
+    f = h.fakeFetch((url) => (/oauth2/.test(url) ? { json: { access_token: 'at' } } : { status: 200, text: '<html>not json</html>' }));
+    const res = await call(process.env.CRON_SECRET);
+    assert.equal(res.statusCode, 200);
+    const out = res.json();
+    assert.ok(out.leads.found >= 1);
+    assert.ok(out.gmail.errors >= 1, 'the junk Gmail answer is counted as an error, not a crash');
+    const [n] = await sql`select status::text, error from notifications where dedupe_key = ${'new_lead:' + c}`;
+    assert.equal(n.status, 'failed', 'the push that could not be delivered is logged as failed');
+  }));
+});

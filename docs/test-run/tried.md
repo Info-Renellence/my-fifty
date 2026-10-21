@@ -37,3 +37,8 @@ Format: time · area · scenario · result
 - 09:58 · add person · already in another rep's book (by email, by phone) · refused, no id or owner given · ok
 - 09:58 · two reps add the same new clinic name · one shared clinic · ok
 - 09:58 · follow-up dates 2026-13-45, 2026-02-30, 9999-99-99 · server error (F8, fixed)
+- 10:05 · voice (Gemini stub) · prompt context for a person at a clinic shared with another rep · listed the other rep's client by name (F9, fixed)
+- 10:05 · voice (Gemini stub) · model writes "Saypha Lips", "SAYPHA Volume Plus" · kept as written (F10, fixed: lower case); past follow-up date dropped · ok
+- 10:05 · voice · mime with codecs (audio/webm;codecs=opus), audio/mp4 · accepted · ok
+- 10:10 · timer · no key, empty key, wrong key of the same length, longer key · 401 · ok
+- 10:10 · timer · full tick: new-lead push to an unreachable phone, Gmail answering junk HTML · 200; push logged failed; Gmail error counted · ok
