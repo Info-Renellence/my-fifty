@@ -1,6 +1,23 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
+**Time:** 1:12 PM (run finished)
+
+**Final re-run (1:00 PM, from scratch):** the proof that nothing can leave the computer passed (17 of 17); 438 automated
+tests, 428 pass and the 10 that fail are the older ones the test login cannot run; random input (about 2,100 requests)
+gave no server errors; rep against rep 108 of 108; every screen and flow in the browser OK with no page errors.
+One more smoke check now fails only because the newest demo Instagram lead turned 24 hours old at 12:19 PM (not a bug).
+
+**The final report is `docs/test-run/report.md`.** It lists the decisions waiting on you first: the wire-payment
+conflict between the test-run rules and the data-model SOP, F6 (staff list readable by anyone with a Google account),
+F17, F22, F11 and questions Q1-Q10.
+
+## Running totals
+- Findings: 29 (high 3, medium 10, low 16). Fixed: 23. Waiting on you: 5 proposals (F6, F17, F21, F22, F30), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q10.
+- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
+- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
+
+## Earlier (11:55 to 12:26)
 **Time:** 12:26 PM
 
 **Covered since 11:55:** follow-up times frozen at Toronto midnight and both clock changes (new unit test); a fake
@@ -8,13 +25,6 @@
 
 **New since 11:55:** no new bugs. One more question: **Q10** meeting the goal on a weekend or holiday adds that day to
 the streak shown that day, but on the next business day it no longer counts, so the number can drop by one.
-
-**Next:** 1:00 PM full re-run from scratch (`test/run/rerun-all.sh`), then the final report (`docs/test-run/report.md`) by 1:30 PM.
-
-## Running totals
-- Findings: 29 (high 3, medium 10, low 16). Fixed: 23. Waiting on you: 5 proposals (F6, F17, F21, F22, F30), 1 design question (F11), the wire-payment SOP conflict, and questions Q1-Q10.
-- Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
-- Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
 ## Earlier (11:35 to 11:55)
 **Time:** 11:55 AM
