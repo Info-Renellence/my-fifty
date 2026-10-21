@@ -215,8 +215,8 @@
         + '<svg width="92" height="92" viewBox="0 0 92 92" role="img" aria-label="done today"><defs><linearGradient id="gt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FA3EE"/><stop offset="1" stop-color="#1170C0"/></linearGradient></defs>'
         + '<circle cx="46" cy="46" r="38" fill="none" stroke="#EEF2F8" stroke-width="11"/>'
         + (done ? '<circle cx="46" cy="46" r="38" fill="none" stroke="url(#gt)" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + L.ringDash(38, done, goal) + '" transform="rotate(-90 46 46)"/>' : '')
-        + '<text x="46" y="49" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="22" font-weight="700" fill="#062064">' + done + '/' + goal + '</text>'
-        + '<text x="46" y="64" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="11" font-weight="500" fill="#6B7486">done</text></svg>'
+        + '<text x="46" y="49" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#062064">' + done + '/' + goal + '</text>'
+        + '<text x="46" y="64" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="11" font-weight="500" fill="#6B7486">done</text></svg>'
         + '<span style="font-size:15px;font-weight:600;line-height:1.2">' + L.dayLeftText(done, goal) + '</span></div>'
         + '<div style="background:linear-gradient(135deg,#FFD86B,#F5B21F);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#3D2A00">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600">STREAK ' + FLAME + '</span>'
@@ -702,7 +702,7 @@
       + '<defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D7E8FA"/></linearGradient></defs>'
       + '<circle cx="90" cy="90" r="70" fill="none" stroke="rgba(255,255,255,0.22)" stroke-width="16"/>'
       + (day.done ? '<circle cx="90" cy="90" r="70" fill="none" stroke="url(#w)" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + L.ringDash(70, day.done, day.goal) + '" transform="rotate(-90 90 90)"/>' : '')
-      + '<text x="90" y="100" text-anchor="middle" font-family="-apple-system, Inter, sans-serif" font-size="40" font-weight="700" fill="#fff">' + day.done + '/' + day.goal + '</text></svg></div>'
+      + '<text x="90" y="100" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="40" font-weight="700" fill="#fff">' + day.done + '/' + day.goal + '</text></svg></div>'
       + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;margin-top:24px">Nice work!</span>'
       + '<span style="font-size:17px;color:#E3EEFB;line-height:1.45;margin-top:10px">' + esc(line) + '</span>'
       + '<div style="margin-top:auto;width:100%;padding:0 20px calc(var(--safe-bottom) + 40px);box-sizing:border-box;display:flex;flex-direction:column;gap:10px">'
@@ -1097,7 +1097,8 @@
           + (val || dft['open_' + key] ? '<div style="padding:0 14px 12px"><textarea data-notefield="' + key + '" class="note" style="min-height:64px;background:#EEF2F8;border-radius:12px;padding:10px 12px;font-size:15px">' + esc(val) + '</textarea></div>' : '') + '</div>';
       }
       h += smallLabel('NOTES') + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:12px">' + noteRow('approvalNote', 'Note for approval', true) + noteRow('shippingNote', 'Shipping note') + '</section>'
-        + '<div style="padding:8px 0 10px"><button type="button" data-send-order style="height:56px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
+        // Pinned above the tabs like the mockup (L10 / L15), so Send is always in reach without scrolling.
+        + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 10px;margin-top:auto;z-index:5"><button type="button" data-send-order style="height:56px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
       return h + '</div>';
     }, 'order');
   }
