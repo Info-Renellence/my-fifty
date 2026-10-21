@@ -1,7 +1,7 @@
 # My Fifty test run: progress (Wed 2026-10-21, 9:30 AM to 1:30 PM Toronto)
 
 ## Latest hour
-**Time:** 10:52 AM
+**Time:** 11:05 AM
 
 **Covered since 10:40:** the "joined your Fifty" moment (L5); random input against every read and write (1,500+ random
 requests, no server errors); two reps adding the same person at once; sign-in rules; what the public website serves;
@@ -19,14 +19,14 @@ pushes to switched-off reps; the Ready-to-order list.
 **Questions added:** Q5 a lead with no source is in none of the four lead groups (only search finds it); Q6 a rep's email to
 a client in another rep's book lands on that client's history (good for the client's story, but the other rep reads it).
 
-**Pushing:** GitHub has refused every push since about 10:28 ("permission denied to yousefk07"); 13 commits are waiting
-locally, including F12 to F20. They will go the moment GitHub accepts the push. The computer's saved GitHub login may need
-switching back to the Info-Renellence account.
+**Pushing:** GitHub refused pushes from about 10:28 to 10:52 ("permission denied to yousefk07"); since 10:52 every commit is pushed.
+
+**Also since 10:52:** F23 (medium) a candidate with a second sample order on the way showed "Not shipped" and left Today: **fixed** f558770. F24 (low) a note that is only a "Next:" line showed twice in History: **fixed** 09bfc62. Tried with fake n8n, Gemini and Gmail answering like the real services, and real taps through whole flows in the browser (add a person, order by wire, log a visit, undo, fillers, search): all fine. Q7: a rejected order disappears from the person's History without a word.
 
 **Next:** keep going on deeper checks until 1:00 PM, then the full re-run and the final report.
 
 ## Running totals
-- Findings: 22 (high 2, medium 9, low 11). Fixed: 18. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11) and questions Q1-Q6.
+- Findings: 24 (high 2, medium 10, low 12). Fixed: 19. Waiting on you: 4 proposals (F6, F17, F21, F22), 1 design question (F11) and questions Q1-Q7.
 - Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
 - Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 

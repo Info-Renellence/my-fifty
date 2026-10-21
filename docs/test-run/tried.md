@@ -67,3 +67,5 @@ Format: time · area · scenario · result
 - 10:56 · UI flows (taps in the browser) · add a person already in Bravo's book → "already in someone else's book"; wire order from #12 → review → send → order screen, no payment row; visit not reached with a picked date → saved → undo · ok
 - 10:58 · UI flows · add a new cold lead with role, phone and a new clinic → card, "Added by you" in cold leads; filler picker saved; History tabs; live search with odd characters · ok
 - 11:00 · Gmail (fake) · connect; boot says connected; email to an address that is not the person's → refused; subject with a line break → sent with the break removed from the email header · ok
+- 11:02 · History · a note that is only "Next: …" showed the line twice (F24, fixed)
+- 11:03 · timer · morning summary for Alpha (streak 3): "3 days in a row with your plan done" / "2 on today's list."; second tick the same day sends nothing; push failure logged · ok
