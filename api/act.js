@@ -165,6 +165,14 @@ const OPS = {
                 ${warm ? 'warm' : 'cold'}, ${clinic ? clinic.street : null}, ${clinic ? clinic.city : null}, ${clinic ? clinic.province : null}, ${clinic ? clinic.postal_code : null})
         returning id`;
       return c.id;
+    }).catch(async (e) => {
+      // Someone else saved the same email first (two reps at once), or a removed person still holds it: a clear answer, not an error.
+      if (e && e.code === '23505' && /email/.test(e.constraint_name || e.message || '')) {
+        const [d] = await sql`select id, owner_id, deleted_at from contacts where lower(email::text) = ${email} limit 1`;
+        const yours = d && d.owner_id === me.id && !d.deleted_at;
+        throw fail(409, yours ? 'already_yours' : 'already_someones', yours ? d.id : undefined);
+      }
+      throw e;
     });
     return { ok: true, id };
   },

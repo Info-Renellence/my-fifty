@@ -160,3 +160,12 @@ describe('Edit on History', () => {
     assert.equal((await sql`select body from interactions where id = ${e}`)[0].body, 'Here are the prices.');
   }));
 });
+
+describe('Add a person whose email is already taken in the database', () => {
+  test('an email kept by a removed (soft-deleted) person is a clear "already" answer, not a server error', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), other = await h.user(sql);
+    const gone = await h.contact(sql, other, { email: 'gone.testrun@demo.invalid' });
+    await sql`update contacts set deleted_at = now() where id = ${gone}`;
+    await assert.rejects(A.add_person(me, { firstName: 'Again', email: 'gone.testrun@demo.invalid' }), (e) => e.status === 409);
+  }));
+});
