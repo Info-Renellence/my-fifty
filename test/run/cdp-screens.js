@@ -158,6 +158,26 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(400); await shot('flow-log-visit-picked');
       await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
       await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
+    } else if (SCEN === 'flows2') {
+      const toast = () => evaluate("document.getElementById('toast').textContent");
+      // 4. Add a new cold lead with a role and a new clinic
+      const stamp = Date.now().toString(36);
+      await go('/people'); await click('[data-add-person]');
+      await type('input[name="firstName"]', 'Kit'); await type('input[name="lastName"]', 'Newtest' + stamp);
+      await type('input[name="clinic"]', 'Testrun Flow Clinic'); await type('input[name="phone"]', '(416) 555-01' + String(Date.now() % 100).padStart(2, '0'));
+      await click('[data-role="nurse_injector"]'); await click('[data-w="0"]'); await shot('flow-add-filled');
+      await click('#sheet [data-save]'); await wait(2000); note('FLOW add new person -> ' + await evaluate('location.pathname') + ' toast: ' + await toast());
+      const pid = (await evaluate('location.pathname')).split('/')[2];
+      await shot('flow-add-new-card');
+      // 5. Filler they use
+      await click('[data-uses="fillers"]'); await click('#sheet [data-pick]', 0); await click('#sheet [data-pick]', 2); await shot('flow-uses');
+      await click('#sheet [data-save]'); await wait(1500); await shot('flow-uses-saved');
+      // 6. History tabs and live search
+      await go('/person/' + pid + '/history'); await click('[data-htab]', 1); await shot('flow-history-notes-tab'); await click('[data-htab]', 2); await shot('flow-history-orders-tab');
+      await go('/people'); await type('[data-search]', 'zo'); await wait(1200); await shot('flow-search-zo');
+      note('FLOW search zo results: ' + await evaluate("document.querySelector('[data-search-results]').innerText.slice(0, 200)"));
+      const cold = await api('op=leads&group=cold');
+      note('FLOW new person in cold leads: ' + JSON.stringify((cold.leads || []).filter((l) => /Newtest/.test(l.name)).map((l) => l.name + ' | ' + l.sub)));
     } else {
       await shot(SCEN + '-L2-today', true);
       await go('/people'); await shot(SCEN + '-L6-people', true);

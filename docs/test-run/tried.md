@@ -65,3 +65,5 @@ Format: time · area · scenario · result
 - 10:52 · two at once (after F12/F13 fixes) · 10 Today reads, 3 logs, 6 Tomorrow taps at once through the server · all answered in under 2 s, all 6 hidden · ok
 - 10:53 · fake services (n8n, Gemini, Gmail answering like the real ones) · samples order sent to n8n; voice draft back with "saypha lips" lower case; pay link resent · ok
 - 10:56 · UI flows (taps in the browser) · add a person already in Bravo's book → "already in someone else's book"; wire order from #12 → review → send → order screen, no payment row; visit not reached with a picked date → saved → undo · ok
+- 10:58 · UI flows · add a new cold lead with role, phone and a new clinic → card, "Added by you" in cold leads; filler picker saved; History tabs; live search with odd characters · ok
+- 11:00 · Gmail (fake) · connect; boot says connected; email to an address that is not the person's → refused; subject with a line break → sent with the break removed from the email header · ok
