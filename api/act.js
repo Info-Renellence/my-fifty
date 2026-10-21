@@ -261,11 +261,8 @@ const OPS = {
         await tx`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
                  values (${o.id}, ${l.product_id}, ${l.sku}, ${l.name}, ${l.quantity}, ${l.unit_price}, ${l.list_price}, ${l.is_free})`;
       }
-      // A wire order counts as paid as soon as it is placed (SOP section 4; it is never marked paid later).
-      if (method === 'wire') {
-        await tx`insert into payments (order_id, kind, method, amount, currency, status, provider, paid_at, is_test)
-                 values (${o.id}, 'charge', 'wire', ${total}, 'CAD', 'succeeded', 'wire', now(), false)`;
-      }
+      // A wire order counts as paid as soon as it is placed (orders.payment_method = 'wire', read by api/_book.js).
+      // Never a payment row for it (test-run rules, section 1): no money has been received when it is placed.
       return o.id;
     });
     const sent = await require('./_n8n').call('order', { orderId });

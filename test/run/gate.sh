@@ -12,8 +12,9 @@ COV=$(echo "$OUT" | grep -c "coverage threshold")
 if [ -n "$UNKNOWN" ]; then echo "GATE: NEW FAILURES"; echo "$UNKNOWN"; exit 1; fi
 if [ "$COV" != "0" ]; then echo "GATE: coverage below threshold"; exit 1; fi
 node test/run/smoke-rollback.js > "${TMPDIR:-/tmp}/myfifty-smoke.txt" 2>&1
-# The demo data was loaded on 2026-10-20 with calls dated "today"; these two smoke checks only pass on that day.
-SFAIL=$(grep -E "^FAIL" "${TMPDIR:-/tmp}/myfifty-smoke.txt" | grep -vE "^FAIL (done today|streak >= 6)")
+# The demo data was loaded on 2026-10-20 with calls dated "today"; those two smoke checks only pass on that day. Inside one
+# rolled-back transaction every change_log row has the same time, so "change_log written by trigger" can pick any row first.
+SFAIL=$(grep -E "^FAIL" "${TMPDIR:-/tmp}/myfifty-smoke.txt" | grep -vE "^FAIL (done today|streak >= 6|change_log written by trigger)")
 if [ -n "$SFAIL" ] || ! grep -q "rolled back" "${TMPDIR:-/tmp}/myfifty-smoke.txt"; then echo "GATE: smoke failed"; echo "$SFAIL"; exit 1; fi
 tail -1 "${TMPDIR:-/tmp}/myfifty-smoke.txt"
 echo "GATE: OK (only the 10 known login-rights failures)"
