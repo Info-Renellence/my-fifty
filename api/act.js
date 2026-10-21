@@ -202,7 +202,7 @@ const OPS = {
     if (text.length < 2) throw fail(400, 'note_required');
     const { note, next } = splitNote(text);
     await asUser(me.id, async (tx) => {
-      const [i] = await tx`update interactions set body = ${text} where id = ${b.interactionId} and user_id = ${me.id} and deleted_at is null returning id`;
+      const [i] = await tx`update interactions set body = ${text} where id = ${b.interactionId} and user_id = ${me.id} and kind <> 'email' and deleted_at is null returning id`;
       if (!i) throw fail(404, 'not_found');
       if (next) await tx`update tasks set title = ${next} where from_interaction_id = ${i.id} and assignee_id = ${me.id} and status = 'open'`;
       void note;

@@ -151,3 +151,12 @@ describe('Rewards: saypha syringes this month', () => {
     assert.equal(r.syringes, 2);
   }));
 });
+
+describe('Edit on History', () => {
+  test('a sent or pulled email cannot be rewritten (History offers Edit only on calls, visits, texts and notes)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const e = await h.touch(sql, c, me.id, { kind: 'email', subject: 'Prices', body: 'Here are the prices.', outcome: null });
+    await assert.rejects(A.edit_note(me, { interactionId: e, body: 'Something I never sent' }), (x) => x.status === 404);
+    assert.equal((await sql`select body from interactions where id = ${e}`)[0].body, 'Here are the prices.');
+  }));
+});
