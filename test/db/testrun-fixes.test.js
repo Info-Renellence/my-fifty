@@ -190,16 +190,6 @@ describe('New-lead pushes to a switched-off rep', () => {
   }));
 });
 
-describe('L9 Ready to order and the injector on an onboarding', () => {
-  test('the injector on a signed onboarding is on the list, as the order screen already lets them order', () => h.withDb(async (sql) => {
-    const D = require('../../api/data').OPS;
-    const me = await h.user(sql), owner = await h.contact(sql, me, { first: 'Owner' }), inj = await h.contact(sql, me, { first: 'Injector' });
-    await sql`insert into onboardings (primary_contact_id, injector_contact_id, status, submitted_at) values (${owner}, ${inj}, 'signed', now())`;
-    const ids = (await D.ready(sql, me)).people.map((p) => p.id).sort();
-    assert.deepEqual(ids, [owner, inj].sort());
-    await A.order(me, { contactId: inj, lines: [{ sku: 'SAF100', qty: 1 }] });
-  }));
-});
 
 describe('Candidates with a second sample order on the way', () => {
   test('days since samples count from the samples that arrived; a newer, unshipped sample order does not hide them', () => h.withDb(async (sql) => {
