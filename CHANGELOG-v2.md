@@ -113,7 +113,13 @@ Additive only, so My Fifty keeps working unchanged. Applied by Yousef from the s
 | 46 | **Part B applied** (`db/v2-007-part-b.sql`): `contacts_role` = physician · injector · dentist · manager · other (nurse_injector → injector; 14 clinic_owner → manager); `contacts_prp` re-made (exprecell → exprecell_prf, arthrex_angel → arthrex_prf, emcyte dropped); new enum `contacts_designation` md · rn · rpn · np · dds · other ("MD" → md); `contacts_email_key` dropped, plain index `contacts_email_idx` | Approved 2026-10-21; My Fifty was ready (ef4d8c8) |
 | 47 | Fictional rows (`db/seed-edge-demo.sql`, ids `ed9e0000…`): 24 monthly targets, 28 forecasts, 3 upcoming "(demo)" events with seats, 16 invites, 8 marketing requests, 4 training forms, 12 expenses, 8 focus points; plus a few rows from testing the new Edge (person "Edgetest Sample" @demo.invalid, orders/forecast/requests on demo people, one focus point "Edge test focus") | So the new Edge screens have something to show. `db/wipe-demo.sql` removes them (except the one test focus point, which belongs to admin@) |
 
-## 11. Still to do in v2 (not done yet)
+## 11. Four lead sources only (`db/005-drop-source-detail.sql`), 2026-10-21, approved by Yousef
+
+| # | Change | Why |
+|---|---|---|
+| 48 | `contacts.source_detail` dropped (it held labels such as Instagram, Facebook, Referral, Clinic visit; only demo data had any) | "We should only have 4 lead sources: Meta, Events, Warm Leads, Cold Leads" (option 2). The sources stay in `source_kind` (social = Meta ads, event, warm, cold). My Fifty and Edge stopped reading the column first; notifications now say "New Meta lead" |
+
+## 12. Still to do in v2 (not done yet)
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.

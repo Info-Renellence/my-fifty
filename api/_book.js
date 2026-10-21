@@ -70,7 +70,7 @@ async function book(sql, me, opts) {
   const cfg = o.cfg || await settings(sql);
   const contacts = await sql`
     select c.id, c.first_name, c.last_name, c.designation, c.email, c.secondary_email, c.role, c.phone, c.mobile, c.clinic_id, cl.name as clinic,
-           c.source_kind, c.source_detail, c.source_ad_id, c.source_event_id, ev.name as event_name, c.created_at,
+           c.source_kind, c.source_ad_id, c.source_event_id, ev.name as event_name, c.created_at,
            c.fillers_used::text[] as fillers_used, c.prp_used::text[] as prp_used,
            c.shipping_street, c.shipping_city, c.shipping_province, c.shipping_postal_code,
            c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code
@@ -113,7 +113,7 @@ async function book(sql, me, opts) {
     const p = {
       id: c.id, name: fullName(c), first: c.first_name || '', clinic: c.clinic || '', clinicId: c.clinic_id,
       email: c.email || '', secondaryEmail: c.secondary_email || '', phone: c.mobile || c.phone || '', role: L.canon('contacts_role', c.role),
-      sourceKind: c.source_kind, sourceDetail: c.source_detail || '', eventName: c.event_name || '', createdAt: c.created_at,
+      sourceKind: c.source_kind, eventName: c.event_name || '', createdAt: c.created_at,
       // Old list names read as the new ones (v2 part B renames; api/_lists.js).
       fillers: L.canonAll('contacts_filler', c.fillers_used), prp: L.canonAll('contacts_prp', c.prp_used),
       shipping: addr(c, 'shipping'), billing: addr(c, 'billing'),
@@ -212,7 +212,7 @@ function todayList(people, me, cfg) {
   const hours = cfg.new_lead_hours * 3600000;
   people.filter((p) => p.stage === 'lead' && p.isNew && p.sourceKind === 'social' && Date.now() - new Date(p.createdAt) < hours)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .forEach((p) => push(p, { why: 'lead', action: 'call', detail: 'new ' + (p.sourceDetail || 'social media') + ' lead · ' + ago(p.createdAt) }));
+    .forEach((p) => push(p, { why: 'lead', action: 'call', detail: 'new Meta lead · ' + ago(p.createdAt) }));   // four sources only: social = Meta ads
   people.filter((p) => p.followUp && p.followUp.due_at && new Date(p.followUp.due_at).toISOString() <= endOfToday)
     .sort((a, b) => new Date(a.followUp.due_at) - new Date(b.followUp.due_at))
     .forEach((p) => push(p, { why: 'follow_up', taskId: p.followUp.id, action: p.followUp.type === 'visit' ? 'visit' : 'call', detail: p.followUp.title || 'Follow-up' }));

@@ -18,9 +18,10 @@ describe('the test harness', () => {
 });
 
 describe('fields and lists', () => {
-  test('role only takes the five fixed values', () => h.withDb(async (sql) => {
+  test('role only takes the five fixed values (v2 part B names)', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    await h.contact(sql, me, { role: 'nurse_injector' });
+    for (const r of ['physician', 'injector', 'dentist', 'manager', 'other']) await h.contact(sql, me, { role: r });
+    await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, role) values (${me.id}, 'nurse_injector')`), /invalid input value for enum/);
     await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, role) values (${me.id}, 'surgeon')`), /invalid input value for enum/);
   }));
   test('source_kind is social, event, warm or cold, and the old meta_ad is gone', () => h.withDb(async (sql) => {
@@ -31,9 +32,9 @@ describe('fields and lists', () => {
   test('fillers_used and prp_used are fixed lists that start empty', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const id = await h.contact(sql, me);
-    const [c] = await sql`select fillers_used::text[] f, prp_used::text[] p, source_detail from contacts where id = ${id}`;
+    const [c] = await sql`select fillers_used::text[] f, prp_used::text[] p from contacts where id = ${id}`;
     assert.deepEqual([c.f, c.p], [[], []]);
-    await sql`update contacts set fillers_used = '{saypha,teoxane_rha}', prp_used = '{exprecell}' where id = ${id}`;
+    await sql`update contacts set fillers_used = '{saypha,teoxane_rha}', prp_used = '{exprecell_prf,none}' where id = ${id}`;
     await assert.rejects(sql.savepoint((s) => s`update contacts set fillers_used = '{botox}' where id = ${id}`), /invalid input value/);
   }));
   test('orders have approval_note and shipping_note, and no notes', () => h.withDb(async (sql) => {

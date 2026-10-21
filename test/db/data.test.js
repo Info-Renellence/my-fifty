@@ -123,7 +123,7 @@ describe('leads', () => {
     assert.deepEqual(l.leads.map((x) => x.name.split(' ')[0]), ['New', 'Old']);
     assert.equal(l.leads[0].isNew, true);
     assert.equal(l.leads[0].age, '2h ago');
-    assert.match(l.leads[0].sub, /Instagram$/);
+    assert.doesNotMatch(l.leads[0].sub, /Instagram|Facebook/, 'four sources only: no platform detail');
     assert.match(l.leads[1].last, /^Texted [A-Z][a-z]{2} \d+$/);
   }));
   test('cold and warm leads say who added them', () => h.withDb(async (sql) => {
@@ -151,7 +151,7 @@ describe('person', () => {
   }));
   test('a Fifty person going cold, waiting on payment (L7)', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    const c = await h.contact(sql, me, { designation: 'MD', first: 'Maya', last: 'Unit' });
+    const c = await h.contact(sql, me, { designation: 'md', first: 'Maya', last: 'Unit' });
     await h.order(sql, c, me, { status: 'shipped', days: 40, lines: [['SAF100', 4]] });
     const open = await h.order(sql, c, me, { status: 'approved', approved: true, method: 'card_on_file', lines: [['SAF100', 2]] });
     await sql`update contacts set fillers_used = '{saypha,restylane}', prp_used = '{eclipse_prp}' where id = ${c}`;
@@ -256,10 +256,10 @@ describe('history', () => {
     const w = await h.contact(sql, me, { source: 'warm', detail: 'Referral' });
     const c = await h.contact(sql, me, { source: 'cold' });
     const last = async (id) => { const e = (await D.history(sql, me, Q({ id }))).entries; return e[e.length - 1].title; };
-    assert.equal(await last(s), 'Came from an Instagram ad');
-    assert.equal(await last(fb), 'Came from a Facebook ad');
-    assert.equal(await last(plain), 'Came from a social media ad');
-    assert.equal(await last(w), 'Came from Referral');
+    assert.equal(await last(s), 'Came from a Meta ad');
+    assert.equal(await last(fb), 'Came from a Meta ad');
+    assert.equal(await last(plain), 'Came from a Meta ad');
+    assert.equal(await last(w), 'Added to My Fifty');
     assert.equal(await last(c), 'Added to My Fifty');
   }));
 });
@@ -325,7 +325,7 @@ describe('order, onboarding and rewards screens', () => {
     assert.equal((await D.order(sql, me, Q({ id: o }))).id, o);
   }));
   test('waiting on a pay link offers Resend; onboarding row shows', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await h.contact(sql, me, { designation: 'MD' });
+    const me = await h.user(sql), c = await h.contact(sql, me, { designation: 'md' });
     const o = await h.order(sql, c, me, { status: 'approved', approved: true, method: 'pay_link' });
     await sql`insert into payments (order_id, kind, method, amount, status, provider, pay_link_url) values (${o}, 'charge', 'pay_link', 450, 'pending', 'stripe', 'https://pay.test')`;
     await sql`insert into onboardings (primary_contact_id, status, submitted_at) values (${c}, 'complete', now())`;
@@ -337,7 +337,7 @@ describe('order, onboarding and rewards screens', () => {
     assert.match(r.onboarding.value, /^Signed /);
   }));
   test('paid orders offer nothing; samples waiting on the MD offer Remind', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await h.contact(sql, me), md = await h.contact(sql, null, { owner: null, md: true, first: 'Lee', designation: 'MD' });
+    const me = await h.user(sql), c = await h.contact(sql, me), md = await h.contact(sql, null, { owner: null, md: true, first: 'Lee', designation: 'md' });
     const paid = await h.order(sql, c, me, { status: 'paid' });
     assert.equal((await D.order(sql, me, Q({ id: paid }))).action, null);
     const s = await h.order(sql, c, me, { status: 'awaiting_md', approved: true, mdId: md, lines: [['SAL400', 2, true]] });

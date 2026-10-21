@@ -37,11 +37,11 @@ insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, creat
 insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values ('de009685-0000-4000-8000-000000000020', 'Lips webinar (demo)', 'webinar', '2026-10-16T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
 insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values ('de009685-0000-4000-8000-000000000021', 'Launch event (demo)', 'launch', '2026-10-04T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000022', 'de009685-0000-4000-8000-000000000006', 'de009685-0000-4000-8000-000000000001', 'Maya', 'Sample', 'maya.sample@info.sampleclinicb.example', 'physician', '+15550200001',
-    '13 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+    '13 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{saypha,restylane}'::contacts_filler[], '{eclipse_prp}'::contacts_prp[], 'demo-info-contact-1', '2026-08-15T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-000000000022';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-000000000022';
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000023', 'de009685-0000-4000-8000-000000000022', 'de009685-0000-4000-8000-000000000001', 'de009685-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-08-23T14:00:00.000Z', '2026-08-23T15:00:00.000Z',
@@ -97,11 +97,11 @@ Next: send lips pricing, call Monday', 'import', current_setting('app.owner')::u
 insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values ('de009685-0000-4000-8000-000000000022', 'de009685-0000-4000-8000-000000000022', '2026-09-02T14:00:00.000Z', 'complete', '2026-09-03T14:00:00.000Z', null);
 insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de009685-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send lips pricing, call Monday', 'call', '2026-10-23T13:00:00.000Z', 'open', 'manual');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000002b', 'de009685-0000-4000-8000-000000000005', current_setting('app.owner')::uuid, 'Ben', 'Sample', 'ben.sample@info.sampleclinica.example', 'physician', '+15550200002',
-    '14 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
-    '{saypha,juvederm}'::contacts_filler[], '{exprecell}'::contacts_prp[], 'demo-info-contact-2', '2026-04-04T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-00000000002b';
+    '14 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
+    '{saypha,juvederm}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-info-contact-2', '2026-04-04T13:00:00.000Z');
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-00000000002b';
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000002c', 'de009685-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-06-23T14:00:00.000Z', '2026-06-23T15:00:00.000Z',
@@ -128,9 +128,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000002d', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_5', '2026-10-18T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000002d';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-00000000002e', 'de009685-0000-4000-8000-000000000008', current_setting('app.owner')::uuid, 'Zoe', 'Sample', 'zoe.sample@info.sampleclinicd.example', 'nurse_injector', '+15550200003',
-    '15 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-00000000002e', 'de009685-0000-4000-8000-000000000008', current_setting('app.owner')::uuid, 'Zoe', 'Sample', 'zoe.sample@info.sampleclinicd.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200003',
+    '15 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-3', '2026-04-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -158,9 +158,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000030', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_7', '2026-10-17T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000030';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000031', 'de009685-0000-4000-8000-000000000015', current_setting('app.owner')::uuid, 'Raj', 'Sample', 'raj.sample@info.sampleclinicq.example', 'clinic_owner', '+15550200004',
-    '16 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000031', 'de009685-0000-4000-8000-000000000015', current_setting('app.owner')::uuid, 'Raj', 'Sample', 'raj.sample@info.sampleclinicq.example', 'manager', '+15550200004',
+    '16 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-4', '2026-04-14T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -188,11 +188,11 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000033', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_9', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000033';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000034', 'de009685-0000-4000-8000-00000000000a', current_setting('app.owner')::uuid, 'Ella', 'Sample', 'ella.sample@info.sampleclinicf.example', 'physician', '+15550200005',
-    '17 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '17 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-5', '2026-04-19T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-000000000034';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-000000000034';
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000035', 'de009685-0000-4000-8000-000000000034', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-05T14:00:00.000Z', '2026-07-05T15:00:00.000Z',
@@ -219,9 +219,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000036', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_11', '2026-10-15T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000036';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000037', 'de009685-0000-4000-8000-00000000000b', current_setting('app.owner')::uuid, 'Ivy', 'Sample', 'ivy.sample@info.sampleclinicg.example', 'nurse_injector', '+15550200006',
-    '18 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000037', 'de009685-0000-4000-8000-00000000000b', current_setting('app.owner')::uuid, 'Ivy', 'Sample', 'ivy.sample@info.sampleclinicg.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200006',
+    '18 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-6', '2026-04-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -249,10 +249,10 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000039', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_13', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000039';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-00000000003a', 'de009685-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Max', 'Sample', 'max.sample@info.sampleclinici.example', 'clinic_owner', '+15550200007',
-    '19 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{exprecell}'::contacts_prp[], 'demo-info-contact-7', '2026-04-29T13:00:00.000Z');
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-00000000003a', 'de009685-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Max', 'Sample', 'max.sample@info.sampleclinici.example', 'manager', '+15550200007',
+    '19 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
+    '{saypha}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-info-contact-7', '2026-04-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000003b', 'de009685-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-13T14:00:00.000Z', '2026-07-13T15:00:00.000Z',
@@ -279,9 +279,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000003c', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_15', '2026-10-13T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000003c';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000003d', 'de009685-0000-4000-8000-00000000000e', current_setting('app.owner')::uuid, 'Nora', 'Sample', 'nora.sample@info.sampleclinicj.example', 'physician', '+15550200008',
-    '20 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+    '20 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-8', '2026-05-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -309,9 +309,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000003f', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_17', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000003f';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000040', 'de009685-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Owen', 'Sample', 'owen.sample@info.sampleclinick.example', 'nurse_injector', '+15550200009',
-    '21 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000040', 'de009685-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Owen', 'Sample', 'owen.sample@info.sampleclinick.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200009',
+    '21 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-9', '2026-05-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -339,11 +339,11 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000042', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_19', '2026-10-11T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000042';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000043', 'de009685-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Priya', 'Sample', 'priya.sample@info.sampleclinicl.example', 'clinic_owner', '+15550200010',
-    '22 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000043', 'de009685-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Priya', 'Sample', 'priya.sample@info.sampleclinicl.example', 'manager', '+15550200010',
+    '22 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-10', '2026-05-14T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-000000000043';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-000000000043';
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000044', 'de009685-0000-4000-8000-000000000043', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-25T14:00:00.000Z', '2026-07-25T15:00:00.000Z',
@@ -370,9 +370,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000045', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_21', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000045';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000046', 'de009685-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Quinn', 'Sample', 'quinn.sample@info.sampleclinicm.example', 'physician', '+15550200011',
-    '23 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+    '23 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-11', '2026-05-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -400,10 +400,10 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000048', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_23', '2026-10-09T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000048';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000049', 'de009685-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Rosa', 'Sample', 'rosa.sample@info.sampleclinicn.example', 'nurse_injector', '+15550200012',
-    '24 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
-    '{saypha,juvederm}'::contacts_filler[], '{exprecell}'::contacts_prp[], 'demo-info-contact-12', '2026-05-24T13:00:00.000Z');
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000049', 'de009685-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Rosa', 'Sample', 'rosa.sample@info.sampleclinicn.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200012',
+    '24 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
+    '{saypha,juvederm}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-info-contact-12', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000004a', 'de009685-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-02T14:00:00.000Z', '2026-08-02T15:00:00.000Z',
@@ -430,9 +430,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000004b', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_25', '2026-10-08T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000004b';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-00000000004c', 'de009685-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Tobi', 'Sample', 'tobi.sample@info.sampleclinico.example', 'clinic_owner', '+15550200013',
-    '25 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-00000000004c', 'de009685-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Tobi', 'Sample', 'tobi.sample@info.sampleclinico.example', 'manager', '+15550200013',
+    '25 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-13', '2026-05-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -460,9 +460,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000004e', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_27', '2026-10-07T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000004e';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000004f', 'de009685-0000-4000-8000-000000000014', current_setting('app.owner')::uuid, 'Tess', 'Sample', 'tess.sample@info.sampleclinicp.example', 'physician', '+15550200014',
-    '26 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+    '26 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-14', '2026-06-03T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -490,9 +490,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000051', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_29', '2026-10-06T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000051';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000052', 'de009685-0000-4000-8000-000000000016', current_setting('app.owner')::uuid, 'Uri', 'Sample', 'uri.sample@info.sampleclinicr.example', 'nurse_injector', '+15550200015',
-    '27 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000052', 'de009685-0000-4000-8000-000000000016', current_setting('app.owner')::uuid, 'Uri', 'Sample', 'uri.sample@info.sampleclinicr.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200015',
+    '27 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-15', '2026-06-08T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -520,9 +520,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000054', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_31', '2026-10-05T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000054';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000055', 'de009685-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Vera', 'Sample', 'vera.sample@info.sampleclinicu.example', 'clinic_owner', '+15550200016',
-    '28 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000055', 'de009685-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Vera', 'Sample', 'vera.sample@info.sampleclinicu.example', 'manager', '+15550200016',
+    '28 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-16', '2026-06-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -550,10 +550,10 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000057', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_33', '2026-10-04T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000057';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000058', 'de009685-0000-4000-8000-00000000001a', current_setting('app.owner')::uuid, 'Will', 'Sample', 'will.sample@info.sampleclinicv.example', 'physician', '+15550200017',
-    '29 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
-    '{saypha}'::contacts_filler[], '{exprecell}'::contacts_prp[], 'demo-info-contact-17', '2026-06-18T13:00:00.000Z');
+    '29 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
+    '{saypha}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-info-contact-17', '2026-06-18T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000059', 'de009685-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-22T14:00:00.000Z', '2026-08-22T15:00:00.000Z',
@@ -580,9 +580,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000005a', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_35', '2026-10-03T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000005a';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-00000000005b', 'de009685-0000-4000-8000-00000000001b', current_setting('app.owner')::uuid, 'Xena', 'Sample', 'xena.sample@info.sampleclinicw.example', 'nurse_injector', '+15550200018',
-    '30 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-00000000005b', 'de009685-0000-4000-8000-00000000001b', current_setting('app.owner')::uuid, 'Xena', 'Sample', 'xena.sample@info.sampleclinicw.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200018',
+    '30 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-18', '2026-06-23T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -610,9 +610,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000005d', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_37', '2026-10-02T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000005d';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-00000000005e', 'de009685-0000-4000-8000-00000000001c', current_setting('app.owner')::uuid, 'Yuki', 'Sample', 'yuki.sample@info.sampleclinicx.example', 'clinic_owner', '+15550200019',
-    '31 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-00000000005e', 'de009685-0000-4000-8000-00000000001c', current_setting('app.owner')::uuid, 'Yuki', 'Sample', 'yuki.sample@info.sampleclinicx.example', 'manager', '+15550200019',
+    '31 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-19', '2026-06-28T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -640,9 +640,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000060', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_39', '2026-10-01T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000060';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000061', 'de009685-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Gail', 'Sample', 'gail.sample@info.sampleclinics.example', 'nurse_injector', '+15550200020',
-    '32 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Facebook', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000061', 'de009685-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Gail', 'Sample', 'gail.sample@info.sampleclinics.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200020',
+    '32 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-20', '2026-09-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -665,9 +665,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000063', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_41', '2026-10-09T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000063';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000064', 'de009685-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Hugo', 'Sample', 'hugo.sample@info.sampleclinict.example', 'nurse_injector', '+15550200021',
-    '33 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Facebook', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000064', 'de009685-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Hugo', 'Sample', 'hugo.sample@info.sampleclinict.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200021',
+    '33 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-21', '2026-09-06T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -690,9 +690,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000066', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_43', '2026-09-26T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000066';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-000000000067', 'de009685-0000-4000-8000-00000000001d', current_setting('app.owner')::uuid, 'Iris', 'Sample', 'iris.sample@info.sampleclinicy.example', 'nurse_injector', '+15550200022',
-    '34 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Facebook', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-000000000067', 'de009685-0000-4000-8000-00000000001d', current_setting('app.owner')::uuid, 'Iris', 'Sample', 'iris.sample@info.sampleclinicy.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200022',
+    '34 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-22', '2026-09-22T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -737,9 +737,9 @@ update orders set payment_terms_days = 30 where id = 'de009685-0000-4000-8000-00
 insert into payments (order_id, kind, method, amount, currency, status, provider, is_test, created_at)
     select 'de009685-0000-4000-8000-00000000006b', 'charge', 'wire', sum(quantity * unit_price), 'CAD', 'pending', 'wire', true, '2026-09-25T14:00:00.000Z' from order_lines where order_id = 'de009685-0000-4000-8000-00000000006b';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000006c', 'de009685-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Omar', 'Sample', 'omar.sample@info.sampleclinics.example', 'physician', '+15550200023',
-    '35 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Clinic visit', null,
+    '35 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-23', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -763,9 +763,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-00000000006e', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_49', '2026-09-13T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-00000000006e';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-00000000006f', 'de009685-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Lina', 'Sample', 'lina.sample@info.sampleclinict.example', 'physician', '+15550200024',
-    '36 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Clinic visit', null,
+    '36 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-24', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -789,11 +789,11 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-000000000071', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_51', '2026-09-20T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-000000000071';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000072', 'de009685-0000-4000-8000-00000000001e', current_setting('app.owner')::uuid, 'Kai', 'Sample', 'kai.sample@info.sampleclinicz.example', 'physician', '+15550200025',
-    '37 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Clinic visit', null,
+    '37 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-25', '2026-05-24T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-000000000072';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-000000000072';
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
   values ('de009685-0000-4000-8000-000000000073', 'de009685-0000-4000-8000-000000000072', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-30T14:00:00.000Z', '2026-07-30T15:00:00.000Z',
@@ -996,9 +996,9 @@ insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, sta
 insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de009685-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Drop off the lips kit', 'visit', '2026-10-20T13:00:00.000Z', 'open', 'manual');
 insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de009685-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Ask about the Christmas order', 'call', '2026-10-15T13:00:00.000Z', 'open', 'manual');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000b0', 'de009685-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Leo', 'Sample', 'leo.sample@info.sampleclinick.example', 'nurse_injector', '+15550200026',
-    '38 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000021',
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000b0', 'de009685-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Leo', 'Sample', 'leo.sample@info.sampleclinick.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200026',
+    '38 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000021',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-26', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1011,18 +1011,18 @@ insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, 
     select 'de009685-0000-4000-8000-0000000000b1', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'MSK100';
 insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values ('de009685-0000-4000-8000-0000000000b0', 'de009685-0000-4000-8000-0000000000b0', '2026-09-26T14:00:00.000Z', 'complete', '2026-09-27T14:00:00.000Z', '2026-09-27T14:00:00.000Z');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000b2', 'de009685-0000-4000-8000-00000000000c', current_setting('app.owner')::uuid, 'Sara', 'Sample', 'sara.sample@info.sampleclinich.example', 'physician', '+15550200027',
-    '39 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+    '39 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-27', '2026-09-26T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-0000000000b2';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-0000000000b2';
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000b3', 'de009685-0000-4000-8000-00000000000c', null, 'Lee', 'Sample', 'lee.sample@info.sampleclinich.example', 'physician', '+15550200028',
-    '40 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '40 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-28', '2026-09-26T13:00:00.000Z');
-update contacts set designation = 'MD' where id = 'de009685-0000-4000-8000-0000000000b3';
+update contacts set designation = 'md' where id = 'de009685-0000-4000-8000-0000000000b3';
 select set_config('app.user_id', '', true);
 update contacts set is_medical_director = true where id = 'de009685-0000-4000-8000-0000000000b3';
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1038,9 +1038,9 @@ insert into agreement_signers (agreement_id, contact_id, name, email, role, sign
 insert into onboardings (primary_contact_id, injector_contact_id, md_contact_id, submitted_at, status, card_saved_at, agreement_id) values ('de009685-0000-4000-8000-0000000000b2', 'de009685-0000-4000-8000-0000000000b2', 'de009685-0000-4000-8000-0000000000b3', '2026-10-04T14:00:00.000Z', 'submitted', '2026-10-04T14:00:00.000Z', 'de009685-0000-4000-8000-0000000000b5');
 update agreements set sent_at = '2026-10-19T14:00:00.000Z' where id = 'de009685-0000-4000-8000-0000000000b5';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000b6', 'de009685-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Mia', 'Sample', 'mia.sample@info.sampleclinicm.example', 'clinic_owner', '+15550200029',
-    '41 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000b6', 'de009685-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Mia', 'Sample', 'mia.sample@info.sampleclinicm.example', 'manager', '+15550200029',
+    '41 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-29', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1055,9 +1055,9 @@ insert into interactions (id, kind, contact_id, user_id, occurred_at, direction,
   values ('de009685-0000-4000-8000-0000000000b8', 'call', 'de009685-0000-4000-8000-0000000000b6', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Tried the lips sample on a client, loved it.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000b9', 'de009685-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Noah', 'Sample', 'noah.sample@info.sampleclinicn.example', 'nurse_injector', '+15550200030',
-    '42 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000020',
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000b9', 'de009685-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Noah', 'Sample', 'noah.sample@info.sampleclinicn.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200030',
+    '42 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000020',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-30', '2026-10-15T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1067,9 +1067,9 @@ insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitte
 insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
     select 'de009685-0000-4000-8000-0000000000ba', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000bb', 'de009685-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Nina', 'Sample', 'nina.sample@info.sampleclinice.example', 'nurse_injector', '+15550200031',
-    '43 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Clinic visit', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000bb', 'de009685-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Nina', 'Sample', 'nina.sample@info.sampleclinice.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200031',
+    '43 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-31', '2026-10-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1082,192 +1082,192 @@ insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, 
     select 'de009685-0000-4000-8000-0000000000bc', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'MSK100';
 insert into agreements (kind, contact_id, order_id, envelope_id, status, sent_at) values ('md_pdr', 'de009685-0000-4000-8000-0000000000bb', 'de009685-0000-4000-8000-0000000000bc', 'demo-info-env-2', 'waiting', '2026-10-21T13:12:00.000Z');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000bd', 'de009685-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Nadia', 'Sample', 'nadia.sample@info.sampleclinicl.example', 'nurse_injector', '+15550200032',
-    '44 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-32', '2026-10-21T11:28:39.403Z');
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000bd', 'de009685-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Nadia', 'Sample', 'nadia.sample@info.sampleclinicl.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200032',
+    '44 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
+    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-32', '2026-10-21T13:32:12.340Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000be', 'de009685-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Tara', 'Sample', 'tara.sample@info.sampleclinicu.example', 'nurse_injector', '+15550200033',
-    '45 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-33', '2026-10-21T14:28:39.403Z');
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000be', 'de009685-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Tara', 'Sample', 'tara.sample@info.sampleclinicu.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200033',
+    '45 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
+    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-33', '2026-10-21T16:32:12.340Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000bf', 'de009685-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Jay', 'Sample', 'jay.sample@info.sampleclinice.example', 'nurse_injector', '+15550200034',
-    '46 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Facebook', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000bf', 'de009685-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Jay', 'Sample', 'jay.sample@info.sampleclinice.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200034',
+    '46 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-34', '2026-10-20T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000c0', 'call', 'de009685-0000-4000-8000-0000000000bf', current_setting('app.owner')::uuid, '2026-10-20T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000c1', 'de009685-0000-4000-8000-00000000001e', current_setting('app.owner')::uuid, 'Kim', 'Sample', 'kim.sample@info.sampleclinicz.example', 'nurse_injector', '+15550200035',
-    '47 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000c1', 'de009685-0000-4000-8000-00000000001e', current_setting('app.owner')::uuid, 'Kim', 'Sample', 'kim.sample@info.sampleclinicz.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200035',
+    '47 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-35', '2026-10-18T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000c2', 'text', 'de009685-0000-4000-8000-0000000000c1', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Sent the saypha lips info.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000c3', 'de009685-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Amy', 'Sample', 'amy.sample@info.sampleclinico.example', 'nurse_injector', '+15550200036',
-    '48 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Facebook', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000c3', 'de009685-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Amy', 'Sample', 'amy.sample@info.sampleclinico.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200036',
+    '48 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-36', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000c4', 'call', 'de009685-0000-4000-8000-0000000000c3', current_setting('app.owner')::uuid, '2026-10-17T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000c5', 'de009685-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Liam', 'Sample', 'liam.sample@info.sampleclinici.example', 'nurse_injector', '+15550200037',
-    '49 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000c5', 'de009685-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Liam', 'Sample', 'liam.sample@info.sampleclinici.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200037',
+    '49 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-37', '2026-10-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000c6', 'meeting', 'de009685-0000-4000-8000-0000000000c5', current_setting('app.owner')::uuid, '2026-10-13T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values ('de009685-0000-4000-8000-0000000000c7', 'de009685-0000-4000-8000-000000000014', current_setting('app.owner')::uuid, 'Pia', 'Sample', 'pia.sample@info.sampleclinicp.example', 'nurse_injector', '+15550200038',
-    '50 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', 'Instagram', null,
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values ('de009685-0000-4000-8000-0000000000c7', 'de009685-0000-4000-8000-000000000014', current_setting('app.owner')::uuid, 'Pia', 'Sample', 'pia.sample@info.sampleclinicp.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200038',
+    '50 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-38', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000c8', 'email', 'de009685-0000-4000-8000-0000000000c7', current_setting('app.owner')::uuid, '2026-10-09T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000c9', 'de009685-0000-4000-8000-000000000007', current_setting('app.owner')::uuid, 'Cara', 'Sample', 'cara.sample@info.sampleclinicc.example', 'physician', '+15550200039',
-    '51 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000020',
+    '51 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000020',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-39', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000ca', 'de009685-0000-4000-8000-00000000001a', current_setting('app.owner')::uuid, 'Dan', 'Sample', 'dan.sample@info.sampleclinicv.example', 'physician', '+15550200040',
-    '52 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000020',
+    '52 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000020',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-40', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000cb', 'call', 'de009685-0000-4000-8000-0000000000ca', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000cc', 'de009685-0000-4000-8000-00000000000e', current_setting('app.owner')::uuid, 'Ines', 'Sample', 'ines.sample@info.sampleclinicj.example', 'physician', '+15550200041',
-    '53 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000021',
+    '53 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000021',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-41', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000cd', 'meeting', 'de009685-0000-4000-8000-0000000000cc', current_setting('app.owner')::uuid, '2026-10-11T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000ce', 'de009685-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Mo', 'Sample', 'mo.sample@info.sampleclinicm.example', 'physician', '+15550200042',
-    '54 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000021',
+    '54 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000021',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-42', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000cf', 'de009685-0000-4000-8000-00000000000b', current_setting('app.owner')::uuid, 'Gia', 'Sample', 'gia.sample@info.sampleclinicg.example', 'physician', '+15550200043',
-    '55 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-000000000021',
+    '55 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-000000000021',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-43', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000d0', 'text', 'de009685-0000-4000-8000-0000000000cf', current_setting('app.owner')::uuid, '2026-10-07T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000d1', 'de009685-0000-4000-8000-00000000000c', current_setting('app.owner')::uuid, 'Hal', 'Sample', 'hal.sample@info.sampleclinich.example', 'physician', '+15550200044',
-    '56 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', null, 'de009685-0000-4000-8000-00000000001f',
+    '56 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de009685-0000-4000-8000-00000000001f',
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-44', '2026-09-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000d2', 'call', 'de009685-0000-4000-8000-0000000000d1', current_setting('app.owner')::uuid, '2026-10-03T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000d3', 'de009685-0000-4000-8000-00000000001b', current_setting('app.owner')::uuid, 'Wes', 'Sample', 'wes.sample@info.sampleclinicw.example', 'manager', '+15550200045',
-    '57 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+    '57 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-45', '2026-10-20T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000d4', 'de009685-0000-4000-8000-00000000000a', current_setting('app.owner')::uuid, 'Faye', 'Sample', 'faye.sample@info.sampleclinicf.example', 'manager', '+15550200046',
-    '58 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Clinic visit', null,
+    '58 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-46', '2026-10-15T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000d5', 'call', 'de009685-0000-4000-8000-0000000000d4', current_setting('app.owner')::uuid, '2026-10-17T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000d6', 'de009685-0000-4000-8000-000000000015', current_setting('app.owner')::uuid, 'Quin', 'Sample', 'quin.sample@info.sampleclinicq.example', 'manager', '+15550200047',
-    '59 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+    '59 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-47', '2026-10-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000d7', 'email', 'de009685-0000-4000-8000-0000000000d6', current_setting('app.owner')::uuid, '2026-10-10T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000d8', 'de009685-0000-4000-8000-00000000001d', current_setting('app.owner')::uuid, 'Yara', 'Sample', 'yara.sample@info.sampleclinicy.example', 'manager', '+15550200048',
-    '60 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Academy walk-in', null,
+    '60 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-48', '2026-09-26T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000d9', 'meeting', 'de009685-0000-4000-8000-0000000000d8', current_setting('app.owner')::uuid, '2026-10-02T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000da', 'de009685-0000-4000-8000-000000000006', current_setting('app.owner')::uuid, 'Bea', 'Sample', 'bea.sample@info.sampleclinicb.example', 'manager', '+15550200049',
-    '61 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', 'Referral', null,
+    '61 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-49', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000db', 'call', 'de009685-0000-4000-8000-0000000000da', current_setting('app.owner')::uuid, '2026-09-26T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000dc', 'de009685-0000-4000-8000-00000000001c', current_setting('app.owner')::uuid, 'Xia', 'Sample', 'xia.sample@info.sampleclinicx.example', 'other', '+15550200050',
-    '62 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '62 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-50', '2026-10-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000dd', 'de009685-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Otto', 'Sample', 'otto.sample@info.sampleclinicn.example', 'other', '+15550200051',
-    '63 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '63 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-51', '2026-10-12T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', (select id from users where email = 'demo.taylor.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000de', 'de009685-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Uma', 'Sample', 'uma.sample@info.sampleclinict.example', 'other', '+15550200052',
-    '64 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '64 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-52', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000df', 'call', 'de009685-0000-4000-8000-0000000000de', current_setting('app.owner')::uuid, '2026-10-08T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Cold intro.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', (select id from users where email = 'demo.taylor.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e0', 'de009685-0000-4000-8000-000000000016', current_setting('app.owner')::uuid, 'Vic', 'Sample', 'vic.sample@info.sampleclinicr.example', 'other', '+15550200053',
-    '65 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '65 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-53', '2026-09-30T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e1', 'de009685-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Sol', 'Sample', 'sol.sample@info.sampleclinics.example', 'other', '+15550200054',
-    '66 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null, null,
+    '66 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-54', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
   values ('de009685-0000-4000-8000-0000000000e2', 'email', 'de009685-0000-4000-8000-0000000000e1', current_setting('app.owner')::uuid, '2026-09-21T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Cold intro.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e3', 'de009685-0000-4000-8000-000000000005', 'de009685-0000-4000-8000-000000000001', 'Jordanclient1', 'Sample', 'jordanclient1.sample@info.sampleclinica.example', null, '+15550200055',
-    '67 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '67 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-55', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1282,9 +1282,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000e4', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_59', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000e4';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e5', 'de009685-0000-4000-8000-000000000006', 'de009685-0000-4000-8000-000000000001', 'Jordanclient2', 'Sample', 'jordanclient2.sample@info.sampleclinicb.example', null, '+15550200056',
-    '68 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '68 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-56', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1299,9 +1299,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000e6', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_60', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000e6';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e7', 'de009685-0000-4000-8000-000000000007', 'de009685-0000-4000-8000-000000000001', 'Jordanclient3', 'Sample', 'jordanclient3.sample@info.sampleclinicc.example', null, '+15550200057',
-    '69 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '69 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-57', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1316,9 +1316,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000e8', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_61', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000e8';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000e9', 'de009685-0000-4000-8000-000000000008', 'de009685-0000-4000-8000-000000000001', 'Jordanclient4', 'Sample', 'jordanclient4.sample@info.sampleclinicd.example', null, '+15550200058',
-    '70 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '70 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-58', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1333,9 +1333,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000ea', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_62', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000ea';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000eb', 'de009685-0000-4000-8000-000000000009', 'de009685-0000-4000-8000-000000000001', 'Jordanclient5', 'Sample', 'jordanclient5.sample@info.sampleclinice.example', null, '+15550200059',
-    '71 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '71 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-59', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1350,9 +1350,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000ec', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_63', '2026-10-08T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000ec';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000ed', 'de009685-0000-4000-8000-00000000000a', 'de009685-0000-4000-8000-000000000001', 'Jordanclient6', 'Sample', 'jordanclient6.sample@info.sampleclinicf.example', null, '+15550200060',
-    '72 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '72 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-60', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1367,9 +1367,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000ee', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_64', '2026-10-06T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000ee';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan.info@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000ef', 'de009685-0000-4000-8000-00000000000b', 'de009685-0000-4000-8000-000000000001', 'Jordanclient7', 'Sample', 'jordanclient7.sample@info.sampleclinicg.example', null, '+15550200061',
-    '73 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '73 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-61', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1384,9 +1384,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000f0', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_65', '2026-10-04T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000f0';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000f1', 'de009685-0000-4000-8000-000000000005', 'de009685-0000-4000-8000-000000000002', 'Caseyclient1', 'Sample', 'caseyclient1.sample@info.sampleclinica.example', null, '+15550200062',
-    '74 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '74 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-62', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1401,9 +1401,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000f2', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_66', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000f2';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000f3', 'de009685-0000-4000-8000-000000000006', 'de009685-0000-4000-8000-000000000002', 'Caseyclient2', 'Sample', 'caseyclient2.sample@info.sampleclinicb.example', null, '+15550200063',
-    '75 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '75 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-63', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1418,9 +1418,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000f4', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_67', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000f4';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000f5', 'de009685-0000-4000-8000-000000000007', 'de009685-0000-4000-8000-000000000002', 'Caseyclient3', 'Sample', 'caseyclient3.sample@info.sampleclinicc.example', null, '+15550200064',
-    '76 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '76 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-64', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1435,9 +1435,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000f6', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_68', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000f6';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000f7', 'de009685-0000-4000-8000-000000000008', 'de009685-0000-4000-8000-000000000002', 'Caseyclient4', 'Sample', 'caseyclient4.sample@info.sampleclinicd.example', null, '+15550200065',
-    '77 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '77 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-65', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1452,9 +1452,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000f8', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_69', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000f8';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000f9', 'de009685-0000-4000-8000-000000000005', 'de009685-0000-4000-8000-000000000003', 'Rileyclient1', 'Sample', 'rileyclient1.sample@info.sampleclinica.example', null, '+15550200066',
-    '78 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '78 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-66', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
@@ -1469,9 +1469,9 @@ insert into payments (order_id, kind, method, amount, currency, fee, status, pro
     select 'de009685-0000-4000-8000-0000000000fa', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_info_70', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de009685-0000-4000-8000-0000000000fa';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de009685-0000-4000-8000-0000000000fb', 'de009685-0000-4000-8000-000000000006', 'de009685-0000-4000-8000-000000000003', 'Rileyclient2', 'Sample', 'rileyclient2.sample@info.sampleclinicb.example', null, '+15550200067',
-    '79 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null, null,
+    '79 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
     '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-info-contact-67', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)

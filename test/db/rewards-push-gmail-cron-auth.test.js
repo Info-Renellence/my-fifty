@@ -265,7 +265,7 @@ describe('cron', () => {
       const r = await cron._.newLeads(sql);
       const mine = wp.sent.filter((s) => s.payload.url === '/person/' + fresh);
       assert.equal(mine.length, 1);
-      assert.equal(mine[0].payload.title, 'New Instagram lead: Nadia Unit');
+      assert.equal(mine[0].payload.title, 'New Meta lead: Nadia Unit');
       assert.equal(mine[0].payload.body, "Reach out within 24 hours. It's at the top of your Today.");
       assert.ok(r.found >= 1);
       wp.sent.length = 0;

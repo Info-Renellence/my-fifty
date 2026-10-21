@@ -62,6 +62,10 @@ for (const [k, name, kind, days] of [['academy', 'Academy training', 'training',
 
 // ---- people ----
 let n = 0;
+// The role as v2 has it: 'injector' after part B, 'nurse_injector' before (the generated SQL picks at load time).
+const roleSql = (r) => (r === 'injector'
+  ? "(select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role"
+  : q(r || null));
 function person(o) {
   const id = uuid();
   n++;
@@ -69,9 +73,9 @@ function person(o) {
   const email = (first + '.' + rest.join('')).toLowerCase() + '@sampleclinic' + (o.clinic || 'x').toLowerCase() + '.example';
   const by = o.addedBy ? `(select id from users where email = ${q(o.addedBy)})` : ME;
   sql(`select set_config('app.user_id', ${by}::text, true);`);
-  sql(`insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_detail, source_event_id, fillers_used, prp_used, legacy_id, created_at)
-  values (${q(id)}, ${o.clinic ? q(clinic[o.clinic]) : 'null'}, ${o.noOwner ? 'null' : o.owner ? q(o.owner) : ME}, ${q(first)}, ${q(rest.join(' '))}, ${q(email)}, ${q(o.role || null)}, ${q('+1555020' + String(10000 + n).slice(1))},
-    ${q((12 + n) + ' Sample St')}, 'Sampleton', 'ON', 'Z9Z 9Z9', ${q(o.source || 'warm')}, ${q(o.detail || null)}, ${o.event ? q(EV[o.event]) : 'null'},
+  sql(`insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  values (${q(id)}, ${o.clinic ? q(clinic[o.clinic]) : 'null'}, ${o.noOwner ? 'null' : o.owner ? q(o.owner) : ME}, ${q(first)}, ${q(rest.join(' '))}, ${q(email)}, ${roleSql(o.role)}, ${q('+1555020' + String(10000 + n).slice(1))},
+    ${q((12 + n) + ' Sample St')}, 'Sampleton', 'ON', 'Z9Z 9Z9', ${q(o.source || 'warm')}, ${o.event ? q(EV[o.event]) : 'null'},
     ${q('{' + (o.fillers || []).join(',') + '}')}::contacts_filler[], ${q('{' + (o.prp || []).join(',') + '}')}::contacts_prp[], ${q('demo-contact-' + n)}, ${o.createdAt ? q(o.createdAt) : o.created != null ? ts(o.created, 9) : ts(120)});`);
   if (o.name.startsWith('Dr. ')) sql(`update contacts set designation = 'md' where id = ${q(id)};`);
   sql("select set_config('app.user_id', '', true);");
@@ -135,7 +139,7 @@ const warmNames = [['Dr. Ben Sample', 'A'], ['Zoe Sample', 'D'], ['Raj Sample', 
   ['Owen Sample', 'K'], ['Dr. Priya Sample', 'L'], ['Quinn Sample', 'M'], ['Rosa Sample', 'N'], ['Tobi Sample', 'O'], ['Tess Sample', 'P'], ['Uri Sample', 'R'], ['Vera Sample', 'U'],
   ['Will Sample', 'V'], ['Xena Sample', 'W'], ['Yuki Sample', 'X']];
 const warm = warmNames.map(([name, c], i) => {
-  const id = person({ name, clinic: c, role: i % 3 === 0 ? 'physician' : i % 3 === 1 ? 'injector' : 'manager', source: i % 4 === 0 ? 'social' : i % 4 === 1 ? 'event' : 'warm', detail: i % 4 === 0 ? 'Instagram' : i % 4 === 2 ? 'Referral' : null, event: i % 4 === 1 ? 'academy' : null, created: 200 - i * 5, fillers: i % 2 ? ['saypha'] : ['saypha', 'juvederm'], prp: i % 5 === 0 ? ['exprecell'] : [] });
+  const id = person({ name, clinic: c, role: i % 3 === 0 ? 'physician' : i % 3 === 1 ? 'injector' : 'manager', source: i % 4 === 0 ? 'social' : i % 4 === 1 ? 'event' : 'warm', detail: i % 4 === 0 ? 'Instagram' : i % 4 === 2 ? 'Referral' : null, event: i % 4 === 1 ? 'academy' : null, created: 200 - i * 5, fillers: i % 2 ? ['saypha'] : ['saypha', 'juvederm'], prp: i % 5 === 0 ? ['exprecell_prf'] : [] });
   const first = order(id, { days: 120 - i * 4, lines: [[P.filler, 4 + (i % 3)], [P.lips, 2]], shipped: 118 - i * 4, method: i % 6 === 5 ? 'wire' : 'card_on_file' });
   void first;
   // A reorder in the last month keeps them warm; some of the reorders are in this quarter (Rewards).

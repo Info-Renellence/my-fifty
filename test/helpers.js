@@ -80,10 +80,10 @@ async function clinic(sql, o = {}) {
   return c;
 }
 async function contact(sql, owner, o = {}) {
-  const [c] = await sql`insert into contacts (owner_id, clinic_id, first_name, last_name, email, mobile, role, designation, source_kind, source_detail, source_event_id,
+  const [c] = await sql`insert into contacts (owner_id, clinic_id, first_name, last_name, email, mobile, role, designation, source_kind, source_event_id,
       shipping_street, shipping_city, billing_street, billing_city, is_medical_director, created_at)
     values (${o.owner === null ? null : (owner && owner.id) || owner}, ${o.clinicId || null}, ${o.first || 'Pat'}, ${o.last || 'Unit'}, ${o.email === undefined ? 'p.' + uid() + '@test.invalid' : o.email},
-      ${o.phone || null}, ${o.role || null}, ${o.designation || null}, ${o.source || 'warm'}, ${o.detail || null}, ${o.eventId || null},
+      ${o.phone || null}, ${o.role || null}, ${o.designation || null}, ${o.source || 'warm'}, ${o.eventId || null},
       ${o.shipStreet || '2 Test St'}, ${o.shipCity || 'Testville'}, ${o.billStreet || null}, ${o.billCity || null}, ${o.md || null}, ${o.createdAt || new Date()})
     returning id`;
   return c.id;

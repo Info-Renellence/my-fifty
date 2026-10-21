@@ -186,9 +186,9 @@ describe('add_person (L13)', () => {
   test('saves a cold lead in my book, with the clinic’s address and a standard phone', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const cl = await h.clinic(sql, { name: 'Unit Clinic Reuse' });
-    const r = await A.add_person(me, { firstName: ' Ana ', lastName: 'Lee', clinic: 'unit clinic reuse', phone: '647-555-0101', email: 'Ana.Lee@Test.invalid', role: 'nurse_injector', warm: false });
+    const r = await A.add_person(me, { firstName: ' Ana ', lastName: 'Lee', clinic: 'unit clinic reuse', phone: '647-555-0101', email: 'Ana.Lee@Test.invalid', role: 'injector', warm: false });
     const [c] = await sql`select owner_id, clinic_id, first_name, email::text, mobile, role::text, source_kind::text, shipping_street, shipping_city from contacts where id = ${r.id}`;
-    assert.deepEqual(c, { owner_id: me.id, clinic_id: cl.id, first_name: 'Ana', email: 'ana.lee@test.invalid', mobile: '+16475550101', role: 'nurse_injector', source_kind: 'cold', shipping_street: '1 Test St', shipping_city: 'Testville' });
+    assert.deepEqual(c, { owner_id: me.id, clinic_id: cl.id, first_name: 'Ana', email: 'ana.lee@test.invalid', mobile: '+16475550101', role: 'injector', source_kind: 'cold', shipping_street: '1 Test St', shipping_city: 'Testville' });
     const [l] = await sql`select actor_user_id, action from change_log where entity_id = ${r.id} and action = 'create'`;
     assert.equal(l.actor_user_id, me.id, '"Added by you" comes from this');
   }));
@@ -211,9 +211,8 @@ describe('add_person (L13)', () => {
     await h.contact(sql, other, { email: 'dup.theirs@test.invalid', phone: '+16475550199' });
     await assert.rejects(A.add_person(me, { firstName: 'X', email: 'DUP.MINE@test.invalid' }), (e) => e.status === 409 && e.message === 'email_yours' && e.detail === mine);
     await assert.rejects(A.add_person(me, { firstName: 'X', email: 'dup.theirs@test.invalid' }), (e) => e.message === 'email_someones' && e.detail === undefined);
-    // Save anyway: allowed once v2 lets two people share an email; until then the database still refuses it clearly.
-    const r = await sql.savepoint((t) => A.add_person(me, { firstName: 'X', email: 'dup.mine@test.invalid', sharedEmailOk: true }).then((x) => x, (e) => e));
-    assert.ok(r.ok === true || (r.status === 409 && /^already_/.test(r.message)), JSON.stringify(r && r.message));
+    // Save anyway: two people can share an email (v2 part B).
+    assert.equal((await A.add_person(me, { firstName: 'X', email: 'dup.mine@test.invalid', sharedEmailOk: true })).ok, true);
     await assert.rejects(A.add_person(me, { firstName: 'X', phone: '(647) 555-0199' }), st(409, 'already_someones'));
   }));
   test('a secondary email also counts as taken', () => h.withDb(async (sql) => {

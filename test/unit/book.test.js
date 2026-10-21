@@ -68,7 +68,7 @@ describe('ago and nextMilestone', () => {
 
 describe('todayList', () => {
   const me = { id: 'me', settings: {} };
-  const lead = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'lead', isNew: true, sourceKind: 'social', sourceDetail: 'Instagram', createdAt: hoursAgo(2) }, o);
+  const lead = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'lead', isNew: true, sourceKind: 'social', createdAt: hoursAgo(2) }, o);
   const fifty = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'fifty', goingCold: true, coldDays: 35 }, o);
   const cand = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'candidate', samplesAt: hoursAgo(24 * 10), sampleDays: 10, touchedSinceSamples: false }, o);
   const withTask = (p, dueHoursAgo, type) => Object.assign(p, { followUp: { id: 't-' + p.id, title: 'Call back', type: type || 'call', due_at: hoursAgo(dueHoursAgo) } });
@@ -77,12 +77,11 @@ describe('todayList', () => {
     const list = B.todayList([cand('c1'), fifty('f1'), withTask(fifty('f2', { goingCold: false }), 1), lead('l1')], me, cfg);
     assert.deepEqual(list.map((x) => x.why), ['lead', 'follow_up', 'going_cold', 'candidate']);
   });
-  test('a new lead reads "new Instagram lead · 2h ago" and is a call', () => {
+  test('a new lead reads "new Meta lead · 2h ago" and is a call', () => {
     const [x] = B.todayList([lead('l1')], me, cfg);
-    assert.equal(x.detail, 'new Instagram lead · 2h ago');
+    assert.equal(x.detail, 'new Meta lead · 2h ago');
     assert.equal(x.action, 'call');
   });
-  test('a lead with no platform says social media', () => assert.equal(B.todayList([lead('l1', { sourceDetail: '' })], me, cfg)[0].detail, 'new social media lead · 2h ago'));
   test('newest leads come first', () => {
     const list = B.todayList([lead('old', { createdAt: hoursAgo(10) }), lead('new', { createdAt: hoursAgo(1) })], me, cfg);
     assert.deepEqual(list.map((x) => x.id), ['new', 'old']);

@@ -185,7 +185,7 @@ describe('book', () => {
   test('names, clinic, event and addresses are filled in', () => h.withDb(async (sql) => {
     const me = await h.user(sql), cl = await h.clinic(sql, { name: 'Unit Clinic Z' });
     const [ev] = await sql`insert into events (name, kind) values ('Unit webinar', 'webinar') returning id`;
-    await h.contact(sql, me, { clinicId: cl.id, designation: 'MD', first: 'Ana', last: 'Lee', eventId: ev.id, source: 'event', phone: '+16475550000' });
+    await h.contact(sql, me, { clinicId: cl.id, designation: 'md', first: 'Ana', last: 'Lee', eventId: ev.id, source: 'event', phone: '+16475550000' });
     const [p] = (await B.book(sql, me)).people;
     assert.deepEqual([p.name, p.clinic, p.eventName, p.phone, p.shipping.line], ['Dr. Ana Lee', 'Unit Clinic Z', 'Unit webinar', '+16475550000', '2 Test St, Testville']);
   }));

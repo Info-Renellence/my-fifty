@@ -166,11 +166,11 @@ describe('Edit on History', () => {
 });
 
 describe('Add a person whose email is already taken in the database', () => {
-  test('an email kept by a removed (soft-deleted) person is a clear "already" answer, not a server error', () => h.withDb(async (sql) => {
+  test('an email kept by a removed (soft-deleted) person no longer blocks anyone (emails can be shared since v2 part B)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
     const gone = await h.contact(sql, other, { email: 'gone.testrun@demo.invalid' });
     await sql`update contacts set deleted_at = now() where id = ${gone}`;
-    await assert.rejects(A.add_person(me, { firstName: 'Again', email: 'gone.testrun@demo.invalid' }), (e) => e.status === 409);
+    assert.equal((await A.add_person(me, { firstName: 'Again', email: 'gone.testrun@demo.invalid' })).ok, true);
   }));
 });
 

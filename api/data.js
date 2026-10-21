@@ -272,8 +272,8 @@ async function addedBy(sql, ids, me) {
   return Object.fromEntries(rows.map((r) => [r.entity_id, r.actor_user_id ? (r.actor_user_id === me.id ? 'you' : String(r.name || '').split(/\s+/)[0]) : null]));
 }
 
+// Under a lead's clinic: the event they came from, or who added them (no other source detail: four sources only).
 function sourceText(p, by) {
-  if (p.sourceDetail) return p.sourceDetail;
   if (p.sourceKind === 'event' && p.eventName) return p.eventName;
   if (by) return 'Added by ' + by;
   return '';
@@ -411,8 +411,7 @@ async function historyOf(sql, me, p) {
      order by l.at desc`;
   for (const m of moves) out.push({ type: 'event', at: m.at, title: 'Moved to you from ' + m.name });
   const origin = p.sourceKind === 'event' && p.eventName ? 'Met at ' + p.eventName
-    : p.sourceKind === 'social' ? 'Came from ' + (/^[aeiou]/i.test(p.sourceDetail || 's') ? 'an ' : 'a ') + (p.sourceDetail || 'social media') + ' ad'
-      : p.sourceDetail ? 'Came from ' + p.sourceDetail : 'Added to My Fifty';
+    : p.sourceKind === 'social' ? 'Came from a Meta ad' : 'Added to My Fifty';
   out.push({ type: 'origin', at: p.createdAt, title: origin });
   out.sort((a, b) => new Date(b.at) - new Date(a.at));
   return out.map((e) => Object.assign(e, { month: LONG_MONTHS[+T.ymd(e.at).slice(5, 7) - 1], year: T.ymd(e.at).slice(0, 4), when: when(e.at).replace(/^today$/, 'Today') }));

@@ -89,8 +89,8 @@ describe('data: words', () => {
     assert.equal(D.fmtTime(new Date('2026-10-20T12:47:00Z')), 'Today 8:47');
     assert.equal(D.fmtTime(new Date('2026-10-15T13:12:00Z')), 'Oct 15, 9:12');
   });
-  test('sourceText: the detail first, then the event, then who added them', () => {
-    assert.equal(D.sourceText({ sourceDetail: 'Instagram', sourceKind: 'social' }), 'Instagram');
+  test('sourceText: the event, then who added them; nothing for a Meta lead', () => {
+    assert.equal(D.sourceText({ sourceKind: 'social' }), '');
     assert.equal(D.sourceText({ sourceKind: 'event', eventName: 'Lips webinar' }), 'Lips webinar');
     assert.equal(D.sourceText({ sourceKind: 'cold' }, 'you'), 'Added by you');
     assert.equal(D.sourceText({ sourceKind: 'cold' }), '');

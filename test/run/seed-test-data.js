@@ -44,11 +44,11 @@ async function main() {
     let n = 0;
     const person = async (owner, o) => {
       n++;
-      const [c] = await tx`insert into contacts (owner_id, clinic_id, first_name, last_name, email, mobile, role, designation, source_kind, source_detail, source_ad_id, source_event_id,
+      const [c] = await tx`insert into contacts (owner_id, clinic_id, first_name, last_name, email, mobile, role, designation, source_kind, source_ad_id, source_event_id,
           shipping_street, shipping_city, shipping_province, shipping_postal_code, legacy_id, created_at)
         values (${owner}, ${o.clinic || cl1}, ${o.first === undefined ? 'Test' : o.first}, ${o.last === undefined ? 'Person' + n : o.last},
           ${o.email === undefined ? 'person' + n + '.' + (o.tag || 'x') + '@demo.invalid' : o.email}, ${o.phone === undefined ? '+1555010' + String(1000 + n).slice(1) : o.phone},
-          ${o.role || null}, ${o.designation || null}, ${o.source || 'warm'}, ${o.detail || null}, ${o.adId || null}, ${o.eventId || null},
+          ${o.role || null}, ${o.designation || null}, ${o.source || 'warm'}, ${o.adId || null}, ${o.eventId || null},
           '1 Testing Way', 'Testburg', 'ON', 'Z9Z 9Z9', ${'demo-test-' + (o.tag || 'p' + n)}, ${o.created || ago(90)}) returning id`;
       return c.id;
     };
@@ -82,8 +82,8 @@ async function main() {
     a.candFresh = await person(A, { tag: 'a-cand-fresh', first: 'Cass', last: 'Candtest', clinic: cl2 });
     a.candTouched = await person(A, { tag: 'a-cand-touched', first: 'Cleo', last: 'Candtest', clinic: cl2 });
     a.candWaiting = await person(A, { tag: 'a-cand-waiting', first: 'Cyd', last: 'Candtest', clinic: cl2 });
-    a.md = await person(null, { tag: 'a-md', first: 'Medi', last: 'Directortest', designation: 'MD', role: 'physician', clinic: cl2 });
-    a.fiftyCard = await person(A, { tag: 'a-fifty-card', first: 'Faye', last: 'Fiftytest', designation: 'MD', role: 'physician' });
+    a.md = await person(null, { tag: 'a-md', first: 'Medi', last: 'Directortest', designation: 'md', role: 'physician', clinic: cl2 });
+    a.fiftyCard = await person(A, { tag: 'a-fifty-card', first: 'Faye', last: 'Fiftytest', designation: 'md', role: 'physician' });
     a.fiftyCold = await person(A, { tag: 'a-fifty-cold', first: 'Colt', last: 'Fiftytest' });
     a.fiftyWire = await person(A, { tag: 'a-fifty-wire', first: 'Wade', last: 'Fiftytest' });
     a.fiftyVisited = await person(A, { tag: 'a-fifty-visited', first: 'Vera', last: 'Fiftytest' });
