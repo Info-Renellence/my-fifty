@@ -42,3 +42,38 @@ describe('ops are looked up safely', () => {
     }
   });
 });
+
+describe('random input against every write and read (no 500s)', () => {
+  const h2 = require('../helpers');
+  const junk = [null, 0, -1, 1e309, 'x', '', ' ', 'a'.repeat(5000), [], [1, 'a', null], {}, { a: { b: 1 } }, true, '2026-02-30', '00000000-0000-0000-0000-000000000000', '<script>', '😀'];
+  let seed = Number(process.env.FUZZ_SEED || 7);
+  const rnd = (n) => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed % n; };
+  const FIELDS = ['contactId', 'kind', 'note', 'followUp', 'reached', 'interactionId', 'closedTaskIds', 'taskId', 'firstName', 'lastName', 'email', 'phone', 'clinic', 'role', 'warm',
+    'date', 'fillers', 'prp', 'body', 'lines', 'payment', 'mdName', 'mdEmail', 'approvalNote', 'shippingNote', 'orderId', 'onboardingId', 'audio', 'mime', 'subject', 'text', 'to', 'subscription', 'refreshToken', 'aiOutputId'];
+  const OPS = Object.keys(require('../../api/act').OPS);
+  test('300 random write bodies: every answer is 2xx or 4xx', () => h2.withDb(async (sql) => {
+    const u = await h2.user(sql);
+    const c = await h2.contact(sql, u);
+    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', settings: {} };
+    const bad = [];
+    for (let i = 0; i < 300; i++) {
+      const body = { op: OPS[rnd(OPS.length)] };
+      for (const f of FIELDS) if (rnd(3) === 0) body[f] = rnd(4) === 0 ? c : junk[rnd(junk.length)];
+      const res = await post(body);
+      if (res.statusCode >= 500) bad.push(res.statusCode + ' ' + JSON.stringify(body).slice(0, 200) + ' -> ' + res.body.slice(0, 120));
+    }
+    assert.deepEqual(bad, []);
+  }));
+  test('random read queries: every answer is 2xx or 4xx', () => h2.withDb(async (sql) => {
+    const u = await h2.user(sql);
+    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', settings: {} };
+    const ops = Object.keys(require('../../api/data').OPS);
+    const bad = [];
+    for (let i = 0; i < 120; i++) {
+      const q = new URLSearchParams({ op: ops[rnd(ops.length)], id: String(junk[rnd(junk.length)]), group: String(junk[rnd(junk.length)]), q: String(junk[rnd(junk.length)]) });
+      const res = await get(q.toString());
+      if (res.statusCode >= 500) bad.push(res.statusCode + ' ' + q + ' -> ' + res.body.slice(0, 120));
+    }
+    assert.deepEqual(bad, []);
+  }));
+});
