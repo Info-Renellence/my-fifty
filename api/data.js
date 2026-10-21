@@ -123,9 +123,9 @@ const OPS = {
     const { people } = await B.book(sql, me);
     const ids = people.map((p) => p.id);
     const onb = ids.length ? await sql`
-      select distinct coalesce(primary_contact_id, injector_contact_id) as id from onboardings
+      select primary_contact_id as a, injector_contact_id as b from onboardings
        where status in ('signed', 'complete') and (primary_contact_id = any(${ids}) or injector_contact_id = any(${ids}))` : [];
-    const ok = new Set(onb.map((r) => r.id));
+    const ok = new Set(onb.flatMap((r) => [r.a, r.b]).filter(Boolean));   // both people on a signed onboarding (as act.order allows)
     return { people: people.filter((p) => ok.has(p.id) || p.orders.length)
       .sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name) })) };
   },
