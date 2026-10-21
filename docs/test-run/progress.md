@@ -25,6 +25,9 @@ the product picker's "Same as last order"; slow answers on the phone (search and
 - Coverage map: `docs/test-run/coverage.md` (about 85% of boxes done). Every scenario run: `docs/test-run/tried.md`.
 - Tests: all green except the 10 older tests that need rights the test login does not have (see below).
 
+## Earlier (10:40 to 11:05)
+- F16 email held by a removed person (or saved a moment earlier by another rep) gave a database error: fixed bd55357, 86be39f. F17 sign-in trusts unverified emails unless told: proposal. F18 public site served tests, SQL and these notes: fixed 6b585cb. F19 pushes to a switched-off rep: fixed 2bf152c. F21 any https address accepted as a push address: proposal. F22 orders n8n refused are never resent: proposal. F23 candidate with a second sample order showed "Not shipped": fixed f558770. F24 "Next:"-only note shown twice: fixed 09bfc62. Random input (1,500+ requests) gave no server errors.
+
 ## Earlier (10:00 to 10:40)
 - F9 voice context had other reps' clients: fixed 43621c4. F10 voice drafts capitalised saypha: fixed 8b26401. F11 empty book shows 5 dots: question. F12 reads at once hung on the pooler: fixed 7a8f60c. F13 quick Tomorrow taps lost: fixed eca5dfd. F14 syringe count included free items: fixed f1a1b86. F15 emails editable through the server: fixed 11c7fcc.
 
