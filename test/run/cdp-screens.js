@@ -15,7 +15,8 @@ const SCEN = process.argv[4] || 'alpha';
 const CHROME = process.env.CHROME || 'C:/Program Files/Google/Chrome/Application/chrome.exe';
 const DBG = 9300 + (PORT % 100);
 const BASE = 'http://localhost:' + PORT;
-const STUB = `window.supabase = { createClient: function () { return { auth: {
+const SIGNED_OUT = process.argv[4] === 'signedout';
+const STUB = SIGNED_OUT ? `window.supabase = { createClient: function () { return { auth: { onAuthStateChange: function () {}, getSession: function () { return Promise.resolve({ data: { session: null } }); }, signOut: function () { return Promise.resolve(); }, signInWithOAuth: function () { window.__oauth = true; return Promise.resolve({}); } } }; } };` : `window.supabase = { createClient: function () { return { auth: {
   onAuthStateChange: function () {}, getSession: function () { return Promise.resolve({ data: { session: { access_token: 'dev' } } }); },
   signOut: function () { return Promise.resolve(); }, signInWithOAuth: function () {} } }; } };`;
 fs.mkdirSync(OUT, { recursive: true });
@@ -158,6 +159,9 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(400); await shot('flow-log-visit-picked');
       await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
       await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
+    } else if (SCEN === 'signedout') {
+      await shot('signed-out'); await click('[data-signin]'); note('FLOW sign-in button calls Google: ' + await evaluate('!!window.__oauth'));
+      await go('/person/00000000-0000-0000-0000-000000000000'); await shot('signed-out-deep-link');
     } else if (SCEN === 'flows2') {
       const toast = () => evaluate("document.getElementById('toast').textContent");
       // 4. Add a new cold lead with a role and a new clinic

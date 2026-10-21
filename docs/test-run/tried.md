@@ -69,3 +69,6 @@ Format: time · area · scenario · result
 - 11:00 · Gmail (fake) · connect; boot says connected; email to an address that is not the person's → refused; subject with a line break → sent with the break removed from the email header · ok
 - 11:02 · History · a note that is only "Next: …" showed the line twice (F24, fixed)
 - 11:03 · timer · morning summary for Alpha (streak 3): "3 days in a row with your plan done" / "2 on today's list."; second tick the same day sends nothing; push failure logged · ok
+- 11:08 · SOP check · the data-model SOP says a wire order *does* get a payment row; the test-run rules say never. The rules win (F1 kept); flagged for you as the top decision
+- 11:09 · SOP check · SOP says the onboarding's primary contact is the account that orders, so the F20 change (listing the injector on L9) was withdrawn (b7acbbe) and turned into question Q8
+- 11:10 · signed out · sign-in screen, Google button starts Google sign-in, deep link to a person while signed out shows sign-in · ok
