@@ -103,7 +103,17 @@ Additive only, so My Fifty keeps working unchanged. Applied by Yousef from the s
 - `contacts.designation`: text → enum md · rn · rpn · np · dds · other ("MD" → md). My Fifty: `api/act.js` inserts 'MD' for a new MD; `scripts/seed-demo.js`.
 - `contacts.email`: drop UNIQUE, keep a plain index (shared emails allowed with a warning). My Fifty: `api/act.js` relies on the 23505 error for "already yours / already someone's"; it needs to check for the email before saving.
 
-## 10. Still to do in v2 (not done yet)
+## 10. Edge build (renellence-edge `db/`), 2026-10-21, approved by Yousef, run by Yousef from the session
+
+| # | Change | Why |
+|---|---|---|
+| 43 | New `events.capacity` integer (empty = no limit) | Seats on Events ("8 of 20 seats"); invites stop when full |
+| 44 | New `agreements.training_name`, `preferred_date` (date), `note` | What the clinical training form asks for |
+| 45 | `products` MSK100 face mask list price 115 → 85 | "face mask is 85" |
+| 46 | **Part B applied** (`db/v2-007-part-b.sql`): `contacts_role` = physician · injector · dentist · manager · other (nurse_injector → injector; 14 clinic_owner → manager); `contacts_prp` re-made (exprecell → exprecell_prf, arthrex_angel → arthrex_prf, emcyte dropped); new enum `contacts_designation` md · rn · rpn · np · dds · other ("MD" → md); `contacts_email_key` dropped, plain index `contacts_email_idx` | Approved 2026-10-21; My Fifty was ready (ef4d8c8) |
+| 47 | Fictional rows (`db/seed-edge-demo.sql`, ids `ed9e0000…`): 24 monthly targets, 28 forecasts, 3 upcoming "(demo)" events with seats, 16 invites, 8 marketing requests, 4 training forms, 12 expenses, 8 focus points; plus a few rows from testing the new Edge (person "Edgetest Sample" @demo.invalid, orders/forecast/requests on demo people, one focus point "Edge test focus") | So the new Edge screens have something to show. `db/wipe-demo.sql` removes them (except the one test focus point, which belongs to admin@) |
+
+## 11. Still to do in v2 (not done yet)
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.

@@ -45,6 +45,17 @@ delete from change_log where contact_id in (select id from demo_contacts) or act
        and not exists (select 1 from order_lines l where l.id = entity_id) and not exists (select 1 from payments p where p.id = entity_id)
        and not exists (select 1 from agreements a where a.id = entity_id) and not exists (select 1 from agreement_signers g where g.id = entity_id)
        and not exists (select 1 from onboardings o where o.id = entity_id));
+-- Edge demo rows (renellence-edge/db/seed-edge-demo.sql): every id starts with ed9e0000.
+delete from event_attendees where id::text like 'ed9e0000%';
+delete from agreement_signers where id::text like 'ed9e0000%';
+delete from agreements where id::text like 'ed9e0000%';
+delete from forecasts where id::text like 'ed9e0000%';
+delete from marketing_requests where id::text like 'ed9e0000%' or contact_id in (select id from demo_contacts);
+delete from expenses where id::text like 'ed9e0000%' or external_id like 'demo-%';
+delete from tasks where id::text like 'ed9e0000%';
+delete from targets where id::text like 'ed9e0000%';
+delete from events where id::text like 'ed9e0000%';
+delete from change_log where entity_id::text like 'ed9e0000%';
 delete from users where id in (select id from demo_users);
 -- Settings the demo touched on real people (snoozes, the "joined your Fifty" bookmark).
 update users set settings = settings - 'snoozed' - 'fifty_seen_at' where settings ?| array['snoozed', 'fifty_seen_at'];
