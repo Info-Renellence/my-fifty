@@ -70,7 +70,7 @@
   // L10 Billing row: the same as shipping when there is no billing street or it matches.
   function billingSame(who) { return !who.billing.street || (who.billing.street === who.shipping.street && who.billing.city === who.shipping.city); }
   // A note without its "Next:" line (History shows that line on its own).
-  function stripNext(body) { return String(body || '').replace(/\n\s*next(?: step)?\s*:[\s\S]*$/i, ''); }
+  function stripNext(body) { return String(body || '').replace(/(?:^|\n)\s*next(?: step)?\s*:[\s\S]*$/i, ''); }
   // A web-push key (base64url) as bytes.
   function b64ToBytes(s) {
     var p = '='.repeat((4 - s.length % 4) % 4);
