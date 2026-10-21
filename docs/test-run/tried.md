@@ -61,3 +61,7 @@ Format: time · area · scenario · result
 - 10:48 · push subscribe · any https address is accepted as a phone's push address (F21, low, proposal)
 - 10:48 · leads with no source · not in any of the four lead groups, only findable by search (Q5)
 - 10:48 · Gmail pull · a rep's email to a client in another rep's book lands on that client's history (Q6)
+- 10:50 · candidates · first samples arrived 9 days ago, second sample order not shipped · "Not shipped" and off Today (F23, fixed)
+- 10:52 · two at once (after F12/F13 fixes) · 10 Today reads, 3 logs, 6 Tomorrow taps at once through the server · all answered in under 2 s, all 6 hidden · ok
+- 10:53 · fake services (n8n, Gemini, Gmail answering like the real ones) · samples order sent to n8n; voice draft back with "saypha lips" lower case; pay link resent · ok
+- 10:56 · UI flows (taps in the browser) · add a person already in Bravo's book → "already in someone else's book"; wire order from #12 → review → send → order screen, no payment row; visit not reached with a picked date → saved → undo · ok

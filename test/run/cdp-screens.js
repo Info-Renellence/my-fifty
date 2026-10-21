@@ -134,6 +134,30 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await go('/rewards'); await shot('L11-rewards');
       await go('/person/00000000-0000-0000-0000-000000000000'); await shot('err-person-not-found');
       await go('/nowhere'); await shot('err-unknown-path');
+    } else if (SCEN === 'flows') {
+      // Real taps through whole flows (writes go to the fake test rep's fake people only).
+      const all = await api('op=search&q=');
+      const find = (first) => (all.people.find((p) => p.name.indexOf(first) >= 0) || {}).id;
+      const toast = () => evaluate("document.getElementById('toast').textContent");
+      // 1. Add a person who is already in someone else's book (Bravo's client): a clear message
+      await go('/people'); await click('[data-add-person]');
+      await type('input[name="firstName"]', 'Bea'); await type('input[name="email"]', 'person21.b-fifty@demo.invalid');
+      await click('#sheet [data-save]'); await wait(1200); note('FLOW add-duplicate toast: ' + await toast()); await shot('flow-add-duplicate');
+      // 2. Wire order through the screens
+      await go('/order/' + find('Olly')); await click('[data-more]', 0); await click('[data-more]', 0);
+      await click('a[href$="/review"]'); await wait(800);
+      await click('[data-pay="wire"]'); await shot('flow-review-wire', true);
+      await click('[data-send-order]'); await wait(2500); note('FLOW wire order toast: ' + await toast() + ' | at ' + await evaluate('location.pathname'));
+      await shot('flow-order-wire-status');
+      // 3. Log a visit with a picked date, not reached
+      await go('/person/' + find('Wren'));
+      await click('[data-log][data-kind="visit"]'); await click('[data-reached="0"]'); await click('[data-type]');
+      await type('[data-note]', 'Nobody at the front desk.\nNext: try again Friday');
+      await click('[data-follow="pick"]');
+      await evaluate("(function(){ var i = document.querySelector('[data-date]'); if (!i) return; i.value = '2030-01-15'; i.dispatchEvent(new Event('change', { bubbles: true })); i.dispatchEvent(new Event('input', { bubbles: true })); })()");
+      await wait(400); await shot('flow-log-visit-picked');
+      await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
+      await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
     } else {
       await shot(SCEN + '-L2-today', true);
       await go('/people'); await shot(SCEN + '-L6-people', true);
