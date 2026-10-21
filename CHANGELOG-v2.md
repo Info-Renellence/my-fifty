@@ -72,7 +72,13 @@ Every change below was made on 2026-10-20. The SQL is in `db/`.
 Wire orders now write one **pending** wire payment row when placed (the SOP); it becomes succeeded when an admin marks
 the money received (`api/wire.js`). The daily follow-up list is `GET /api/cron?op=wires` (sent by n8n).
 
-## 8. Still to do in v2 (not done yet)
+## 8. More demo rows, 2026-10-21
+
+| # | Rows | Notes |
+|---|---|---|
+| 30 | A second fictional demo book owned by info@renellence.com (`db/seed-demo-info.sql`): 4 demo staff `demo.*.info@demo.invalid`, 26 clinics, 53 people, their orders (two unpaid net-30 wire orders), calls, visits, tasks and onboardings, all `legacy_id` `demo-info-…` | So info@ can see the whole app as a rep. Removed with `db/wipe-demo.sql` |
+
+## 9. Still to do in v2 (not done yet)
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.
