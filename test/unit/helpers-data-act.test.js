@@ -138,6 +138,11 @@ describe('data: order words and steps', () => {
     assert.equal(steps[2].when, 'Wire / e-transfer');
     assert.equal(steps[3].current, true);
   });
+  test('orderSteps: a wire order shows where its payment stands', () => {
+    const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, payment_method: 'wire' }, { paid_flag: true }, [], { text: 'Wire · 3 days overdue' });
+    assert.equal(steps[2].done, true);
+    assert.equal(steps[2].when, 'Wire · 3 days overdue');
+  });
   test('orderSteps: shipped with tracking', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, sent_to_warehouse_at: placed, shipped_at: placed, tracking_number: '1Z9' }, { paid_flag: true }, [{ status: 'succeeded', paid_at: placed }]);
     assert.ok(steps.every((s) => s.done));

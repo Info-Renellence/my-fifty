@@ -25,6 +25,7 @@ function authorised(req) {
 module.exports = route(async (req, res) => {
   if (!authorised(req)) throw fail(401, 'not_allowed');
   const op = query(req).get('op') || 'tick';
+  if (op === 'wires') return send(res, 200, await wires(db()));
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
   const sql = db();
@@ -75,5 +76,69 @@ async function morning(sql) {
   return { users: users.length, sent };
 }
 
+// Wire payments to follow up today (GET /api/cron?op=wires, called once a day by n8n, which only sends what comes
+// back). Each rep gets their heads-ups (5 days before the due date) and overdue wires; info@ gets every overdue wire
+// with a "Mark as received" button. Overdue ones come again every 7 days until received (api/_wire.js).
+// Fictional data (demo and test-run rows, @demo.invalid people) is never included.
+const INFO = 'info@renellence.com';
+async function wires(sql, now) {
+  const W = require('./_wire');
+  const fallback = await W.defaultTerms(sql);
+  const rows = await sql`
+    select o.id, o.order_number, o.payment_method::text, o.submitted_at, o.invoiced_at, o.created_at, o.payment_terms_days,
+           p.amount::float8 as amount, p.status::text as pay_status, p.paid_at,
+           c.first_name, c.last_name, c.designation, c.email, cl.name as clinic, u.name as rep_name, u.email as rep_email
+      from orders o
+      join payments p on p.order_id = o.id and p.kind = 'charge' and p.method = 'wire' and p.status = 'pending'
+      join contacts c on c.id = o.contact_id
+      left join clinics cl on cl.id = c.clinic_id
+      left join users u on u.id = o.rep_id
+     where o.payment_method = 'wire' and o.deleted_at is null and o.status not in ('rejected', 'cancelled')
+       and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
+       and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
+     order by o.submitted_at`;
+  const [admin] = await sql`select id from users where lower(email::text) = ${INFO} and active is not false`;
+  const base = process.env.PUBLIC_URL || 'https://my-fifty.vercel.app';
+  const items = [];
+  for (const r of rows) {
+    const s = W.state(r, { status: r.pay_status, paid_at: r.paid_at }, fallback, now);
+    const why = W.followUp(s);
+    if (!why) continue;
+    items.push({ why, s, r, customer: B.fullName(r), money: '$' + (Number(r.amount) || 0).toLocaleString('en-CA', { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      link: admin && why === 'overdue' ? W.link(base, r.id, admin.id, now) : null });
+  }
+  const emails = [];
+  const byRep = {};
+  for (const it of items) if (it.r.rep_email) (byRep[it.r.rep_email] = byRep[it.r.rep_email] || []).push(it);
+  for (const [to, list] of Object.entries(byRep)) {
+    emails.push({ to: [to], subject: 'Wire payments to follow up (' + list.length + ')',
+      html: wireEmail('Hi ' + esc(String(list[0].r.rep_name || '').split(/\s+/)[0] || 'there') + ',', 'These wire payments from your customers need a follow-up:', list, false) });
+  }
+  const overdue = items.filter((it) => it.why === 'overdue');
+  if (overdue.length) {
+    emails.push({ to: [INFO], subject: 'Overdue wire payments (' + overdue.length + ')',
+      html: wireEmail('Hi,', 'These wire payments are past their due date. When the money arrives, press "Mark as received".', overdue, true) });
+  }
+  return { date: T.ymd(now), headsUp: items.length - overdue.length, overdue: overdue.length, emails };
+}
+
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
+function wireEmail(hello, intro, list, buttons) {
+  const row = (it) => '<tr>'
+    + '<td style="padding:8px;border-bottom:1px solid #E6E8EE">' + esc(it.customer) + (it.r.clinic ? '<br><span style="color:#6B7486">' + esc(it.r.clinic) + '</span>' : '') + '</td>'
+    + '<td style="padding:8px;border-bottom:1px solid #E6E8EE">' + esc(it.r.order_number ? '#' + String(it.r.order_number).replace(/^#/, '') : 'Order of ' + T.short(it.r.submitted_at)) + '</td>'
+    + '<td style="padding:8px;border-bottom:1px solid #E6E8EE;text-align:right">' + esc(it.money) + '</td>'
+    + '<td style="padding:8px;border-bottom:1px solid #E6E8EE">' + esc(it.why === 'overdue' ? it.s.daysLate + (it.s.daysLate === 1 ? ' day' : ' days') + ' overdue (due ' + T.short(it.s.due + 'T12:00:00Z') + ')' : 'Due ' + T.short(it.s.due + 'T12:00:00Z') + ' (in ' + it.s.daysToDue + ' days)') + '</td>'
+    + (buttons ? '<td style="padding:8px;border-bottom:1px solid #E6E8EE">' + esc(it.r.rep_name || '') + '</td>'
+      + '<td style="padding:8px;border-bottom:1px solid #E6E8EE">' + (it.link ? '<a href="' + esc(it.link) + '" style="background:#1170C0;color:#FFFFFF;padding:6px 10px;border-radius:6px;text-decoration:none;white-space:nowrap">Mark as received</a>' : '') + '</td>' : '')
+    + '</tr>';
+  return '<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1D2433">'
+    + '<p>' + hello + '</p><p>' + esc(intro) + '</p>'
+    + '<table cellspacing="0" style="border-collapse:collapse;font-size:13px"><tr style="text-align:left;color:#6B7486">'
+    + '<th style="padding:8px">Customer</th><th style="padding:8px">Order</th><th style="padding:8px;text-align:right">Amount</th><th style="padding:8px">Due</th>'
+    + (buttons ? '<th style="padding:8px">Rep</th><th style="padding:8px"></th>' : '') + '</tr>'
+    + list.map(row).join('') + '</table></div>';
+}
+
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning };
+module.exports._ = { authorised, newLeads, morning, wires };

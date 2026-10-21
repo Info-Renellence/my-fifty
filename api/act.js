@@ -258,6 +258,7 @@ const OPS = {
     });
     const total = lines.reduce((a, l) => a + l.quantity * l.unit_price, 0);
     if (!samples && !(total > 0)) throw fail(400, 'nothing_to_charge');
+    const terms = method === 'wire' ? await require('./_wire').termsFor(sql, c.id) : null;
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;
       if (md) {
@@ -272,15 +273,20 @@ const OPS = {
         }
       }
       const [o] = await tx`
-        insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, md_contact_id, payment_method, approval_note, shipping_note)
-        values (${c.id}, ${me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null})
+        insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, md_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)
+        values (${c.id}, ${me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null}, ${terms})
         returning id`;
       for (const l of lines) {
         await tx`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
                  values (${o.id}, ${l.product_id}, ${l.sku}, ${l.name}, ${l.quantity}, ${l.unit_price}, ${l.list_price}, ${l.is_free})`;
       }
-      // A wire order counts as paid as soon as it is placed (orders.payment_method = 'wire', read by api/_book.js).
-      // Never a payment row for it (test-run rules, section 1): no money has been received when it is placed.
+      // A wire order counts as sold as soon as it is placed (orders.payment_method = 'wire', read by api/_book.js) and
+      // is never marked paid for that. Collecting the money is tracked by one pending wire payment row (SOP), which an
+      // admin marks received when the money arrives (api/wire.js); the due date is the order's terms (api/_wire.js).
+      if (method === 'wire') {
+        await tx`insert into payments (order_id, kind, method, amount, currency, status, provider, is_test)
+                 values (${o.id}, 'charge', 'wire', ${total}, 'CAD', 'pending', 'wire', false)`;
+      }
       return o.id;
     });
     const sent = await require('./_n8n').call('order', { orderId });

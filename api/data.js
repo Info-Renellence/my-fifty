@@ -158,7 +158,9 @@ const OPS = {
     const md = o.md_contact_id ? (await sql`select first_name, last_name, designation from contacts where id = ${o.md_contact_id}`)[0] : null;
     const mdAgreement = (await sql`select status::text, sent_at, completed_at from agreements where order_id = ${id} and kind = 'md_pdr' order by created_at desc limit 1`)[0];
     const onb = await onboardingOf(sql, o.contact_id);
-    const steps = sample ? sampleSteps(o, md, mdAgreement) : orderSteps(o, x, pays);
+    const W = require('./_wire');
+    const wire = o.payment_method === 'wire' ? W.state(o, pays.find((p) => p.method === 'wire') || null, await W.defaultTerms(sql)) : null;
+    const steps = sample ? sampleSteps(o, md, mdAgreement) : orderSteps(o, x, pays, wire);
     const pay = pays[0];
     return {
       id, contactId: o.contact_id, name: B.fullName({ first_name: o.first_name, last_name: o.last_name, designation: o.designation, email: o.contact_email }), sample,
@@ -385,11 +387,12 @@ function markCurrent(steps, waitingText) {
   return steps;
 }
 
-function orderSteps(o, x, pays) {
+// wire: api/_wire.js state() for a wire order (due, overdue or received), shown on the Payment step.
+function orderSteps(o, x, pays, wire) {
   const paid = x && x.paid_flag;
   const pay = pays[0];
   let payWhen = '';
-  if (paid) payWhen = o.payment_method === 'wire' ? 'Wire / e-transfer' : pay && pay.paid_at ? fmtTime(pay.paid_at) : 'Paid';
+  if (paid) payWhen = o.payment_method === 'wire' ? (wire ? wire.text : 'Wire / e-transfer') : pay && pay.paid_at ? fmtTime(pay.paid_at) : 'Paid';
   else if (pay && pay.status === 'failed') payWhen = 'Card declined' + (pay.pay_link_url ? ' · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '') : '');
   else if (pay && pay.method === 'pay_link') payWhen = 'No card on file · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '');
   const steps = [

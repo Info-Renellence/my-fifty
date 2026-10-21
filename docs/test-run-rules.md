@@ -44,7 +44,9 @@ A fix may only make the code do what these rules say.
 **Wording and money**
 - Write "saypha" and its product names in lower case. Only Lidocaine is capitalised.
 - Anything a customer sees (invoices, pay links, payment emails) lists paid products only, never samples or free lines.
-- Never create a payment row for a wire order.
+- A wire order counts as sold when placed and is never marked paid for that. Collecting the money is tracked by one
+  pending wire payment row written when it is placed, marked received by an admin when the money arrives; the due date
+  is the order's payment terms (corrected 2026-10-21: this line used to say "never create a payment row for a wire order").
 
 **Screens**
 - The screens follow "Edge – Final Mockup" L1 to L25, except L12 and L16 to L18. The product picker is the original #12.

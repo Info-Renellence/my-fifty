@@ -10,7 +10,9 @@ original #12).
 ## How it is built
 - `index.html`, `app.css` and `app.js`: the whole app, in plain JavaScript with no build step. `sw.js` handles phone notifications.
 - `api/data.js`: every read (`GET /api/data?op=…`). `api/act.js`: every write (`POST /api/act {op}`).
-  `api/cron.js`: the timer (new-lead pushes, the morning summary, the Gmail pull).
+  `api/cron.js`: the timer (new-lead pushes, the morning summary, the Gmail pull), and `?op=wires`, the daily list of
+  wire payments to follow up (heads-up 5 days before the due date, overdue every 7 days), which n8n emails.
+  `api/wire.js`: the "Mark as received" page linked from the overdue-wire email to info@ (`api/_wire.js` has the rules).
 - `api/_book.js`: the rules worked out from the records (lead / candidate / Fifty, going cold, today's list, the
   day goal and the streak). `api/_rewards.js`: Rewards (the programs are written in code for now).
 - Sign-in: Supabase Auth with Google, @renellence.com only, plus an active row in `users`.

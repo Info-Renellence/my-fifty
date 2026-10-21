@@ -61,7 +61,18 @@ Every change below was made on 2026-10-20. The SQL is in `db/`.
 | 25 | New login role `test_agent`: reads and writes rows only (no right to change tables, fields or rules), skips row-level security like the app server, and can switch to `authenticated`/`anon` to test the RLS rules | The 4-hour testing agent (`docs/test-run-rules.md`) uses this login, not the master key. **Dropped 2026-10-21 after the run** |
 | 26 | Rows only, all fictional: 6 test users (`test.alpha` … `test.foxtrot` `@demo.invalid`), about 330 people and 170 orders (`legacy_id` `demo-test-…`), clinics "Testrun …", 2 `ad_objects` (`meta_id` `demo-test-…`), a Gmail `ingest_events` row, and the calls, texts, tasks, payments, onboardings, notifications, voice drafts and connections hanging off them (`test/run/seed-test-data.js`, plus what the run did through the app) | Test data for the run; kept for the owner to look at. Removed with `db/wipe-demo.sql` (extended for these rows). No structure changed |
 
-## 7. Still to do in v2 (not done yet)
+## 7. Wire payment terms (`db/004-payment-terms.sql`), 2026-10-21, approved by Yousef
+
+| # | Change | Why |
+|---|---|---|
+| 27 | New `contacts.payment_terms_days` integer (0–365, empty = the standard terms) | "We need a terms field. Right now it's 30 days only but it may change in the future" |
+| 28 | New `orders.payment_terms_days` integer (0–365), copied when a wire order is placed | Changing a customer's or the standard terms never moves the due date of an order already placed |
+| 29 | `settings` row `payments` = `{"default_terms_days": 30}` | The standard terms, changed in one place |
+
+Wire orders now write one **pending** wire payment row when placed (the SOP); it becomes succeeded when an admin marks
+the money received (`api/wire.js`). The daily follow-up list is `GET /api/cron?op=wires` (sent by n8n).
+
+## 8. Still to do in v2 (not done yet)
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.

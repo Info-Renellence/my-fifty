@@ -36,6 +36,9 @@ with every outside connection switched off. **By:** the testing agent, following
    data-model SOP (`renellence-edge/docs/data-model-sop.md`, Money and fulfilment) says "Wire orders count as paid as soon
    as they're placed (a wire payment row is written then)". The run followed the test-run rules (fix d7af6a7). If the
    SOP is right, revert d7af6a7 and correct the rules; if the rules are right, correct the SOP and the demo-data generator.
+   **Decided after the run (Yousef, 2026-10-21):** the rules line was wrong. F1 is withdrawn. A wire order counts as sold when
+   placed and now writes one *pending* wire payment row; an admin marks it received when the money arrives, and the due date is
+   the customer's payment terms (new `payment_terms_days`, 30 days standard), with a daily follow-up email (CHANGELOG-v2 section 7).
 2. **F6** anyone with a Google account can read the staff list through Supabase directly (proposal 4.1).
 3. **F17** keep Supabase's email confirmation on, and harden the sign-in check (proposal 4.2).
 4. **F22** what should happen to an order n8n did not accept (proposal 4.3).
@@ -51,7 +54,7 @@ of a clear answer, or a rare case.
 | # | Severity | What was wrong | Status |
 |---|---|---|---|
 | F12 | high | Several requests at once could hang until the 60-second limit | Fixed 7a8f60c |
-| F1 | high | A wire order wrote a "succeeded" payment row (rules: never) | Fixed d7af6a7 (see decision 1) |
+| F1 | ~~high~~ | A wire order wrote a "succeeded" payment row (rules: never) | **Withdrawn** after the run: now a pending wire payment, collection tracked (decision 1) |
 | F6 | high | Anyone with any Google account can read the staff list (names, emails, saved settings) and add clinics | Proposal 4.1 |
 | F28 | medium | Today (and every screen) could stay out of date while the app was left open: new leads missing | Fixed 2b03eb5 |
 | F22 | medium | An order n8n did not accept is never sent again | Proposal 4.3 (Phase 2) |
@@ -212,7 +215,7 @@ or database structure was changed by any fix.
 5. **F30 sign-in library.** Add an `integrity` hash (and `crossorigin`) to the supabase-js script tag in `index.html`, or
    serve the file from the app itself, so a change on the CDN cannot run code in the app. (The hash could not be worked
    out during the run because the computer was kept offline.)
-6. **Wire payments in the demo data** (`scripts/seed-demo.js`), once decision 1 is made.
+6. **Wire payments in the demo data** (`scripts/seed-demo.js`): resolved, no change. The demo wire orders are old and shipped, so a received (succeeded) wire payment is right for them.
 7. **Before go-live, run `db/wipe-demo.sql`.** While the demo and test users are in v2, real reps' Trip to Vienna board
    will list them (Echo, Jordan, Casey…).
 

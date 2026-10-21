@@ -263,14 +263,15 @@ describe('order (L10 / L15 Send for approval)', () => {
     assert.deepEqual([...lines], [{ sku: 'HDB100', quantity: 1, p: 0, is_free: true }, { sku: 'SAF100', quantity: 2, p: 225, is_free: false }]);
     assert.equal((await sql`select count(*)::int n from payments where order_id = ${r.orderId}`)[0].n, 0);
   }));
-  test('a wire order counts as paid at once', () => h.withDb(async (sql) => {
-    // Test run 2026-10-21: the rules say never create a payment row for a wire order, so this checks that none is
-    // written and that the order still counts as paid (it used to check for a "succeeded" wire payment row).
+  test('a wire order counts as paid at once, with one pending wire payment to collect and its terms', () => h.withDb(async (sql) => {
+    // Yousef 2026-10-21: sold when placed; collecting is tracked by one pending wire payment row (marked received later).
     const me = await h.user(sql), c = await ready(sql, me);
     const r = await A.order(me, { contactId: c, payment: 'wire', lines: [{ sku: 'SAF100', qty: 2 }] });
-    assert.equal((await sql`select count(*)::int n from payments where order_id = ${r.orderId}`)[0].n, 0);
-    const [o] = await sql`select payment_method::text m from orders where id = ${r.orderId}`;
+    const pays = await sql`select method::text, status::text, provider::text, amount::float8, paid_at from payments where order_id = ${r.orderId}`;
+    assert.deepEqual([...pays], [{ method: 'wire', status: 'pending', provider: 'wire', amount: 450, paid_at: null }]);
+    const [o] = await sql`select payment_method::text m, payment_terms_days t from orders where id = ${r.orderId}`;
     assert.equal(o.m, 'wire');
+    assert.equal(o.t, await require('../../api/_wire').defaultTerms(sql));
     const [x] = (await require('../../api/_book').ordersFor(sql, [c])).filter((y) => y.id === r.orderId);
     assert.equal(x.paid_flag, true);
     assert.equal(x.total, 450);
