@@ -31,7 +31,8 @@ async function context(sql, me, contactId) {
   if (!c) throw fail(404, 'not_found');
   const others = await sql`
     select first_name, last_name, role::text from contacts
-     where clinic_id = (select clinic_id from contacts where id = ${contactId}) and id <> ${contactId} and deleted_at is null limit 8`;
+     where clinic_id = (select clinic_id from contacts where id = ${contactId}) and id <> ${contactId} and deleted_at is null
+       and owner_id = ${me.id} limit 8`;   // only people in this rep's own book (never another rep's clients)
   const recent = await sql`
     select kind::text, occurred_at, left(coalesce(body, subject, ''), 300) as body from interactions
      where contact_id = ${contactId} and deleted_at is null and coalesce(body, subject, '') <> '' order by occurred_at desc limit 4`;

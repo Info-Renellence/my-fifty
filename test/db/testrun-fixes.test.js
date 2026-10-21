@@ -102,3 +102,18 @@ describe('follow-up dates that do not exist', () => {
     }
   }));
 });
+
+describe('voice notes (Gemini stubbed)', () => {
+  const fakeGemini = (out, seen) => ({ available: () => true, json: async (prompt, o) => { if (seen) seen.push({ prompt, o }); return out; } });
+  test('the prompt never carries people from another rep\'s book at the same clinic', () => h.withDb(async (sql) => {
+    const V = require('../../api/_voice');
+    const me = await h.user(sql), other = await h.user(sql), cl = await h.clinic(sql);
+    const c = await h.contact(sql, me, { clinicId: cl.id, first: 'Mine', last: 'Testperson' });
+    await h.contact(sql, me, { clinicId: cl.id, first: 'Colleague', last: 'Ofmine' });
+    await h.contact(sql, other, { clinicId: cl.id, first: 'Secret', last: 'Otherrepclient' });
+    const seen = [];
+    await V.transcribe(sql, me, { contactId: c, audio: 'AAAA', mime: 'audio/webm;codecs=opus' }, { gemini: fakeGemini({ note: 'ok', nextStep: '', followUpDate: '', transcript: 'ok' }, seen) });
+    assert.match(seen[0].prompt, /Colleague Ofmine/);
+    assert.doesNotMatch(seen[0].prompt, /Otherrepclient/);
+  }));
+});
