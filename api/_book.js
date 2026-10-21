@@ -117,7 +117,7 @@ async function book(sql, me, opts) {
       p.goingCold = p.coldDays > cfg.going_cold_days;
     }
     if (p.stage === 'candidate') {
-      const s = samples[0];
+      const s = samples.find((x) => x.delivered_at || x.shipped_at) || samples[0];   // the newest samples that arrived; else the newest on the way
       p.sampleOrder = s;
       p.samplesAt = s.delivered_at || s.shipped_at || null;
       p.sampleDays = p.samplesAt ? T.daysBetween(p.samplesAt, now) : null;

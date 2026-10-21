@@ -200,3 +200,17 @@ describe('L9 Ready to order and the injector on an onboarding', () => {
     await A.order(me, { contactId: inj, lines: [{ sku: 'SAF100', qty: 1 }] });
   }));
 });
+
+describe('Candidates with a second sample order on the way', () => {
+  test('days since samples count from the samples that arrived; a newer, unshipped sample order does not hide them', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    await h.order(sql, c, me, { lines: [['SAL400', 1, true]], days: 12, delivered: 9 });
+    await h.order(sql, c, me, { lines: [['SAV200', 1, true]], days: 1 });
+    const p = (await byId(sql, me))[c];
+    assert.equal(p.stage, 'candidate');
+    assert.equal(p.sampleDays, 9);
+    const cfg = await B.settings(sql);
+    const list = B.todayList((await B.book(sql, me, { cfg })).people, me, cfg);
+    assert.deepEqual(list.map((x) => [x.id, x.why]), [[c, 'candidate']]);
+  }));
+});
