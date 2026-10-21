@@ -204,3 +204,17 @@ describe('Candidates with a second sample order on the way', () => {
     assert.deepEqual(list.map((x) => [x.id, x.why]), [[c, 'candidate']]);
   }));
 });
+
+describe('#12 "Same as last order" with a product that is no longer sold', () => {
+  test('only products that can still be ordered are copied (otherwise Send fails with no way to remove the line)', () => h.withDb(async (sql) => {
+    const D = require('../../api/data').OPS;
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const o = await h.order(sql, c, me, { status: 'shipped', days: 3, lines: [['SAF100', 2]] });
+    await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+      select ${o}, id, 'OLD-SAF050', 'saypha® filler 0.5 ml (discontinued)', 1, 120, 120, false from products where sku = 'SAF100'`;
+    const r = await D.products(sql, me, new URLSearchParams({ id: c }));
+    const sellable = new Set(r.products.map((p) => p.sku));
+    assert.ok(r.sameAsLast.every((l) => sellable.has(l.sku)), JSON.stringify(r.sameAsLast));
+    assert.deepEqual(r.sameAsLast, [{ sku: 'SAF100', qty: 2 }]);
+  }));
+});

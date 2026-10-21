@@ -140,7 +140,7 @@ const OPS = {
     return {
       person: { id: p.id, name: p.name, clinic: p.clinic, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
       card,
-      sameAsLast: latestPaid ? (latestPaid.summary || []).filter((l) => !l.free).map((l) => ({ sku: l.sku, qty: l.qty })) : [],
+      sameAsLast: latestPaid ? (latestPaid.summary || []).filter((l) => !l.free && products.some((x) => x.sku === l.sku)).map((l) => ({ sku: l.sku, qty: l.qty })) : [],   // only what can still be ordered
       products: products.map((x) => ({ sku: x.sku, name: shortProduct(x.name), price: x.price, family: x.family, alwaysFree: !(x.price > 0),
         last: lastQty[x.sku] ? lastQty[x.sku].qty : null, unit: unitWord(x.sku) }))
         .sort((a, b) => (b.last != null) - (a.last != null) || a.name.localeCompare(b.name)),
