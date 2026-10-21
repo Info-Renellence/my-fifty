@@ -62,6 +62,7 @@ describe('R5 cancelled visits: the new-lead push', () => {
     const cron = require('../../api/cron')._;
     const me = await h.user(sql);
     await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
+    await cron.newLeads(sql);   // a first tick sends (and logs) pushes for leads already waiting, so the count settles
     const before = (await cron.newLeads(sql)).found;
     const c = await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
     await h.touch(sql, c, me.id, { kind: 'meeting', status: 'cancelled', at: new Date() });
@@ -184,6 +185,7 @@ describe('New-lead pushes to a switched-off rep', () => {
   test('a rep who has been switched off gets no new-lead push on their phone', () => h.withDb(async (sql) => {
     const cron = require('../../api/cron')._;
     const off = await h.user(sql, { active: false });
+    await cron.newLeads(sql);   // a first tick sends (and logs) pushes for leads already waiting, so the count settles
     const before = (await cron.newLeads(sql)).found;
     await h.contact(sql, off, { source: 'social', createdAt: h.ago(0, 1) });
     assert.equal((await cron.newLeads(sql)).found, before);
