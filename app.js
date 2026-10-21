@@ -36,12 +36,16 @@
       return j;
     });
   }
-  // Read with a short-lived cache so going back is instant; any write clears it.
+  // Read with a short-lived cache so going back is instant; any write clears it. "Short-lived": an answer is reused
+  // for a minute at most, and never after the app comes back to the front (a phone keeps the app open for days, so
+  // without this Today kept yesterday's list and missed new leads).
+  var CACHE_MS = 60000;
   function read(op, params) {
     var k = op + JSON.stringify(params || {});
-    if (cache[k]) return Promise.resolve(cache[k]);
-    return api(op, params).then(function (j) { cache[k] = j; return j; });
+    if (cache[k] && Date.now() - cache[k].at < CACHE_MS) return Promise.resolve(cache[k].j);
+    return api(op, params).then(function (j) { cache[k] = { at: Date.now(), j: j }; return j; });
   }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) cache = {}; });
 
   // ---- icons (paths from the mockup) ---------------------------------------------------------------
   var P = {

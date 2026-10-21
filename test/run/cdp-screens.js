@@ -161,6 +161,19 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await wait(400); await shot('flow-log-visit-picked');
       await click('#sheet [data-save]'); await wait(2000); await shot('flow-log-visit-done');
       await click('[data-undo]'); await wait(1500); note('FLOW undo toast: ' + await toast());
+    } else if (SCEN === 'stale') {
+      // The app stays open (a phone keeps it in memory). A new lead arrives; two minutes later the rep opens Today again.
+      const LAST = 'Leadtest' + Date.now().toString(36).slice(-4);
+      await go('/'); await wait(500);
+      const before = await evaluate("document.getElementById('app').innerText.indexOf('" + LAST + "') >= 0");
+      const { execFileSync } = require('child_process');
+      execFileSync(process.execPath, ['-r', path.join(__dirname, 'no-network.js'), path.join(__dirname, 'add-late-lead.js')], { stdio: 'inherit', env: Object.assign({}, process.env, { NO_NETWORK_QUIET: '1', LATE_LAST: LAST }) });
+      await click('nav.tabs a[href="/people"]'); await wait(800);
+      await evaluate('(function(){ var real = Date.now; Date.now = function () { return real() + 120000; }; })()');
+      await click('nav.tabs a[href="/"]'); await wait(1500);
+      const after = await evaluate("document.getElementById('app').innerText.indexOf('" + LAST + "') >= 0");
+      note('STALE before=' + before + ' after=' + after + (after ? ' OK' : ' STALE TODAY'));
+      await shot('stale-today');
     } else if (SCEN === 'navrace') {
       // Tap a person, then the People tab before their card has loaded: the slow card must not cover the People screen.
       await go('/people');
