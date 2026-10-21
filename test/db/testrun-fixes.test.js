@@ -116,4 +116,14 @@ describe('voice notes (Gemini stubbed)', () => {
     assert.match(seen[0].prompt, /Colleague Ofmine/);
     assert.doesNotMatch(seen[0].prompt, /Otherrepclient/);
   }));
+  test('the draft writes saypha and its product names in lower case', () => h.withDb(async (sql) => {
+    const V = require('../../api/_voice');
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const out = { note: 'She loved Saypha Lips and wants SAYPHA Volume Plus. Lidocaine is fine.', nextStep: 'Bring Saypha® Filler', followUpDate: '2020-01-01', transcript: 'saypha lips, Saypha volume' };
+    const d = await V.transcribe(sql, me, { contactId: c, audio: 'AAAA', mime: 'audio/mp4' }, { gemini: fakeGemini(out) });
+    assert.equal(d.note, 'She loved saypha lips and wants saypha volume plus. Lidocaine is fine.');
+    assert.equal(d.nextStep, 'Bring saypha® filler');
+    assert.equal(d.transcript, 'saypha lips, saypha volume');
+    assert.equal(d.followUpDate, '', 'a date in the past is dropped');
+  }));
 });

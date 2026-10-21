@@ -68,6 +68,9 @@ function prompt(me, x) {
     + 'If the recording is silent or cannot be understood, return every field as "".';
 }
 
+// "saypha" and its product names are always lower case (only Lidocaine is capitalised), whatever the model wrote.
+const brand = (s) => String(s || '').replace(/\bsaypha(®?)((?:\s+(?:volume\s+plus|volume|lips|filler))?)/gi, (m) => m.toLowerCase());
+
 async function transcribe(sql, me, body, deps) {
   const gem = (deps && deps.gemini) || gemini;
   if (!gem.available()) throw fail(503, 'voice_not_set_up');
@@ -79,8 +82,8 @@ async function transcribe(sql, me, body, deps) {
   const x = await context(sql, me, body.contactId);
   const out = await gem.json(prompt(me, x), { schema: SCHEMA, audio: { mime, data: audio }, timeoutMs: 40000, fallbackModel: 'gemini-2.5-flash-lite' });
   const date = clean(out && out.followUpDate, 10);
-  const draft = { note: clean(out && out.note, 3000), nextStep: clean(out && out.nextStep, 300),
-    followUpDate: /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= T.ymd() ? date : '', transcript: clean(out && out.transcript, 6000) };
+  const draft = { note: brand(clean(out && out.note, 3000)), nextStep: brand(clean(out && out.nextStep, 300)),
+    followUpDate: /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= T.ymd() ? date : '', transcript: brand(clean(out && out.transcript, 6000)) };
   const [ai] = await sql`
     insert into ai_outputs (kind, contact_id, input, output, output_data, model, created_by)
     values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${sql.json(draft)}, ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}, ${me.id})
