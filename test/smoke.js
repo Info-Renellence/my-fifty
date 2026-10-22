@@ -1,4 +1,4 @@
-// Smoke test against the real v2 database with the demo data (db/seed-demo.sql): every read, and the writes that
+// Smoke test against the test database (Supabase v1, test/test-db.js) with the demo data (db/seed-demo.sql): every read, and the writes that
 // can be undone (log + undo, snooze, follow-up, uses, a person who is then removed). Signs in as the demo owner
 // without Google (reads users directly). Needs .env.local (vercel env pull).
 //   node test/smoke.js [owner-email]     (runs itself through test/run/smoke-rollback.js: nothing it writes is kept)
@@ -17,6 +17,7 @@ for (const line of fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'ut
   const m = line.match(/^([A-Z0-9_]+)="?(.*?)"?$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
+require('./test-db').useTestDb();   // never v2
 const { db } = require('../api/_db');
 const data = require('../api/data');
 const act = require('../api/act');

@@ -1,4 +1,4 @@
-// Local server for trying My Fifty against v2 without Google: serves the page and the API, and signs every request
+// Local server for trying My Fifty against the test database (Supabase v1, test/test-db.js) without Google: serves the page and the API, and signs every request
 // in as one person (default admin@renellence.com). Test-only; nothing here is deployed.
 //   node test/serve.js [port] [email]
 const fs = require('fs');
@@ -9,6 +9,7 @@ for (const line of fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split(
   const m = line.match(/^([A-Z0-9_]+)="?(.*?)"?$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
+require('./test-db').useTestDb();   // never v2
 const port = Number(process.argv[2] || 5178);
 const email = process.argv[3] || 'admin@renellence.com';
 

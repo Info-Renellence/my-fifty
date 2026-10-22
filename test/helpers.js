@@ -1,6 +1,7 @@
 // Shared test helpers.
 //
-// Database tests run directly on Supabase v2 (Yousef 2026-10-20: "do it directly on my supabase (v2)"), each one
+// Database tests run on the TEST database, Supabase v1 (Yousef 2026-10-22: v2 holds the real data now; see
+// test/test-db.js and TEST_DATABASE_URL in .env.test), each one
 // inside its own transaction that is ROLLED BACK at the end, so nothing a test writes is ever kept and the demo data
 // is never changed. While a test runs, api/_db.js hands the code that transaction (its `begin` becomes a savepoint),
 // so asUser() and the change_logs triggers behave exactly as in production.
@@ -20,6 +21,8 @@ function loadEnv() {
   }
 }
 loadEnv();
+// Never v2: the test database's address replaces every database address .env.local brought.
+require('./test-db').useTestDb();
 // Fixed, test-only secrets (never the real ones).
 process.env.MYFIFTY_SECRET = 'test-secret-for-unit-tests-only';
 process.env.CRON_SECRET = 'test-cron-key';
@@ -48,7 +51,7 @@ function practiceSql() {
   return require('fs').readFileSync(f, 'utf8').replace(/^begin;\s*$/m, '').replace(/^commit;\s*$/m, '');
 }
 let pool = null;
-// Runs fn(sql) inside a transaction on v2 that is always rolled back.
+// Runs fn(sql) inside a transaction on the test database that is always rolled back.
 async function withDb(fn) {
   pool = pool || dbm.db();
   let result;

@@ -1,8 +1,8 @@
-// Test-run guard (2026-10-21): nothing may leave this computer except to Supabase v2.
+// Test-run guard (2026-10-21): nothing may leave this computer except to the test database (Supabase v1 since 2026-10-22).
 // Preload it in every test process:   node --require ./test/run/no-network.js <script>
 //
 // It wraps fetch, http(s).request/get and raw sockets (net/tls connect, which postgres and web-push use).
-// Allowed hosts: localhost / 127.0.0.1 / ::1, and Supabase v2 only (project ojphplepzuwchjtuycpv and its
+// Allowed hosts: localhost / 127.0.0.1 / ::1, and the test database only (Supabase v1, tkgcinmmqbtdiqbhsgtk, and its
 // connection pooler). Anything else throws NETWORK_BLOCKED before a single byte is sent.
 // Tests that stub fetch on purpose (helpers.fakeFetch) replace global.fetch for themselves; the socket and
 // http guards stay underneath, so even a stub that forgot to stub still cannot reach the internet.
@@ -12,7 +12,8 @@ const tls = require('tls');
 const http = require('http');
 const https = require('https');
 
-const PROJECT = 'ojphplepzuwchjtuycpv';
+const PROJECT = 'tkgcinmmqbtdiqbhsgtk';   // v1, the test database (was v2 until 2026-10-22). The pooler host is shared,
+// so test/test-db.js also refuses any v2 address.
 const ALLOWED = [
   /^localhost$/i, /^127\.0\.0\.1$/, /^::1$/, /^\[::1\]$/,
   new RegExp('^' + PROJECT + '\\.supabase\\.co$', 'i'),

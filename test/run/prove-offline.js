@@ -1,6 +1,6 @@
 // Proof that the guard works (run: node --require ./test/run/no-network.js test/run/prove-offline.js).
 // Tries every outside service My Fifty knows about, through fetch, https and raw sockets, and the app's own
-// connectors (Gemini, n8n, Gmail, web push) with fake keys. Every one must be refused; Supabase v2 must work.
+// connectors (Gemini, n8n, Gmail, web push) with fake keys. Every one must be refused; the test database (Supabase v1) must work.
 'use strict';
 const https = require('https');
 const net = require('net');
@@ -11,6 +11,7 @@ for (const line of fs.readFileSync(path.join(ROOT, '.env.local'), 'utf8').split(
   const m = line.match(/^([A-Z0-9_]+)="?(.*?)"?$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
 }
+require(path.join(ROOT, 'test/test-db')).useTestDb();   // never v2
 if (!global.__NETWORK_GUARD__) { console.log('FAIL: guard not loaded'); process.exit(1); }
 
 const OUTSIDE = [
@@ -61,12 +62,12 @@ const ok = (c, what) => { if (c) { pass++; console.log('ok   ', what); } else { 
   } catch (e) { wp = e; }
   ok(wp && /NETWORK_BLOCKED/.test(String(wp.message || wp.body || wp)), 'web push could not reach the push service (' + String(wp && wp.message).slice(0, 80) + ')');
 
-  // Supabase v2 still works.
+  // The test database (Supabase v1) still works.
   const { db } = require(path.join(ROOT, 'api/_db'));
   const [x] = await db()`select current_user as u, count(*)::int as n from products`;
-  ok(x.u === 'test_agent' && x.n > 0, 'Supabase v2 reachable as ' + x.u + ' (' + x.n + ' products)');
-  const sb = await fetch(process.env.SUPABASE_URL + '/auth/v1/health', { headers: { apikey: process.env.SUPABASE_ANON_KEY } }).then((r2) => r2.status).catch((e) => e.message);
-  ok(typeof sb === 'number', 'Supabase v2 API host allowed (HTTP ' + sb + ')');
+  ok(x.u === 'test_runner' && x.n > 0, 'test database (v1) reachable as ' + x.u + ' (' + x.n + ' products)');
+  const sb = await fetch('https://tkgcinmmqbtdiqbhsgtk.supabase.co/auth/v1/health').then((r2) => r2.status).catch((e) => e.message);
+  ok(typeof sb === 'number', 'test database (v1) API host allowed (HTTP ' + sb + ')');
   await db().end();
   console.log('\n' + pass + ' passed, ' + fail + ' failed. Blocked attempts logged: ' + global.__NETWORK_GUARD__.blocked.length);
   process.exit(fail ? 1 : 0);
