@@ -41,7 +41,10 @@ A fix may only make the code do what these rules say.
 **Access**
 - Sign-in is Google, @renellence.com only, plus an active row in `users`.
   Test reps sign in with email and password, and that is for testing only. Don't remove the domain rule.
-- A rep sees only the contacts they own and everything attached to them. Admins see everything.
+- A rep sees only the contacts they own and everything attached to them. Admins see everything: since 2026-10-22 (E,
+  as Edge's F5) every My Fifty list, search, person and order shows admins (`users.kind = 'admin'`) the whole book,
+  unassigned leads included, and an admin may act on any customer (an order an admin places is credited to the
+  customer's rep). Reps are unchanged; head-office contacts stay hidden from reps.
   Events, ads, territory rules and ingest are admin-only.
 
 **Wording and money**

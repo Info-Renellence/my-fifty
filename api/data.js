@@ -38,10 +38,15 @@ module.exports = route(async (req, res) => {
   send(res, 200, await fn(sql, me, q));
 });
 
+// Admins (users.kind = 'admin') see everyone's customers, unassigned leads included, the same as Edge's F5 (Yousef
+// 2026-10-22, E): the shared book's opts.everyone. Reps are unchanged (their own book; head-office contacts stay hidden).
+const isAdmin = (me) => !!me && me.kind === 'admin';
+const scope = (me, o) => Object.assign({}, o || {}, { everyone: isAdmin(me) });
+
 const OPS = {
   async boot(sql, me) {
     const cfg = await B.settings(sql);
-    const { people } = await B.book(sql, me, { cfg });
+    const { people } = await B.book(sql, me, scope(me, { cfg }));
     const fifty = people.filter((p) => p.stage === 'fifty');
     // "Joined your Fifty" (L5): the newest person whose first paid order came after the last one shown.
     const seenAt = me.settings.fifty_seen_at ? new Date(me.settings.fifty_seen_at) : null;
@@ -56,7 +61,7 @@ const OPS = {
 
   async today(sql, me) {
     const cfg = await B.settings(sql);
-    const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg }), B.dayStats(sql, me, cfg)]);
+    const [{ people }, day] = await Promise.all([B.book(sql, me, scope(me, { cfg })), B.dayStats(sql, me, cfg)]);
     const fiftyCount = people.filter((p) => p.stage === 'fifty').length;
     const list = B.todayList(people, me, cfg);
     return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list };
@@ -64,7 +69,7 @@ const OPS = {
 
   async people(sql, me) {
     const cfg = await B.settings(sql);
-    const { people } = await B.book(sql, me, { cfg });
+    const { people } = await B.book(sql, me, scope(me, { cfg }));
     const fifty = people.filter((p) => p.stage === 'fifty');
     const warm = fifty.filter((p) => !p.goingCold).sort((a, b) => new Date(b.lastActiveAt) - new Date(a.lastActiveAt));
     const cold = fifty.filter((p) => p.goingCold).sort((a, b) => b.coldDays - a.coldDays);
@@ -90,7 +95,7 @@ const OPS = {
   async leads(sql, me, q) {
     const group = q.get('group');
     if (!own(LEAD_GROUPS, group)) throw fail(400, 'bad_group');
-    const { people } = await B.book(sql, me);
+    const { people } = await B.book(sql, me, scope(me));
     const leads = people.filter((p) => p.stage === 'lead' && p.leadGroup === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const added = group === 'cold' || group === 'warm' ? await addedBy(sql, leads.map((p) => p.id), me) : {};
     return { group, title: LEAD_GROUPS[group], leads: leads.map((p) => ({
@@ -121,7 +126,7 @@ const OPS = {
   },
 
   async ready(sql, me) {
-    const { people } = await B.book(sql, me);
+    const { people } = await B.book(sql, me, scope(me));
     const ids = people.map((p) => p.id);
     const onb = ids.length ? await sql`
       select distinct coalesce(primary_contact_id, injector_contact_id) as id from onboardings
@@ -156,7 +161,7 @@ const OPS = {
     const id = q.get('id');
     if (!isUuid(id)) throw fail(400, 'bad_id');
     const [o] = await sql`select o.*, c.owner_id, c.first_name, c.last_name, c.designation, c.email as contact_email from orders o join contacts c on c.id = o.contact_id where o.id = ${id} and o.deleted_at is null`;
-    if (!o || (o.owner_id !== me.id && o.rep_id !== me.id)) throw fail(404, 'not_found');
+    if (!o || (o.owner_id !== me.id && o.rep_id !== me.id && !isAdmin(me))) throw fail(404, 'not_found');
     const [x] = await B.ordersFor(sql, [o.contact_id]).then((rows) => rows.filter((r) => r.id === id));
     const sample = x ? B.isSample(x) : false;
     const pays = await sql`select method::text, status::text, pay_link_url, card_brand, card_last4, failure_reason, paid_at, created_at from payments where order_id = ${id} and kind = 'charge' order by created_at desc`;
@@ -206,7 +211,7 @@ const OPS = {
     // Accents and case don't matter (Yousef 2026-10-22, Edge Q7): "Zoe" finds "Zoë" and the reverse.
     const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     const term = fold(String(q.get('q') || '').trim());
-    const { people } = await B.book(sql, me);
+    const { people } = await B.book(sql, me, scope(me));
     const hits = people.filter((p) => !term || fold(p.name + ' ' + p.clinic + ' ' + p.email + ' ' + p.phone).includes(term))
       .sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
     return { people: hits.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage, initials: initials(p.name) })) };
@@ -258,7 +263,7 @@ function rowSort(x, cat) {
 
 async function one(sql, me, id) {
   if (!isUuid(id)) throw fail(400, 'bad_id');
-  const { people } = await B.book(sql, me, { contactId: id });
+  const { people } = await B.book(sql, me, scope(me, { contactId: id }));
   if (!people.length) throw fail(404, 'not_found');
   return people[0];
 }

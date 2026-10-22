@@ -32,10 +32,14 @@ module.exports = route(async (req, res) => {
   send(res, 200, await fn(me, b));
 });
 
-// The contact, if it is in this person's book.
+// Admins may act on any customer, as in Edge (Yousef 2026-10-22, E; Edge's F5); a rep only on their own.
+const isAdmin = (me) => !!me && me.kind === 'admin';
+
+// The contact, if it is in this person's book (an admin: anyone's).
 async function mine(sql, me, id) {
   if (!isUuid(id)) throw fail(400, 'bad_id');
-  const [c] = await sql`select id, first_name, last_name, designation, email, secondary_email, phone, mobile, clinic_id from contacts where id = ${id} and owner_id = ${me.id} and deleted_at is null`;
+  const [c] = await sql`select id, owner_id, first_name, last_name, designation, email, secondary_email, phone, mobile, clinic_id from contacts
+    where id = ${id} and (owner_id = ${me.id} or ${isAdmin(me)}::boolean) and deleted_at is null`;
   if (!c) throw fail(404, 'not_found');
   return c;
 }
@@ -70,7 +74,7 @@ const OPS = {
     const { note, next } = splitNote(text);
     const sql = db();
     const c = await mine(sql, me, b.contactId);
-    const before = await B.book(sql, me, { contactId: c.id });
+    const before = await B.book(sql, me, { contactId: c.id, everyone: isAdmin(me) });
     const out = await asUser(me.id, async (tx) => {
       const [i] = await tx`
         insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
@@ -89,7 +93,7 @@ const OPS = {
       return { interactionId: i.id, taskId: t.id, closedTaskIds: closed.map((r) => r.id) };
     });
     const cfg = await B.settings(sql);
-    const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg }), B.dayStats(sql, me, cfg)]);
+    const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg, everyone: isAdmin(me) }), B.dayStats(sql, me, cfg)]);
     const list = B.todayList(people, me, cfg);
     return Object.assign(out, { day, name: B.fullName(c), followUp: T.short(due),
       counted: kind !== 'text' && !!b.reached, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
@@ -288,7 +292,7 @@ const OPS = {
       }
       const [o] = await tx`
         insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, md_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)
-        values (${c.id}, ${me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null}, ${terms})
+        values (${c.id}, ${c.owner_id || me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null}, ${terms})
         returning id`;
       for (const l of lines) {
         await tx`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
@@ -332,7 +336,7 @@ const OPS = {
       const [onb] = await sql`
         select o.id, o.agreement_id, coalesce(o.primary_contact_id, o.injector_contact_id) as contact_id from onboardings o
           join contacts c on c.id = coalesce(o.primary_contact_id, o.injector_contact_id)
-         where o.id = ${b.onboardingId} and c.owner_id = ${me.id}`;
+         where o.id = ${b.onboardingId} and (c.owner_id = ${me.id} or ${isAdmin(me)}::boolean)`;
       if (!onb) throw fail(404, 'not_found');
       [agreement] = onb.agreement_id ? await sql`select id, last_reminded_at from agreements where id = ${onb.agreement_id}` : [];
       payload = { onboardingId: onb.id }; entity = ['onboardings', onb.id]; contactId = onb.contact_id;
@@ -381,7 +385,7 @@ const OPS = {
 
 async function myOrder(me, id) {
   if (!isUuid(id)) throw fail(400, 'bad_id');
-  const [o] = await db()`select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id where o.id = ${id} and (c.owner_id = ${me.id} or o.rep_id = ${me.id}) and o.deleted_at is null`;
+  const [o] = await db()`select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id where o.id = ${id} and (c.owner_id = ${me.id} or o.rep_id = ${me.id} or ${isAdmin(me)}::boolean) and o.deleted_at is null`;
   if (!o) throw fail(404, 'not_found');
   return o;
 }
