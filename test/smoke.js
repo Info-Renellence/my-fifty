@@ -64,7 +64,9 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   const sql = db();
   const email = process.argv[2] || 'admin@renellence.com';
   const [u] = await sql`select id, email, name, kind, settings from users where email = ${email}`;
-  const me = { id: u.id, email: u.email, name: u.name, first: u.name.split(' ')[0], initials: 'YK', kind: u.kind, settings: u.settings || {} };
+  // The demo book is checked as its owner sees it as a rep: since E (Yousef 2026-10-22) an admin's My Fifty shows everyone's
+  // customers, so the demo counts below are read with kind 'rep'; the admin view is checked once, further down.
+  const me = { id: u.id, email: u.email, name: u.name, first: u.name.split(' ')[0], initials: 'YK', kind: 'rep', settings: u.settings || {} };
   const Q = (o) => new URLSearchParams(o || {});
   const D = data.OPS, A = act.OPS;
 
@@ -95,6 +97,11 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
     cands: people.candidates.map((c) => c.name + ' ' + c.days), leads: people.leads }, null, 1));
   ok(people.candidates.length >= 4, 'candidates');
   ok(people.leads.find((g) => g.key === 'social').count === 7, 'seven social leads', people.leads);
+  if (u.kind === 'admin') {   // E: the same person as an admin sees at least their own book, plus everyone else's
+    const all = await D.people(sql, Object.assign({}, me, { kind: 'admin' }));
+    const own = new Set(people.all.map((p) => p.id));
+    ok(all.all.length >= people.all.length && people.all.every((p) => all.all.some((x) => x.id === p.id)) && own.size === people.all.length, 'admin view holds the whole book');
+  }
 
   const leads = await D.leads(sql, me, Q({ group: 'cold' }));
   console.log('cold leads', leads.leads.map((l) => l.name + ' | ' + l.sub + ' | ' + l.age + ' | ' + (l.isNew ? 'New' : l.last)));
