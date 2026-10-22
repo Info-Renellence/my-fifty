@@ -1,9 +1,18 @@
 // Smoke test against the real v2 database with the demo data (db/seed-demo.sql): every read, and the writes that
 // can be undone (log + undo, snooze, follow-up, uses, a person who is then removed). Signs in as the demo owner
 // without Google (reads users directly). Needs .env.local (vercel env pull).
-//   node test/smoke.js [owner-email]
+//   node test/smoke.js [owner-email]     (runs itself through test/run/smoke-rollback.js: nothing it writes is kept)
+//
+// Date-proof (2026-10-22): the checks that depend on today (done today, streak, the new Meta lead, four going cold,
+// a going-cold customer waiting on payment with a pay link to resend) run on fresh fake rows it makes for a fake rep,
+// dated from today, so they never depend on the aging demo data or on rows other testing changed.
 const fs = require('fs');
 const path = require('path');
+if (require.main === module) {   // the fake rows must be rolled back: always run inside the harness's transaction
+  const r = require('child_process').spawnSync(process.execPath, [path.join(__dirname, 'run', 'smoke-rollback.js'), ...process.argv.slice(2)], { stdio: 'inherit' });
+  process.exitCode = r.status == null ? 1 : r.status;
+  return;
+}
 for (const line of fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'utf8').split(/\r?\n/)) {
   const m = line.match(/^([A-Z0-9_]+)="?(.*?)"?$/);
   if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
@@ -11,6 +20,42 @@ for (const line of fs.readFileSync(path.join(__dirname, '..', '.env.local'), 'ut
 const { db } = require('../api/_db');
 const data = require('../api/data');
 const act = require('../api/act');
+const T = require('../api/_time');
+
+// Fresh fake rows for the date checks (marked demo-smoke-..., @demo.invalid; rolled back by the harness).
+async function dateRows(sql) {
+  const tag = 'demo-smoke-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
+  const [u] = await sql`insert into users (email, name, kind, active, settings) values (${tag + '@demo.invalid'}, 'Smoke Testrep', 'rep', true, '{}'::jsonb)
+    returning id, email, name, kind, settings`;
+  const sm = { id: u.id, email: u.email, name: u.name, first: 'Smoke', initials: 'ST', kind: u.kind, settings: {} };
+  let n = 0;
+  const person = async (o) => (await sql`insert into contacts (owner_id, first_name, last_name, email, designation, source_kind, created_at, legacy_id)
+    values (${sm.id}, ${o.first}, 'Smokecase', ${tag + '.' + (++n) + '@demo.invalid'}, ${o.designation || null}, ${o.source || 'warm'}, ${o.createdAt || new Date()}, ${tag + '-c' + n}) returning id`)[0].id;
+  const order = async (contactId, days, o) => {
+    const at = new Date(Date.now() - days * 86400000);
+    const [r] = await sql`insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, delivered_at, created_at, legacy_id)
+      values (${contactId}, ${sm.id}, ${sm.id}, 'stripe', ${o.status}, ${at}, ${at}, ${o.method}, ${o.status === 'delivered' ? at : null}, ${at}, ${tag + '-o' + (++n)}) returning id`;
+    await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+      select ${r.id}, id, sku, name, 2, list_price, list_price, false from products where sku = 'SAF100'`;
+    if (o.payLink) await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, pay_link_url, is_test)
+      values (${r.id}, 'charge', 'pay_link', 450, 'CAD', 'pending', 'stripe', 'https://pay.demo.invalid/smoke', false)`;
+    return r.id;
+  };
+  const call = (contactId, at) => sql`insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, source, created_by)
+    values ('call', ${contactId}, ${sm.id}, ${at}, 'out', 'phone', 'completed', 'connected', 'my_fifty', ${sm.id})`;
+  // 4 reached calls today and 8 on each of the 8 days before (the goal is 8): done today 4, a streak of 8.
+  const called = await person({ first: 'Calledq' });
+  for (let i = 0; i < 4; i++) await call(called, new Date());
+  for (let d = 1; d <= 8; d++) for (let i = 0; i < 8; i++) await call(called, T.atLocal(T.addDays(T.ymd(), -d), 12, i));
+  // A new Meta lead, an hour old, nobody has touched.
+  await person({ first: 'Newleadq', source: 'social', createdAt: new Date(Date.now() - 3600000) });
+  // Four going cold (an order 40 days ago, no visit since): three delivered, and a Maya-like doctor whose order is
+  // approved but unpaid, with a pay link waiting.
+  for (const first of ['Coldaq', 'Coldbq', 'Coldcq']) await order(await person({ first }), 40, { status: 'delivered', method: 'card_on_file' });
+  const maya = await person({ first: 'Mayaq', designation: 'md' });
+  await order(maya, 40, { status: 'approved', method: 'pay_link', payLink: true });
+  return { sm, maya };
+}
 
 let pass = 0, fail = 0;
 function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('FAIL', what, extra === undefined ? '' : JSON.stringify(extra).slice(0, 400)); } }
@@ -29,14 +74,25 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   const today = await D.today(sql, me);
   console.log('today', JSON.stringify({ day: today.day, fifty: today.fifty, list: today.list.map((x) => x.name + ' / ' + x.why + ' / ' + x.detail) }, null, 1));
   ok(today.day.goal === 8, 'goal 8');
-  ok(today.day.done === 4, 'done today (3 calls + Maya call)', today.day);
-  ok(today.day.streak >= 6, 'streak >= 6', today.day);
-  ok(today.list.length > 0 && today.list[0].why === 'lead', 'new lead first', today.list[0]);
+
+  // ---- the checks that depend on today, on fresh rows dated from today ----
+  const fx = await dateRows(sql);
+  const fxToday = await D.today(sql, fx.sm);
+  console.log('date rows today', JSON.stringify({ day: fxToday.day, list: fxToday.list.map((x) => x.name + ' / ' + x.why + ' / ' + x.detail) }));
+  ok(fxToday.day.done === 4, 'done today (4 reached calls today)', fxToday.day);
+  ok(fxToday.day.streak >= 6, 'streak >= 6', fxToday.day);
+  ok(fxToday.list.length > 0 && fxToday.list[0].why === 'lead', 'new lead first', fxToday.list[0]);
+  const fxPeople = await D.people(sql, fx.sm);
+  ok(fxPeople.fifty.coldCount === 4, 'four going cold', fxPeople.fifty.coldCount);
+  const mCard = await D.person(sql, fx.sm, Q({ id: fx.maya }));
+  ok(mCard.label === 'MY FIFTY · GOING COLD', 'maya label', mCard.label);
+  ok(mCard.status && mCard.status.label === 'Waiting on payment', 'maya status', mCard.status);
+  const mOrd = mCard.status ? await D.order(sql, fx.sm, Q({ id: mCard.status.id })) : {};
+  ok(mOrd.action === 'resend_pay_link', 'resend pay link offered', mOrd.action);
 
   const people = await D.people(sql, me);
   console.log('people', JSON.stringify({ fifty: { count: people.fifty.count, warm: people.fifty.warmCount, cold: people.fifty.coldCount, open: people.fifty.open, cold1: people.fifty.cold.slice(0, 4) },
     cands: people.candidates.map((c) => c.name + ' ' + c.days), leads: people.leads }, null, 1));
-  ok(people.fifty.coldCount === 4, 'four going cold', people.fifty.coldCount);
   ok(people.candidates.length >= 4, 'candidates');
   ok(people.leads.find((g) => g.key === 'social').count === 7, 'seven social leads', people.leads);
 
@@ -47,8 +103,6 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   const [maya] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Maya'`;
   const card = await D.person(sql, me, Q({ id: maya.id }));
   console.log('maya card', JSON.stringify(card));
-  ok(card.label === 'MY FIFTY · GOING COLD', 'maya label', card.label);
-  ok(card.status && card.status.label === 'Waiting on payment', 'maya status', card.status);
   ok(card.name === 'Dr. Maya Sample', 'Dr. prefix', card.name);
 
   const hist = await D.history(sql, me, Q({ id: maya.id }));
@@ -56,9 +110,6 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   ok(hist.entries.some((e) => /^Moved to you from Jordan Demo/.test(e.title)), 'moved to you');
   ok(hist.entries.some((e) => e.type === 'note' && /Taylor/.test(e.title)), 'note from Taylor');
 
-  const ord = await D.order(sql, me, Q({ id: card.status.id }));
-  console.log('order', JSON.stringify(ord));
-  ok(ord.action === 'resend_pay_link', 'resend pay link offered');
 
   const [sara] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Sara'`;
   const sCard = await D.person(sql, me, Q({ id: sara.id }));
@@ -109,14 +160,16 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   ok(fu.label === 'Jan 15', 'follow up', fu);
   await A.snooze({ ...me }, { contactId: added.id });
   let dupe = null; try { await A.add_person(me, { firstName: 'Again', email: 'smoke.test@example.invalid' }); } catch (e) { dupe = e.message; }
-  ok(dupe === 'already_yours', 'duplicate email refused', dupe);
+  ok(dupe === 'email_yours', 'duplicate email refused', dupe);   // the code's name since v2 part B (was already_yours)
   // Remove the test person (it is not demo data): soft delete, as the app would.
   await sql`update tasks set deleted_at = now() where contact_id = ${added.id}`;
   await sql`update contacts set deleted_at = now(), legacy_id = 'demo-smoke-' || id::text where id = ${added.id}`;
   await sql`update users set settings = settings - 'snoozed' where id = ${me.id}`;
 
-  const log = await sql`select source::text, actor_user_id, action, field from change_log where entity_id = ${added.id} order by at`;
-  ok(log.length && log[0].source === 'my_fifty' && log[0].actor_user_id === me.id && log[0].action === 'create', 'change_log written by trigger', log[0]);
+  // The row the trigger wrote when the person was made, picked by entity and action (in one transaction every row has the
+  // same time, so "first by time" could be any of them).
+  const log = await sql`select source::text, actor_user_id, action, field from change_log where entity_type = 'contacts' and entity_id = ${added.id} and action = 'create'`;
+  ok(log.length === 1 && log[0].source === 'my_fifty' && log[0].actor_user_id === me.id, 'change_log written by trigger', log);
 
   console.log(pass + ' passed, ' + fail + ' failed');
   await sql.end();
