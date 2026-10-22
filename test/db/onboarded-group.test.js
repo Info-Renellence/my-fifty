@@ -1,6 +1,7 @@
 // The "Onboarded" lead group (Yousef 2026-10-22, item B; shared _book.js, the same in Edge): a lead whose onboarding is
 // fully signed (the onboarding agreement completed) and who has no order of any kind yet. It is listed first; any order
-// (samples or paid, not cancelled or rejected) takes them out.
+// (samples or paid, not cancelled or rejected) takes them out. Only the onboarding's primary contact is listed (Yousef
+// 2026-10-22): never an injector or medical director who is not also the primary contact.
 const { test, describe, after } = require('node:test');
 const assert = require('node:assert/strict');
 const h = require('../helpers');
@@ -9,9 +10,11 @@ const D = require('../../api/data').OPS;
 
 after(h.closeDb);
 const Q = (o) => new URLSearchParams(o || {});
+// An onboarding as v2 has it: the agreement plus its onboardings row. By default c is the primary contact (and the
+// injector); o.primary puts someone else on the row as the primary contact, with c as the injector only.
 async function signed(sql, c, o = {}) {
   const [a] = await sql`insert into agreements (kind, contact_id, status, sent_at, completed_at) values ('onboarding', ${o.on || c}, ${o.status || 'completed'}, now() - interval '3 days', ${o.status === 'waiting' ? null : sql`now() - interval '2 days'`}) returning id`;
-  if (o.viaRow) await sql`insert into onboardings (primary_contact_id, injector_contact_id, agreement_id, status) values (${o.primary || null}, ${c}, ${a.id}, 'signed')`;
+  await sql`insert into onboardings (primary_contact_id, injector_contact_id, agreement_id, status) values (${o.primary || c}, ${c}, ${a.id}, ${o.status === 'waiting' ? 'submitted' : 'signed'})`;
   return a.id;
 }
 
@@ -22,10 +25,13 @@ describe('the Onboarded group (item B)', () => {
     const w = await h.contact(sql, me); await signed(sql, w, { status: 'waiting' });
     const s = await h.contact(sql, me); await signed(sql, s); await h.order(sql, s, me, { status: 'approved', lines: [['SAL400', 1, true]] });
     const x = await h.contact(sql, me); await signed(sql, x); await h.order(sql, x, me, { status: 'cancelled' });
-    const inj = await h.contact(sql, me); const other = await h.contact(sql, me); await signed(sql, inj, { on: other, viaRow: true });
+    // The injector is not the primary contact (Yousef 2026-10-22, primary contact only): the primary contact is listed,
+    // the injector is not, also with the agreement filed under the injector.
+    const inj = await h.contact(sql, me); const other = await h.contact(sql, me); await signed(sql, inj, { on: other, primary: other });
+    const inj2 = await h.contact(sql, me); const other2 = await h.contact(sql, me); await signed(sql, inj2, { primary: other2 });
     const by = Object.fromEntries((await B.book(sql, me)).people.map((p) => [p.id, p]));
-    assert.deepEqual([by[a].leadGroup, by[w].leadGroup, by[s].stage, by[x].leadGroup, by[inj].leadGroup, by[other].leadGroup],
-      ['onboarded', 'warm', 'candidate', 'onboarded', 'onboarded', 'onboarded']);
+    assert.deepEqual([by[a].leadGroup, by[w].leadGroup, by[s].stage, by[x].leadGroup, by[inj].leadGroup, by[other].leadGroup, by[inj2].leadGroup, by[other2].leadGroup],
+      ['onboarded', 'warm', 'candidate', 'onboarded', 'warm', 'onboarded', 'warm', 'onboarded']);
   }));
   test('People lists the group first, titled "Onboarded"; its list and the person label work', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
