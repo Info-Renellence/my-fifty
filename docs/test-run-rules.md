@@ -15,7 +15,7 @@ A fix may only make the code do what these rules say.
 - Orders that are rejected, cancelled or deleted don't count.
 - **New lead**: a lead nobody has called, texted, emailed or visited yet.
 - **Going cold**: a Fifty person with no paid order and no in-person visit for more than 30 days (`settings.my_fifty.going_cold_days`). A no-show is not a visit (S1, 2026-10-22).
-- **Ready to order** (L9): the main contact of a signed onboarding (never the injector on it, Q8), or someone who has ordered before.
+- **Ready to order** (L9): the main contact of a signed onboarding (never the injector on it, Q8), or someone who has ordered before. Edge follows the same rule (2026-10-22, F6).
 
 **Today and the day goal**
 - The daily goal is **8 touchpoints**. A touchpoint is a logged call or in-person visit where the person was reached. Scheduled, cancelled, no-answer and no-show ones don't count; emails and texts never do (Q9).
