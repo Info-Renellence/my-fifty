@@ -14,7 +14,7 @@
   --font: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;   /* Inter, like the mockup (Yousef 2026-10-21) */
 }
 * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html, body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; }
+html, body { background: var(--bg); color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow-wrap: break-word; }   /* a long link, an email shown as a name or a long clinic name breaks at the edge instead of widening the page (real-data run RD2) */
 /* No zooming, like a native app (Yousef 2026-10-21): no double-tap zoom, no pinch (with the viewport tag and the
    gesture guard in app.js for iPhone Safari, which ignores the tag). Inputs stay at 16px+ so iOS never zooms on focus. */
 html { touch-action: pan-x pan-y; -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }

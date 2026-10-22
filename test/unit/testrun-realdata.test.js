@@ -27,3 +27,14 @@ test('an approved order with no approval time is approved; a submitted one still
   assert.equal(s[1].done, false);
   assert.equal(s[1].current, true);
 });
+
+// RD2: real emails carry long links with no spaces, a person with no name shows their email as the name, and clinic
+// names are kept on one line (lib.js nb); long ones pushed History, the person card and L9 wider than the phone.
+// break-word only breaks text that would not fit on its own line, so normal layouts are unchanged.
+// Browser check on the real books: the read-only screen pass (no page wider than 390 px).
+test('long words (links, emails used as a name, long clinic names) wrap instead of widening the page', () => {
+  const css = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app.css'), 'utf8');
+  const rule = css.match(/(^|\n)\s*html,\s*body\s*\{([^}]*)\}/);
+  assert.ok(rule, 'the html, body rule');
+  assert.match(rule[2], /overflow-wrap:\s*(break-word|anywhere)/);
+});
