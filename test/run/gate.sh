@@ -17,6 +17,7 @@ node test/run/smoke-rollback.js > "${TMPDIR:-/tmp}/myfifty-smoke.txt" 2>&1
 # "new lead first": the newest demo Instagram lead was made at 12:19 PM on 2026-10-20 and is more than 24 hours old from
 # 12:19 PM on 2026-10-21, so it is (rightly) no longer a new lead.
 SFAIL=$(grep -E "^FAIL" "${TMPDIR:-/tmp}/myfifty-smoke.txt" | grep -vE "^FAIL (done today|streak >= 6|change_log written by trigger|new lead first)")
-if [ -n "$SFAIL" ] || ! grep -q "rolled back" "${TMPDIR:-/tmp}/myfifty-smoke.txt"; then echo "GATE: smoke failed"; echo "$SFAIL"; exit 1; fi
+# The smoke must reach its end ("N passed, M failed"); "stopped with an error" means it threw (2026-10-22).
+if [ -n "$SFAIL" ] || ! grep -qE "^[0-9]+ passed, [0-9]+ failed" "${TMPDIR:-/tmp}/myfifty-smoke.txt" || grep -q "stopped with an error" "${TMPDIR:-/tmp}/myfifty-smoke.txt"; then echo "GATE: smoke failed"; echo "$SFAIL"; exit 1; fi
 tail -1 "${TMPDIR:-/tmp}/myfifty-smoke.txt"
 echo "GATE: OK (only the 10 known login-rights failures)"

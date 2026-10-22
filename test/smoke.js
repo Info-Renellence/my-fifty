@@ -15,7 +15,7 @@ const act = require('../api/act');
 let pass = 0, fail = 0;
 function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('FAIL', what, extra === undefined ? '' : JSON.stringify(extra).slice(0, 400)); } }
 
-(async () => {
+module.exports = (async () => {   // exported so test/run/smoke-rollback.js can tell when it has finished, also after an error
   const sql = db();
   const email = process.argv[2] || 'admin@renellence.com';
   const [u] = await sql`select id, email, name, kind, settings from users where email = ${email}`;
