@@ -44,7 +44,7 @@ function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('F
   console.log('cold leads', leads.leads.map((l) => l.name + ' | ' + l.sub + ' | ' + l.age + ' | ' + (l.isNew ? 'New' : l.last)));
   ok(leads.leads.some((l) => /Added by you/.test(l.sub)) && leads.leads.some((l) => /Added by Taylor/.test(l.sub)), 'added by you / Taylor');
 
-  const [maya] = await sql`select id from contacts where legacy_id like 'demo-%' and first_name = 'Maya'`;
+  const [maya] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Maya'`;
   const card = await D.person(sql, me, Q({ id: maya.id }));
   console.log('maya card', JSON.stringify(card));
   ok(card.label === 'MY FIFTY · GOING COLD', 'maya label', card.label);
@@ -60,14 +60,14 @@ function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('F
   console.log('order', JSON.stringify(ord));
   ok(ord.action === 'resend_pay_link', 'resend pay link offered');
 
-  const [sara] = await sql`select id from contacts where legacy_id like 'demo-%' and first_name = 'Sara'`;
+  const [sara] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Sara'`;
   const sCard = await D.person(sql, me, Q({ id: sara.id }));
   ok(sCard.status && sCard.status.label === 'Waiting on MD signature' && sCard.status.sub === 'Onboarding', 'sara onboarding status', sCard.status);
   const onb = await D.onboarding(sql, me, Q({ id: sara.id }));
   console.log('onboarding', JSON.stringify(onb));
   ok(onb.action === 'remind_md', 'remind md');
 
-  const [nina] = await sql`select id from contacts where legacy_id like 'demo-%' and first_name = 'Nina'`;
+  const [nina] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Nina'`;
   const nCard = await D.person(sql, me, Q({ id: nina.id }));
   const nOrd = await D.order(sql, me, Q({ id: nCard.status.id }));
   console.log('samples', JSON.stringify(nOrd));
@@ -77,7 +77,7 @@ function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('F
   ok(ready.people.length > 20, 'ready list', ready.people.length);
   const prods = await D.products(sql, me, Q({ id: maya.id }));
   ok(prods.products.length > 30 && prods.cats.length === 6, 'products in categories');
-  console.log('card', prods.card, 'first products', prods.products.slice(0, 4).map((p) => p.cat + ' ' + p.name + ' );
+  console.log('card', prods.card, 'first products', prods.products.slice(0, 4).map((p) => p.cat + ' ' + p.name + ' ' + p.price));
 
   const rewards = await D.rewards(sql, me);
   console.log('rewards', JSON.stringify(rewards));
@@ -87,52 +87,7 @@ function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('F
   ok(search.people.length === 1, 'search');
 
   // ---- writes ----
-  const [ben] = await sql`select id from contacts where legacy_id like 'demo-%' and first_name = 'Ben'`;
-  const logged = await A.log(me, { contactId: ben.id, kind: 'call', reached: true, followUp: 'tomorrow', note: 'Smoke test call.\nNext: smoke test follow-up' });
-  ok(logged.day.done === today.day.done + 1, 'log counts', logged.day);
-  const [task] = await sql`select title, status from tasks where from_interaction_id = ${logged.interactionId}`;
-  ok(task && task.title === 'smoke test follow-up', 'next step became the task', task);
-  const undone = await A.undo(me, { interactionId: logged.interactionId, closedTaskIds: logged.closedTaskIds });
-  ok(undone.day.done === today.day.done, 'undo', undone.day);
-  const [reopened] = await sql`select status from tasks where id = any(${logged.closedTaskIds})`;
-  ok(!logged.closedTaskIds.length || (reopened && reopened.status === 'open'), 'closed follow-up reopened');
-
-  const added = await A.add_person(me, { firstName: 'Smoke', lastName: 'Test', clinic: 'Sample Clinic A', phone: '555 030 9999', email: 'smoke.test@example.invalid', role: 'manager', warm: false });
-  const [p] = await sql`select source_kind::text, owner_id, mobile, shipping_city from contacts where id = ${added.id}`;
-  ok(p.source_kind === 'cold' && p.owner_id === me.id && p.mobile === '+15550309999' && p.shipping_city === 'Sampleton', 'add person', p);
-  const cold2 = await D.leads(sql, me, Q({ group: 'cold' }));
-  ok(cold2.leads[0].name === 'Smoke Test' && /Added by you/.test(cold2.leads[0].sub), 'added shows first', cold2.leads[0]);
-  await A.set_uses(me, { contactId: added.id, fillers: ['saypha', 'belotero', 'nope'] });
-  const [uses] = await sql`select fillers_used::text[] f from contacts where id = ${added.id}`;
-  ok(uses.f.join() === 'saypha,belotero', 'uses saved', uses);
-  const fu = await A.set_follow_up(me, { contactId: added.id, date: '2030-01-15' });
-  ok(fu.label === 'Jan 15', 'follow up', fu);
-  await A.snooze({ ...me }, { contactId: added.id });
-  let dupe = null; try { await A.add_person(me, { firstName: 'Again', email: 'smoke.test@example.invalid' }); } catch (e) { dupe = e.message; }
-  ok(dupe === 'already_yours', 'duplicate email refused', dupe);
-  // Remove the test person (it is not demo data): soft delete, as the app would.
-  await sql`update tasks set deleted_at = now() where contact_id = ${added.id}`;
-  await sql`update contacts set deleted_at = now(), legacy_id = 'demo-smoke-' || id::text where id = ${added.id}`;
-  await sql`update users set settings = settings - 'snoozed' where id = ${me.id}`;
-
-  const log = await sql`select source::text, actor_user_id, action, field from change_log where entity_id = ${added.id} order by at`;
-  ok(log.length && log[0].source === 'my_fifty' && log[0].actor_user_id === me.id && log[0].action === 'create', 'change_log written by trigger', log[0]);
-
-  console.log(pass + ' passed, ' + fail + ' failed');
-  await sql.end();
-  process.exitCode = fail ? 1 : 0;
-})().catch((e) => { console.error(e); process.exitCode = 1; });
- + p.price));
-
-  const rewards = await D.rewards(sql, me);
-  console.log('rewards', JSON.stringify(rewards));
-  ok(/^\$/.test(rewards.extra), 'rewards extra');
-
-  const search = await D.search(sql, me, Q({ q: 'maya' }));
-  ok(search.people.length === 1, 'search');
-
-  // ---- writes ----
-  const [ben] = await sql`select id from contacts where legacy_id like 'demo-%' and first_name = 'Ben'`;
+  const [ben] = await sql`select id from contacts where legacy_id like 'demo-%' and owner_id = ${me.id} and first_name = 'Ben'`;
   const logged = await A.log(me, { contactId: ben.id, kind: 'call', reached: true, followUp: 'tomorrow', note: 'Smoke test call.\nNext: smoke test follow-up' });
   ok(logged.day.done === today.day.done + 1, 'log counts', logged.day);
   const [task] = await sql`select title, status from tasks where from_interaction_id = ${logged.interactionId}`;
