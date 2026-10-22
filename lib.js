@@ -59,6 +59,23 @@
   function priceOf(p, draft) { var v = draft.price && draft.price[p.sku]; return v != null ? v : p.price; }
   // What the rep typed in a price box: a number of dollars (cents kept), never below 0; junk is 0.
   function parsePrice(s) { var v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return isNaN(v) ? 0 : Math.round(v * 100) / 100; }
+  // The paid-quantity picker on the product step (Yousef 2026-10-22): 0 to 100 in the list, plus the current
+  // quantity when it is above 100 so it still shows; "More than 100…" opens a box for a typed number.
+  var QTY_LIST_MAX = 100, QTY_MAX = 999;   // QTY_MAX = the per-line cap the server enforces (act.js "too_many")
+  function qtyOptions(current) {
+    var out = [];
+    for (var i = 0; i <= QTY_LIST_MAX; i++) out.push(i);
+    var c = Number(current) || 0;
+    if (c > QTY_LIST_MAX && c % 1 === 0) out.push(c);
+    return out;
+  }
+  // A typed quantity: a whole number from 0 to the cap, else null (the box goes back to what it was).
+  function parseQty(s) {
+    var t = String(s == null ? '' : s).trim();
+    if (!/^\d+$/.test(t)) return null;
+    var v = parseInt(t, 10);
+    return v <= QTY_MAX ? v : null;
+  }
   // The bottom bar: paid items and money, free units, and whether it is a sample order (only free units: MD signs).
   function draftSummary(products, draft) {
     var paid = 0, free = 0, total = 0;
@@ -88,6 +105,7 @@
   var L = { MONTHS: MONTHS, LONG_DAYS: LONG_DAYS, LONG_MONTHS: LONG_MONTHS, esc: esc, nb: nb, ymd: ymd, addDays: addDays, shortDate: shortDate, longDate: longDate,
     ERR: ERR, errText: errText, initials: initials, money: money, ringDash: ringDash, fiftyTile: fiftyTile, dayLeftText: dayLeftText, winLine: winLine,
     candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, draftSummary: draftSummary,
+    QTY_LIST_MAX: QTY_LIST_MAX, QTY_MAX: QTY_MAX, qtyOptions: qtyOptions, parseQty: parseQty,
     billingSame: billingSame, stripNext: stripNext, b64ToBytes: b64ToBytes };
   if (typeof module !== 'undefined' && module.exports) module.exports = L;
   else root.MFLib = L;

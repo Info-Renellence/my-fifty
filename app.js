@@ -1026,6 +1026,36 @@
   var MINUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>';
   var NEXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
   function fmtPrice(v) { return v % 1 ? v.toFixed(2) : String(v); }
+  // The paid quantity is a native list (the phone shows its own scroll wheel): 0-100, then "More than 100…",
+  // which turns the box into a number field (Yousef 2026-10-22). The free quantity stays − / +.
+  function qtyPicker(p, q) {
+    return '<select class="qtysel" data-qty="' + esc(p.sku) + '" aria-label="Quantity of ' + esc(p.name) + '">'
+      + L.qtyOptions(q).map(function (n) { return '<option value="' + n + '"' + (n === q ? ' selected' : '') + '>' + n + '</option>'; }).join('')
+      + '<option value="more">More than ' + L.QTY_LIST_MAX + '…</option></select>';
+  }
+  function setQty(sku, n) { if (n) draft.qty[sku] = n; else delete draft.qty[sku]; keepScroll(function () { return screenProducts(draft.contactId); }); }
+  // "More than 100…": swap the list for a number box; Enter or leaving the box commits, a bad number reverts.
+  function qtyTyped(sel) {
+    var sku = sel.getAttribute('data-qty'), now = draft.qty[sku] || 0, done = false;
+    var box = document.createElement('input');
+    box.type = 'number'; box.className = 'qtysel qtybox'; box.min = '0'; box.max = String(L.QTY_MAX); box.step = '1';
+    box.inputMode = 'numeric'; box.setAttribute('aria-label', sel.getAttribute('aria-label'));
+    box.value = now > L.QTY_LIST_MAX ? String(now) : '';
+    box.placeholder = String(L.QTY_LIST_MAX + 1);
+    function commit(keep) {
+      if (done) return; done = true;
+      var n = keep ? L.parseQty(box.value) : null;
+      if (n == null) n = now;   // invalid or cancelled: back to what it was
+      if (draft && draft.contactId) setQty(sku, n);
+    }
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); commit(true); }
+      else if (e.key === 'Escape') { e.preventDefault(); commit(false); }
+    });
+    box.addEventListener('blur', function () { commit(true); });
+    sel.parentNode.replaceChild(box, sel);
+    box.focus();
+  }
   function productRow(p, i, dft) {
     var q = dft.qty[p.sku] || 0, f = dft.free[p.sku] || 0, pr = L.priceOf(p, dft), isFree = !p.freeOnly && !(pr > 0);
     var row = '<div style="display:flex;align-items:center;gap:10px;min-height:72px;padding:10px 12px 10px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
@@ -1048,7 +1078,7 @@
     if (p.unavailable) return row + '<span style="font-size:13px;font-weight:600;color:#9AA1AD">Unavailable</span></div>';
     return row + '<span style="display:flex;align-items:center;gap:6px;flex:none">'
       + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="Less" style="width:40px;height:40px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center">' + MINUS + '</button>'
-      + '<span style="min-width:22px;text-align:center;font-size:17px;font-weight:700">' + q + '</span>'
+      + qtyPicker(p, q)
       + '<button type="button" data-more="' + esc(p.sku) + '" aria-label="More" style="width:40px;height:40px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;background:#1170C0;color:#FFFFFF">' + PLUS + '</button></span></div>';
   }
   function screenProducts(contactId) {
@@ -1089,7 +1119,12 @@
   });
   // A price typed by the rep (any amount, no approval needed; the list price is kept on the line). Applied when the box is left.
   $app.addEventListener('change', function (e) {
-    var t = e.target.closest('[data-price]');
+    var t = e.target.closest('select[data-qty]');
+    if (t && draft) {
+      if (t.value === 'more') return qtyTyped(t);
+      return setQty(t.getAttribute('data-qty'), L.parseQty(t.value) || 0);
+    }
+    t = e.target.closest('[data-price]');
     if (!t || !draft) return;
     draft.price[t.getAttribute('data-price')] = L.parsePrice(t.value);
     keepScroll(function () { return screenProducts(draft.contactId); });

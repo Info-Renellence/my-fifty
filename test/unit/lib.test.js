@@ -83,6 +83,18 @@ describe('ordering pieces', () => {
     assert.equal(L.priceOf(products[0], draft({ price: { SAF100: 199.5 } })), 199.5);
     assert.equal(L.priceOf(products[0], draft({ price: { SAF100: 0 } })), 0);
   });
+  test('qtyOptions: 0 to 100, plus the current quantity when it is above 100', () => {
+    const o = L.qtyOptions(12);
+    assert.equal(o.length, 101); assert.equal(o[0], 0); assert.equal(o[100], 100);
+    assert.deepEqual(L.qtyOptions(100).slice(-1), [100]);
+    assert.deepEqual(L.qtyOptions(250).slice(-2), [100, 250]);
+    assert.equal(L.qtyOptions(undefined).length, 101);
+  });
+  test('parseQty: whole numbers from 0 to the per-line cap, anything else is null', () => {
+    assert.deepEqual(['0', '7', ' 150 ', '999'].map(L.parseQty), [0, 7, 150, 999]);
+    assert.deepEqual(['1000', '-1', '2.5', '1e3', 'abc', '', null].map(L.parseQty), [null, null, null, null, null, null, null]);
+    assert.equal(L.QTY_MAX, 999);
+  });
   test('parsePrice keeps cents and ignores junk', () => assert.deepEqual(['$1,250.505', '12', 'abc', '', '-5'].map(L.parsePrice), [1250.51, 12, 0, 0, 5]));
   test('draftSummary: paid items and money, then free units', () => {
     const s = L.draftSummary(products, draft({ qty: { SAF100: 2, MN2550: 1, HDB100: 3 }, free: { SAF100: 1 } }));
