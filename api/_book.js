@@ -64,7 +64,8 @@ const paidAt = (o) => o.paid_at || o.submitted_at || o.created_at;   // a wire o
 const placedAt = (o) => o.submitted_at || o.created_at;
 const isOrder = (o) => !isSample(o) && o.n_lines > 0;   // "ordered": placed, not cancelled or rejected, not samples
 
-// The whole book of one person. opts.contactId limits it to one contact (still owned by them).
+// The whole book of one person. opts.contactId limits it to one contact (still owned by them). opts.everyone (Edge's
+// admins, Yousef 2026-10-22, F5) is every contact, unassigned ones included; My Fifty does not pass it.
 async function book(sql, me, opts) {
   const o = opts || {};
   const cfg = o.cfg || await settings(sql);
@@ -77,7 +78,7 @@ async function book(sql, me, opts) {
       from contacts c
       left join clinics cl on cl.id = c.clinic_id
       left join events ev on ev.id = c.source_event_id
-     where c.owner_id = ${me.id} and c.deleted_at is null and c.merged_into_id is null
+     where ${o.everyone ? sql`${true}::boolean` : sql`c.owner_id = ${me.id}`} and c.deleted_at is null and c.merged_into_id is null
        ${o.contactId ? sql`and c.id = ${o.contactId}` : sql``}`;
   const ids = contacts.map((c) => c.id);
   if (!ids.length) return { cfg, people: [] };

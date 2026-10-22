@@ -129,6 +129,14 @@ describe('book', () => {
     assert.equal(by[c].goingCold, true);
     assert.equal(by[v].goingCold, false);
   }));
+  test('the book is the person\'s own; opts.everyone (Edge admins, F5) adds everyone else\'s and the unassigned', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), other = await h.user(sql);
+    const mine = await h.contact(sql, me), theirs = await h.contact(sql, other), nobody = await h.contact(sql, null, { owner: null });
+    const own = (await B.book(sql, me)).people.map((p) => p.id);
+    assert.deepEqual([own.includes(mine), own.includes(theirs), own.includes(nobody)], [true, false, false]);
+    const all = (await B.book(sql, me, { everyone: true })).people.map((p) => p.id);
+    assert.deepEqual([all.includes(mine), all.includes(theirs), all.includes(nobody)], [true, true, true]);
+  }));
   test('a no-show visit is not a visit: the person still goes cold (S1, Yousef 2026-10-22)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), a = await h.contact(sql, me), b = await h.contact(sql, me);
     await h.order(sql, a, me, { status: 'shipped', days: 40 });
