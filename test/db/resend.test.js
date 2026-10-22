@@ -15,7 +15,7 @@ async function ready(sql, me) {
   await sql`insert into onboardings (primary_contact_id, status, submitted_at) values (${c}, 'signed', now())`;
   return c;
 }
-const sends = async (sql, id) => (await sql`select count(*)::int n from change_log where entity_type = 'orders' and entity_id = ${id} and action = 'send'`)[0].n;
+const sends = async (sql, id) => (await sql`select count(*)::int n from change_logs where entity_type = 'orders' and entity_id = ${id} and action = 'send'`)[0].n;
 
 describe('orders n8n did not accept are sent again', () => {
   test('n8n down when placed: kept, sent again by the timer with the same once-only key, then never again', () => h.withDb(async (sql) => {

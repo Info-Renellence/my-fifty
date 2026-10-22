@@ -25,23 +25,23 @@ const T = require('../api/_time');
 // Fresh fake rows for the date checks (marked demo-smoke-..., @demo.invalid; rolled back by the harness).
 async function dateRows(sql) {
   const tag = 'demo-smoke-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 7);
-  const [u] = await sql`insert into users (email, name, kind, active, settings) values (${tag + '@demo.invalid'}, 'Smoke Testrep', 'rep', true, '{}'::jsonb)
-    returning id, email, name, kind, settings`;
-  const sm = { id: u.id, email: u.email, name: u.name, first: 'Smoke', initials: 'ST', kind: u.kind, settings: {} };
+  const [u] = await sql`insert into users (email, full_name, kind, is_active, preferences) values (${tag + '@demo.invalid'}, 'Smoke Testrep', 'rep', true, '{}'::jsonb)
+    returning id, email, full_name, kind, preferences`;
+  const sm = { id: u.id, email: u.email, name: u.full_name, first: 'Smoke', initials: 'ST', kind: u.kind, preferences: {} };
   let n = 0;
-  const person = async (o) => (await sql`insert into contacts (owner_id, first_name, last_name, email, designation, source_kind, created_at, legacy_id)
+  const person = async (o) => (await sql`insert into contacts (owner_id, first_name, last_name, email, designation, lead_source, created_at, legacy_id)
     values (${sm.id}, ${o.first}, 'Smokecase', ${tag + '.' + (++n) + '@demo.invalid'}, ${o.designation || null}, ${o.source || 'warm'}, ${o.createdAt || new Date()}, ${tag + '-c' + n}) returning id`)[0].id;
   const order = async (contactId, days, o) => {
     const at = new Date(Date.now() - days * 86400000);
-    const [r] = await sql`insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, delivered_at, created_at, legacy_id)
+    const [r] = await sql`insert into orders (contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, delivered_at, created_at, legacy_id)
       values (${contactId}, ${sm.id}, ${sm.id}, 'stripe', ${o.status}, ${at}, ${at}, ${o.method}, ${o.status === 'delivered' ? at : null}, ${at}, ${tag + '-o' + (++n)}) returning id`;
-    await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+    await sql`insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
       select ${r.id}, id, sku, name, 2, list_price, list_price, false from products where sku = 'SAF100'`;
     if (o.payLink) await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, pay_link_url, is_test)
       values (${r.id}, 'charge', 'pay_link', 450, 'CAD', 'pending', 'stripe', 'https://pay.demo.invalid/smoke', false)`;
     return r.id;
   };
-  const call = (contactId, at) => sql`insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, source, created_by)
+  const call = (contactId, at) => sql`insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, source, created_by_id)
     values ('call', ${contactId}, ${sm.id}, ${at}, 'out', 'phone', 'completed', 'connected', 'my_fifty', ${sm.id})`;
   // 4 reached calls today and 8 on each of the 8 days before (the goal is 8): done today 4, a streak of 8.
   const called = await person({ first: 'Calledq' });
@@ -63,10 +63,10 @@ function ok(cond, what, extra) { if (cond) pass++; else { fail++; console.log('F
 module.exports = (async () => {   // exported so test/run/smoke-rollback.js can tell when it has finished, also after an error
   const sql = db();
   const email = process.argv[2] || 'admin@renellence.com';
-  const [u] = await sql`select id, email, name, kind, settings from users where email = ${email}`;
+  const [u] = await sql`select id, email, full_name, kind, preferences from users where email = ${email}`;
   // The demo book is checked as its owner sees it as a rep: since E (Yousef 2026-10-22) an admin's My Fifty shows everyone's
   // customers, so the demo counts below are read with kind 'rep'; the admin view is checked once, further down.
-  const me = { id: u.id, email: u.email, name: u.name, first: u.name.split(' ')[0], initials: 'YK', kind: 'rep', settings: u.settings || {} };
+  const me = { id: u.id, email: u.email, name: u.full_name, first: u.full_name.split(' ')[0], initials: 'YK', kind: 'rep', preferences: u.preferences || {} };
   const Q = (o) => new URLSearchParams(o || {});
   const D = data.OPS, A = act.OPS;
 
@@ -156,8 +156,8 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   ok(!logged.closedTaskIds.length || (reopened && reopened.status === 'open'), 'closed follow-up reopened');
 
   const added = await A.add_person(me, { firstName: 'Smoke', lastName: 'Test', clinic: 'Sample Clinic A', phone: '555 030 9999', email: 'smoke.test@example.invalid', role: 'manager', warm: false });
-  const [p] = await sql`select source_kind::text, owner_id, mobile, shipping_city from contacts where id = ${added.id}`;
-  ok(p.source_kind === 'cold' && p.owner_id === me.id && p.mobile === '+15550309999' && p.shipping_city === 'Sampleton', 'add person', p);
+  const [p] = await sql`select lead_source::text, owner_id, mobile_phone, shipping_city from contacts where id = ${added.id}`;
+  ok(p.lead_source === 'cold' && p.owner_id === me.id && p.mobile_phone === '+15550309999' && p.shipping_city === 'Sampleton', 'add person', p);
   const cold2 = await D.leads(sql, me, Q({ group: 'cold' }));
   ok(cold2.leads[0].name === 'Smoke Test' && /Added by you/.test(cold2.leads[0].sub), 'added shows first', cold2.leads[0]);
   await A.set_uses(me, { contactId: added.id, fillers: ['saypha', 'belotero', 'nope'] });
@@ -171,12 +171,12 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
   // Remove the test person (it is not demo data): soft delete, as the app would.
   await sql`update tasks set deleted_at = now() where contact_id = ${added.id}`;
   await sql`update contacts set deleted_at = now(), legacy_id = 'demo-smoke-' || id::text where id = ${added.id}`;
-  await sql`update users set settings = settings - 'snoozed' where id = ${me.id}`;
+  await sql`update users set preferences = preferences - 'snoozed' where id = ${me.id}`;
 
   // The row the trigger wrote when the person was made, picked by entity and action (in one transaction every row has the
   // same time, so "first by time" could be any of them).
-  const log = await sql`select source::text, actor_user_id, action, field from change_log where entity_type = 'contacts' and entity_id = ${added.id} and action = 'create'`;
-  ok(log.length === 1 && log[0].source === 'my_fifty' && log[0].actor_user_id === me.id, 'change_log written by trigger', log);
+  const log = await sql`select source::text, actor_user_id, action, field_name from change_logs where entity_type = 'contacts' and entity_id = ${added.id} and action = 'create'`;
+  ok(log.length === 1 && log[0].source === 'my_fifty' && log[0].actor_user_id === me.id, 'change_logs written by trigger', log);
 
   console.log(pass + ' passed, ' + fail + ' failed');
   await sql.end();

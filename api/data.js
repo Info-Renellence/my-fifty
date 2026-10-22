@@ -50,12 +50,12 @@ const OPS = {
     const { people } = await B.book(sql, me, scope(me, { cfg }));
     const fifty = people.filter((p) => p.stage === 'fifty');
     // "Joined your Fifty" (L5): the newest person whose first paid order came after the last one shown.
-    const seenAt = me.settings.fifty_seen_at ? new Date(me.settings.fifty_seen_at) : null;
+    const seenAt = me.preferences.fifty_seen_at ? new Date(me.preferences.fifty_seen_at) : null;
     // Joining = their first order (the Fifty is worked out from orders placed, paid or not: Edge decisions 2026-10-21).
     const fresh = fifty.filter((p) => p.firstOrderAt && (!seenAt || new Date(p.firstOrderAt) > seenAt))
       .sort((a, b) => new Date(b.firstOrderAt) - new Date(a.firstOrderAt));
     const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
-    const gmail = await sql`select status from user_connections where user_id = ${me.id} and kind = 'gmail' order by updated_at desc limit 1`;
+    const gmail = await sql`select status from connections where user_id = ${me.id} and provider = 'gmail' order by updated_at desc limit 1`;
     return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, joined, firstVisit: !seenAt,
       gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() };
   },
@@ -144,7 +144,7 @@ const OPS = {
     // category (the mockup's one unavailable product); other inactive products are left out. No "Same as last order"
     // and no "Last order" hints (dropped to match the mockup).
     const p = await one(sql, me, q.get('id'));
-    const products = await sql`select sku, name, line, list_price::float8 as price, active from products where active = ${true} or line = ${'prp'}`;
+    const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active from products where is_active = ${true} or product_line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
     return {
       person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
@@ -152,7 +152,7 @@ const OPS = {
       cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
       products: products.map((x) => {
         const cat = orderCat(x);
-        return { sku: x.sku, cat, name: rowName(x, cat), fullName: shortProduct(x.name), price: x.price, freeOnly: !(x.price > 0), unavailable: !x.active, sort: rowSort(x, cat) };
+        return { sku: x.sku, cat, name: rowName(x, cat), fullName: shortProduct(x.name), price: x.price, freeOnly: !(x.price > 0), unavailable: !x.is_active, sort: rowSort(x, cat) };
       }).sort((a, b) => ORDER_CATS.findIndex((c) => c[0] === a.cat) - ORDER_CATS.findIndex((c) => c[0] === b.cat) || (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0))
         .map(({ sort, ...x }) => x),
     };
@@ -166,7 +166,7 @@ const OPS = {
     const [x] = await B.ordersFor(sql, [o.contact_id]).then((rows) => rows.filter((r) => r.id === id));
     const sample = x ? B.isSample(x) : false;
     const pays = await sql`select method::text, status::text, pay_link_url, card_brand, card_last4, failure_reason, paid_at, created_at from payments where order_id = ${id} and kind = 'charge' order by created_at desc`;
-    const md = o.md_contact_id ? (await sql`select first_name, last_name, designation from contacts where id = ${o.md_contact_id}`)[0] : null;
+    const md = o.medical_director_contact_id ? (await sql`select first_name, last_name, designation from contacts where id = ${o.medical_director_contact_id}`)[0] : null;
     const mdAgreement = (await sql`select status::text, sent_at, completed_at from agreements where order_id = ${id} and kind = 'md_pdr' order by created_at desc limit 1`)[0];
     const onb = await onboardingOf(sql, o.contact_id);
     const W = require('./_wire');
@@ -240,10 +240,10 @@ function unitWord(sku) { return /^(MN|MES|EXPRECELL)/i.test(sku) ? 'box' : ''; }
 // The product step's categories, in the mockup's order.
 const ORDER_CATS = [['saypha', 'saypha'], ['cannula', 'Magic Needle'], ['mesbio', 'Mesbio'], ['skin', 'Skin care'], ['prp', 'Exprecell'], ['other', 'Other']];
 function orderCat(x) {
-  if (x.line === 'prp' || /^EXPRECELL/i.test(x.sku)) return 'prp';
+  if (x.product_line === 'prp' || /^EXPRECELL/i.test(x.sku)) return 'prp';
   if (/^MN/i.test(x.sku)) return 'cannula';
   if (/^MES/i.test(x.sku)) return 'mesbio';
-  if (x.line === 'skin_care') return 'skin';
+  if (x.product_line === 'skin_care') return 'skin';
   if (/^SA/i.test(x.sku) && x.price > 0) return 'saypha';
   return 'other';
 }
@@ -269,15 +269,15 @@ async function one(sql, me, id) {
   return people[0];
 }
 
-// Who added each lead (from change_log), for "Added by you" / "Added by <first name>" on cold and warm leads.
+// Who added each lead (from change_logs), for "Added by you" / "Added by <first name>" on cold and warm leads.
 async function addedBy(sql, ids, me) {
   if (!ids.length) return {};
   const rows = await sql`
-    select distinct on (l.entity_id) l.entity_id, l.actor_user_id, u.name
-      from change_log l left join users u on u.id = l.actor_user_id
+    select distinct on (l.entity_id) l.entity_id, l.actor_user_id, u.full_name
+      from change_logs l left join users u on u.id = l.actor_user_id
      where l.entity_type = 'contacts' and l.action = 'create' and l.entity_id = any(${ids})
-     order by l.entity_id, l.at`;
-  return Object.fromEntries(rows.map((r) => [r.entity_id, r.actor_user_id ? (r.actor_user_id === me.id ? 'you' : String(r.name || '').split(/\s+/)[0]) : null]));
+     order by l.entity_id, l.changed_at`;
+  return Object.fromEntries(rows.map((r) => [r.entity_id, r.actor_user_id ? (r.actor_user_id === me.id ? 'you' : String(r.full_name || '').split(/\s+/)[0]) : null]));
 }
 
 // Under a lead's clinic: the event they came from, or who added them (no other source detail: four sources only).
@@ -306,7 +306,7 @@ async function onboardingOf(sql, contactId) {
   if (!o) return null;
   const signers = o.agreement_id ? await sql`
     select s.role, s.status::text, s.signed_at, a.sent_at, a.completed_at from agreement_signers s join agreements a on a.id = s.agreement_id
-     where s.agreement_id = ${o.agreement_id} order by s.sign_order` : [];
+     where s.agreement_id = ${o.agreement_id} order by s.signing_order` : [];
   o.signers = signers.map((s) => ({ role: /md|director/i.test(s.role || '') ? 'md' : s.role, signed_at: s.signed_at, sent_at: s.sent_at }));
   o.signedAt = signers.length && signers.every((s) => s.signed_at) ? signers.map((s) => s.signed_at).reduce((a, x) => (x > a ? x : a)) : null;
   return o;
@@ -319,7 +319,7 @@ async function statusRow(sql, p) {
     const sample = B.isSample(open);
     let label = 'Preparing to ship';
     if (open.status === 'submitted') label = 'Waiting on approval';
-    else if (open.status === 'awaiting_md' || (sample && open.md_contact_id && !open.md_signed_at)) label = 'Waiting on MD signature';
+    else if (open.status === 'awaiting_md' || (sample && open.medical_director_contact_id && !open.medical_director_signed_at)) label = 'Waiting on MD signature';
     else if (!sample && !open.paid_flag) label = 'Waiting on payment';
     return { kind: sample ? 'samples' : 'order', id: open.id, label, sub: sample ? 'Samples · Free' : 'Order · ' + money(open.total) };
   }
@@ -376,7 +376,7 @@ function shortName(n) {
 async function historyOf(sql, me, p) {
   const out = [];
   const inter = await sql`
-    select i.id, i.kind::text, i.mode::text, i.outcome, i.subject, i.body, i.occurred_at, i.user_id, u.name as user_name,
+    select i.id, i.kind::text, i.mode::text, i.outcome, i.subject, i.body, i.occurred_at, i.user_id, u.full_name as user_name,
            (select t.title from tasks t where t.from_interaction_id = i.id and t.deleted_at is null order by t.created_at desc limit 1) as next_step
       from interactions i left join users u on u.id = i.user_id
      where i.contact_id = ${p.id} and i.deleted_at is null and i.status is distinct from 'scheduled'
@@ -402,7 +402,7 @@ async function historyOf(sql, me, p) {
     select o.id, o.status::text as status, o.submitted_at, o.created_at,
            coalesce(sum(case when ol.is_free then 0 else ol.quantity * coalesce(ol.unit_price, 0) end), 0)::float8 as total,
            count(ol.id)::int as n_lines, coalesce(bool_and(ol.is_free or coalesce(ol.unit_price, 0) = 0), false) as all_free,
-           json_agg(json_build_object('sku', ol.sku, 'name', ol.name, 'qty', ol.quantity, 'free', coalesce(ol.is_free, false)) order by ol.quantity desc, ol.name)
+           json_agg(json_build_object('sku', ol.product_sku, 'name', ol.product_name, 'qty', ol.quantity, 'free', coalesce(ol.is_free, false)) order by ol.quantity desc, ol.product_name)
              filter (where ol.id is not null) as summary
       from orders o left join order_lines ol on ol.order_id = o.id
      where o.contact_id = ${p.id} and o.deleted_at is null and o.status = any(${['rejected', 'cancelled']})
@@ -414,9 +414,9 @@ async function historyOf(sql, me, p) {
       title: sample ? 'Samples' : 'Order · ' + money(o.total), body: lineSummary(o), status: word, tone });
   }
   const moves = await sql`
-    select l.at, u.name from change_log l join users u on u.id::text = (l.old_value #>> '{}')
-     where l.entity_type = 'contacts' and l.entity_id = ${p.id} and l.field = 'owner_id' and (l.new_value #>> '{}') = ${me.id}
-     order by l.at desc`;
+    select l.changed_at as at, u.full_name as name from change_logs l join users u on u.id::text = (l.old_value #>> '{}')
+     where l.entity_type = 'contacts' and l.entity_id = ${p.id} and l.field_name = 'owner_id' and (l.new_value #>> '{}') = ${me.id}
+     order by l.changed_at desc`;
   for (const m of moves) out.push({ type: 'event', at: m.at, title: 'Moved to you from ' + m.name });
   const origin = p.sourceKind === 'event' && p.eventName ? 'Met at ' + p.eventName
     : p.sourceKind === 'social' ? 'Came from a Meta ad' : 'Added to My Fifty';
@@ -461,7 +461,7 @@ function sampleSteps(o, md, ag) {
   const steps = [
     { label: 'Order placed', when: fmtTime(o.submitted_at || o.created_at), done: true },
     { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at },
-    { label: 'MD signature', when: o.md_signed_at ? fmtTime(o.md_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.md_signed_at },
+    { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at },
     { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) },
     { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) : '', done: !!o.shipped_at },
   ];

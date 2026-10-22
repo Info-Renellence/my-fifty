@@ -2,7 +2,7 @@
 // app. Yousef 2026-10-20: "Yes, web push".
 //
 // Where things live in v2:
-//   - a phone's subscription: user_connections (kind push, credentials = the subscription, encrypted)
+//   - a phone's subscription: connections (provider push, credentials_encrypted = the subscription)
 //   - every notification sent: notifications (dedupe_key stops a repeat; status sent / failed)
 //
 // Two notifications, both sent from the timer (api/cron.js):
@@ -48,11 +48,11 @@ async function subscribe(tx, me, sub) {
   const clean = cleanSubscription(sub);
   if (!clean) return false;
   const id = deviceId(clean.endpoint);
-  const have = await tx`select id, account from user_connections where user_id = ${me.id} and kind = 'push' and status = 'connected' order by created_at`;
-  const same = have.find((h) => h.account === id);
-  if (same) { await tx`update user_connections set credentials = ${seal(JSON.stringify(clean))} where id = ${same.id}`; return true; }
-  if (have.length >= MAX_SUBS) await tx`update user_connections set status = 'off' where id = ${have[0].id}`;
-  await tx`insert into user_connections (user_id, kind, account, credentials, status) values (${me.id}, 'push', ${id}, ${seal(JSON.stringify(clean))}, 'connected')`;
+  const have = await tx`select id, external_account from connections where user_id = ${me.id} and provider = 'push' and status = 'connected' order by created_at`;
+  const same = have.find((h) => h.external_account === id);
+  if (same) { await tx`update connections set credentials_encrypted = ${seal(JSON.stringify(clean))} where id = ${same.id}`; return true; }
+  if (have.length >= MAX_SUBS) await tx`update connections set status = 'off' where id = ${have[0].id}`;
+  await tx`insert into connections (user_id, provider, external_account, credentials_encrypted, status) values (${me.id}, 'push', ${id}, ${seal(JSON.stringify(clean))}, 'connected')`;
   return true;
 }
 
@@ -62,29 +62,29 @@ async function notify(sql, userId, n) {
   const keys = vapid();
   if (!keys) return { sent: 0, error: 'no_key' };
   // Nobody to tell yet: nothing is logged, so it can still go once they turn notifications on.
-  const [{ n: phones }] = await sql`select count(*)::int as n from user_connections where user_id = ${userId} and kind = 'push' and status = 'connected'`;
+  const [{ n: phones }] = await sql`select count(*)::int as n from connections where user_id = ${userId} and provider = 'push' and status = 'connected'`;
   if (!phones) return { sent: 0, noPhone: true };
   const [row] = await sql`
     insert into notifications (user_id, kind, contact_id, dedupe_key, title, body, status, sent_at)
     values (${userId}, ${n.kind}, ${n.contactId || null}, ${n.dedupeKey}, ${n.title}, ${n.body}, 'sent', now())
     on conflict (dedupe_key) do nothing returning id`;
   if (!row) return { sent: 0, skipped: true };
-  const subs = await sql`select id, credentials from user_connections where user_id = ${userId} and kind = 'push' and status = 'connected'`;
+  const subs = await sql`select id, credentials_encrypted from connections where user_id = ${userId} and provider = 'push' and status = 'connected'`;
   const webpush = require('web-push');
   let sent = 0, failed = 0, lastError = '';
   for (const s of subs) {
-    const sub = JSON.parse(open(s.credentials) || 'null');
+    const sub = JSON.parse(open(s.credentials_encrypted) || 'null');
     if (!sub) continue;
     try {
       await webpush.sendNotification(sub, JSON.stringify({ title: n.title, body: n.body, url: n.url || '/', tag: n.kind }), {
         TTL: 6 * 3600, vapidDetails: { subject: SUBJECT, publicKey: keys.publicKey, privateKey: keys.privateKey } });
       sent++;
     } catch (e) {
-      if (e && (e.statusCode === 404 || e.statusCode === 410)) await sql`update user_connections set status = 'off' where id = ${s.id}`;
+      if (e && (e.statusCode === 404 || e.statusCode === 410)) await sql`update connections set status = 'off' where id = ${s.id}`;
       else { failed++; lastError = String((e && (e.statusCode || e.message)) || 'error'); }
     }
   }
-  if (!sent) await sql`update notifications set status = ${subs.length ? 'failed' : 'skipped_by_rule'}, error = ${subs.length ? lastError || 'no_phone_reached' : 'no_phone'} where id = ${row.id}`;
+  if (!sent) await sql`update notifications set status = ${subs.length ? 'failed' : 'skipped_by_rule'}, error_message = ${subs.length ? lastError || 'no_phone_reached' : 'no_phone'} where id = ${row.id}`;
   return { sent, failed };
 }
 

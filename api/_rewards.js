@@ -46,8 +46,8 @@ async function rewards(sql, me) {
   const t = PROGRAMS.trip;
   const perRep = {};
   for (const o of Object.values(firstBy)) if (o.rep_id && inRange(B.paidAt(o), t)) perRep[o.rep_id] = (perRep[o.rep_id] || 0) + 1;
-  const reps = await sql`select id, name from users where kind = ${'rep'} and active is not false`;
-  const board = reps.map((r) => ({ id: r.id, name: String(r.name || '').split(/\s+/)[0], n: perRep[r.id] || 0 }));
+  const reps = await sql`select id, full_name from users where kind = ${'rep'} and is_active is not false`;
+  const board = reps.map((r) => ({ id: r.id, name: String(r.full_name || '').split(/\s+/)[0], n: perRep[r.id] || 0 }));
   if (!board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, n: perRep[me.id] || 0 });
   board.sort((a, b2) => b2.n - a.n || a.name.localeCompare(b2.name));
   board.forEach((r, i) => { r.rank = i + 1; r.you = r.id === me.id; });

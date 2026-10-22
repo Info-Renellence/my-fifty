@@ -7,7 +7,7 @@ const { db } = require(path.join(ROOT, 'api/_db'));
 (async () => {
   const sql = db();
   const n = Date.now().toString(36);
-  await sql`insert into contacts (owner_id, first_name, last_name, email, source_kind, legacy_id, created_at)
+  await sql`insert into contacts (owner_id, first_name, last_name, email, lead_source, legacy_id, created_at)
     select id, 'Late', ${process.env.LATE_LAST || 'Leadtest'}, ${'late.' + n + '@demo.invalid'}, 'social', ${'demo-test-a-late-lead-' + n}, now() from users where email = ${'test.alpha@demo.invalid'}`;
   await sql.end();
 })().catch((e) => { console.error(e); process.exit(1); });

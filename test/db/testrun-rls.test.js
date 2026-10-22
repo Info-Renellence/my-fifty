@@ -8,8 +8,8 @@ const crypto = require('crypto');
 const h = require('../helpers');
 
 after(h.closeDb);
-const TABLES = ['contacts', 'clinics', 'orders', 'order_lines', 'payments', 'interactions', 'tasks', 'events', 'ad_objects', 'ad_metrics_daily',
-  'territory_rules', 'ingest_events', 'change_log', 'notifications', 'user_connections', 'ai_outputs', 'agreements', 'agreement_signers', 'onboardings',
+const TABLES = ['contacts', 'clinics', 'orders', 'order_lines', 'payments', 'interactions', 'tasks', 'events', 'ad_objects', 'ad_daily_metrics',
+  'territory_rules', 'ingest_events', 'change_logs', 'notifications', 'connections', 'ai_outputs', 'agreements', 'agreement_signers', 'onboardings',
   'files', 'event_attendees', 'forecasts', 'targets', 'metric_snapshots', 'marketing_requests'];
 
 async function as(sql, role, sub, fn) {
@@ -33,7 +33,7 @@ describe('RLS', () => {
     for (const [t, n] of Object.entries(seen)) assert.ok(n === 0 || n === 'denied', t + ' gave ' + n);
   }));
   test('the admin sees everything, including admin-only tables', () => h.withDb(async (sql) => {
-    const [adm] = await sql`select auth_user_id from users where kind = 'admin' and active and auth_user_id is not null limit 1`;
+    const [adm] = await sql`select auth_user_id from users where kind = 'admin' and is_active and auth_user_id is not null limit 1`;
     if (!adm) return;
     const [all] = await sql`select (select count(*) from contacts)::int c, (select count(*) from orders)::int o, (select count(*) from events)::int e`;
     let seen;
@@ -46,7 +46,7 @@ describe('RLS', () => {
     const [someone] = await sql`select id from users where email like '%@demo.invalid' limit 1`;
     let err = null;
     await as(sql, 'authenticated', crypto.randomUUID(), async (sp) => {
-      try { await sp.savepoint((x) => x`insert into contacts (owner_id, first_name, source_kind) values (${someone.id}, 'Intruder', 'cold')`); } catch (e) { err = e; }
+      try { await sp.savepoint((x) => x`insert into contacts (owner_id, first_name, lead_source) values (${someone.id}, 'Intruder', 'cold')`); } catch (e) { err = e; }
       const r = await sp`update contacts set first_name = 'Hacked' where legacy_id like 'demo-test-%' returning id`;
       assert.equal(r.length, 0, 'no contact can be changed');
     });
@@ -59,7 +59,7 @@ describe('RLS: what an outsider account can still do (for the report)', () => {
   test('reads every staff row in users, and can add clinics', () => h.withDb(async (sql) => {
     let users, clinicErr = null;
     await as(sql, 'authenticated', crypto.randomUUID(), async (sp) => {
-      users = await sp`select email, kind, settings from users`;
+      users = await sp`select email, kind, preferences from users`;
       try { await sp.savepoint((x) => x`insert into clinics (name) values ('Testrun Outsider Clinic')`); } catch (e) { clinicErr = e; }
     });
     console.log('OUTSIDER_CAN_READ_USERS', users.length, 'OUTSIDER_CAN_ADD_CLINIC', !clinicErr);

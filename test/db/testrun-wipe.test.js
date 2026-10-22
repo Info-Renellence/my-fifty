@@ -17,7 +17,7 @@ describe('wipe-demo.sql selections', () => {
     // A person added through the app by a test rep (no legacy_id) and an MD added by email are caught too.
     const [rep] = await sql`select id from users where email = 'test.alpha@demo.invalid'`;
     if (!rep) return;   // test data not seeded
-    const [added] = await sql`insert into contacts (owner_id, first_name, email, source_kind) values (${rep.id}, 'Added', 'added.in.app@test.invalid', 'warm') returning id`;
+    const [added] = await sql`insert into contacts (owner_id, first_name, email, lead_source) values (${rep.id}, 'Added', 'added.in.app@test.invalid', 'warm') returning id`;
     const [md] = await sql`insert into contacts (first_name, email, is_medical_director) values ('Md', 'md.by.email@demo.invalid', true) returning id`;
     for (const t of temps) await sql.unsafe(t);
     const users = await sql`select u.email from users u join demo_users d on d.id = u.id`;
@@ -38,8 +38,8 @@ describe('wipe-demo.sql selections', () => {
     assert.equal(orders.n, 0);
   }));
   test('the extra test-run deletes only touch marked rows', () => {
-    assert.match(WIPE, /delete from ad_objects where meta_id like 'demo-test-%'/);
-    assert.match(WIPE, /delete from ingest_events where external_key like '%demo-test%'/);
+    assert.match(WIPE, /delete from ad_objects where meta_object_id like 'demo-test-%'/);
+    assert.match(WIPE, /delete from ingest_events where external_id like '%demo-test%'/);
     assert.match(WIPE, /name like 'Testrun %' and not exists \(select 1 from contacts/);
   });
 });

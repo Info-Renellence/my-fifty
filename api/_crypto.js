@@ -1,4 +1,4 @@
-// Secrets at rest (SOP section 7: credentials only in user_connections.credentials, encrypted).
+// Secrets at rest (SOP section 7: credentials only in connections.credentials_encrypted).
 // AES-256-GCM with a key derived from MYFIFTY_SECRET, a server-only environment variable. Changing that variable
 // makes every stored Gmail token and push subscription unreadable (people then connect again).
 const crypto = require('crypto');

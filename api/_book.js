@@ -41,8 +41,8 @@ const PAID_STATUSES = ['paid', 'sent_to_warehouse', 'shipped', 'delivered'];
 async function ordersFor(sql, contactIds) {
   if (!contactIds.length) return [];
   return sql`
-    select o.id, o.contact_id, o.rep_id, o.status, o.order_number, o.payment_method, o.submitted_at, o.approved_at, o.md_contact_id,
-           o.md_signed_at, o.invoiced_at, o.sent_to_warehouse_at, o.shipped_at, o.delivered_at, o.tracking_number, o.tracking_url,
+    select o.id, o.contact_id, o.rep_id, o.status, o.order_number, o.payment_method, o.submitted_at, o.approved_at, o.medical_director_contact_id,
+           o.medical_director_signed_at, o.invoiced_at, o.sent_to_warehouse_at, o.shipped_at, o.delivered_at, o.tracking_number, o.tracking_url,
            o.created_at,
            coalesce(l.total, 0)::float8 as total, coalesce(l.n, 0)::int as n_lines, coalesce(l.all_free, false) as all_free,
            l.summary,
@@ -54,7 +54,7 @@ async function ordersFor(sql, contactIds) {
         select sum(case when coalesce(ol.is_free, false) then 0 else ol.quantity * coalesce(ol.unit_price, 0) end) as total,
                count(*) as n,
                bool_and(coalesce(ol.is_free, false) or coalesce(ol.unit_price, 0) = 0) as all_free,
-               json_agg(json_build_object('sku', ol.sku, 'name', ol.name, 'qty', ol.quantity, 'price', ol.unit_price, 'free', coalesce(ol.is_free, false)) order by (ol.sku like 'SA%') desc, ol.quantity desc, ol.name) as summary
+               json_agg(json_build_object('sku', ol.product_sku, 'name', ol.product_name, 'qty', ol.quantity, 'price', ol.unit_price, 'free', coalesce(ol.is_free, false)) order by (ol.product_sku like 'SA%') desc, ol.quantity desc, ol.product_name) as summary
           from order_lines ol where ol.order_id = o.id
       ) l on true
      where o.contact_id = any(${contactIds}) and o.deleted_at is null and o.status not in ('rejected', 'cancelled')
@@ -73,8 +73,8 @@ async function book(sql, me, opts) {
   const o = opts || {};
   const cfg = o.cfg || await settings(sql);
   const contacts = await sql`
-    select c.id, c.first_name, c.last_name, c.designation, c.email, c.secondary_email, c.role, c.phone, c.mobile, c.clinic_id, cl.name as clinic,
-           c.source_kind, c.source_ad_id, c.source_event_id, ev.name as event_name, c.created_at,
+    select c.id, c.first_name, c.last_name, c.designation, c.email, c.secondary_email, c.role, c.phone, c.mobile_phone, c.clinic_id, cl.name as clinic,
+           c.lead_source, c.lead_source_ad_object_id, c.lead_source_event_id, ev.name as event_name, c.created_at,
            c.fillers_used::text[] as fillers_used, c.prp_used::text[] as prp_used,
            c.shipping_street, c.shipping_city, c.shipping_province, c.shipping_postal_code,
            c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code,
@@ -83,8 +83,8 @@ async function book(sql, me, opts) {
                                                          and (ob.primary_contact_id = c.id or ob.injector_contact_id = c.id)))) as onboarding_signed
       from contacts c
       left join clinics cl on cl.id = c.clinic_id
-      left join events ev on ev.id = c.source_event_id
-     where ${o.everyone ? sql`${true}::boolean` : sql`c.owner_id = ${me.id}`} and c.deleted_at is null and c.merged_into_id is null
+      left join events ev on ev.id = c.lead_source_event_id
+     where ${o.everyone ? sql`${true}::boolean` : sql`c.owner_id = ${me.id}`} and c.deleted_at is null and c.merged_into_contact_id is null
        ${o.contactId ? sql`and c.id = ${o.contactId}` : sql``}`;
   const ids = contacts.map((c) => c.id);
   if (!ids.length) return { cfg, people: [] };
@@ -103,7 +103,7 @@ async function book(sql, me, opts) {
        where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled' and i.status is distinct from 'cancelled'
        group by i.contact_id`,
     sql`
-      select distinct on (t.contact_id) t.id, t.contact_id, t.title, t.type, t.due_at
+      select distinct on (t.contact_id) t.id, t.contact_id, t.title, t.kind, t.due_at
         from tasks t
        where t.contact_id = any(${ids}) and t.assignee_id = ${me.id} and t.status = 'open' and t.deleted_at is null
        order by t.contact_id, t.due_at nulls last`,
@@ -120,10 +120,10 @@ async function book(sql, me, opts) {
     const t = touchBy[c.id] || {};
     const p = {
       id: c.id, name: fullName(c), first: c.first_name || '', clinic: c.clinic || '', clinicId: c.clinic_id,
-      email: c.email || '', secondaryEmail: c.secondary_email || '', phone: c.mobile || c.phone || '', role: L.canon('contacts_role', c.role),
-      sourceKind: c.source_kind, eventName: c.event_name || '', createdAt: c.created_at,
+      email: c.email || '', secondaryEmail: c.secondary_email || '', phone: c.mobile_phone || c.phone || '', role: L.canon('contacts_role', c.role),
+      sourceKind: c.lead_source, eventName: c.event_name || '', createdAt: c.created_at,
       // Old list names read as the new ones (v2 part B renames; api/_lists.js).
-      fillers: L.canonAll('contacts_filler', c.fillers_used), prp: L.canonAll('contacts_prp', c.prp_used),
+      fillers: L.canonAll('contacts_fillers_used', c.fillers_used), prp: L.canonAll('contacts_prp_used', c.prp_used),
       shipping: addr(c, 'shipping'), billing: addr(c, 'billing'),
       orders: os, paidOrders: paid.length, sampleOrders: samples.length,
       totalBought: paid.reduce((a, x) => a + x.total, 0),
@@ -206,11 +206,11 @@ async function dayStats(sql, me, cfg) {
 
 // Today's list, in order (Yousef 2026-10-20): new ad leads (under 24 hours), follow-ups due today or
 // overdue, Fifty people going cold, then candidates nobody has touched since their samples arrived.
-// People already reached today drop off; "Tomorrow" hides someone until tomorrow (users.settings.snoozed).
+// People already reached today drop off; "Tomorrow" hides someone until tomorrow (users.preferences.snoozed).
 function todayList(people, me, cfg) {
   const today = T.ymd();
   const endOfToday = T.atLocal(today, 23, 59).toISOString();
-  const snoozed = (me.settings && me.settings.snoozed) || {};
+  const snoozed = (me.preferences && me.preferences.snoozed) || {};
   const out = [];
   const seen = new Set();
   const push = (p, item) => {
@@ -225,7 +225,7 @@ function todayList(people, me, cfg) {
     .forEach((p) => push(p, { why: 'lead', action: 'call', detail: 'new Meta lead · ' + ago(p.createdAt) }));   // four sources only: social = Meta ads
   people.filter((p) => p.followUp && p.followUp.due_at && new Date(p.followUp.due_at).toISOString() <= endOfToday)
     .sort((a, b) => new Date(a.followUp.due_at) - new Date(b.followUp.due_at))
-    .forEach((p) => push(p, { why: 'follow_up', taskId: p.followUp.id, action: p.followUp.type === 'visit' ? 'visit' : 'call', detail: p.followUp.title || 'Follow-up' }));
+    .forEach((p) => push(p, { why: 'follow_up', taskId: p.followUp.id, action: p.followUp.kind === 'visit' ? 'visit' : 'call', detail: p.followUp.title || 'Follow-up' }));
   people.filter((p) => p.stage === 'fifty' && p.goingCold).sort((a, b) => b.coldDays - a.coldDays)
     .forEach((p) => push(p, { why: 'going_cold', action: 'visit', detail: 'going cold · ' + p.coldDays + ' days' }));
   people.filter((p) => p.stage === 'candidate' && p.samplesAt && !p.touchedSinceSamples).sort((a, b) => b.sampleDays - a.sampleDays)

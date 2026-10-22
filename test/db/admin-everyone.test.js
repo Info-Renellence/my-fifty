@@ -39,8 +39,8 @@ describe('admins see everyone (E)', () => {
     await assert.rejects(A.set_uses(rep, { contactId: theirs, fillers: ['saypha'] }), (e) => e.status === 404);
     const r = await A.order(admin, { contactId: theirs, lines: [{ sku: 'SAF100', qty: 1 }] });
     assert.equal(r.ok, true);
-    const [row] = await sql`select rep_id, placed_by from orders where contact_id = ${theirs} order by created_at desc limit 1`;
-    assert.deepEqual([row.rep_id, row.placed_by], [other.id, admin.id]);
+    const [row] = await sql`select rep_id, placed_by_id from orders where contact_id = ${theirs} order by created_at desc limit 1`;
+    assert.deepEqual([row.rep_id, row.placed_by_id], [other.id, admin.id]);
     await assert.rejects(A.order(rep, { contactId: theirs, lines: [{ sku: 'SAF100', qty: 1 }] }), (e) => e.status === 404);
   }));
 });

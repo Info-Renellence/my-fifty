@@ -67,11 +67,11 @@ describe('ago and nextMilestone', () => {
 });
 
 describe('todayList', () => {
-  const me = { id: 'me', settings: {} };
+  const me = { id: 'me', preferences: {} };
   const lead = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'lead', isNew: true, sourceKind: 'social', createdAt: hoursAgo(2) }, o);
   const fifty = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'fifty', goingCold: true, coldDays: 35 }, o);
   const cand = (id, o) => Object.assign({ id, name: id, clinic: 'C', stage: 'candidate', samplesAt: hoursAgo(24 * 10), sampleDays: 10, touchedSinceSamples: false }, o);
-  const withTask = (p, dueHoursAgo, type) => Object.assign(p, { followUp: { id: 't-' + p.id, title: 'Call back', type: type || 'call', due_at: hoursAgo(dueHoursAgo) } });
+  const withTask = (p, dueHoursAgo, type) => Object.assign(p, { followUp: { id: 't-' + p.id, title: 'Call back', kind: type || 'call', due_at: hoursAgo(dueHoursAgo) } });
 
   test('the order is new leads, follow-ups, going cold, then candidates', () => {
     const list = B.todayList([cand('c1'), fifty('f1'), withTask(fifty('f2', { goingCold: false }), 1), lead('l1')], me, cfg);
@@ -115,7 +115,7 @@ describe('todayList', () => {
   });
   test('someone reached today drops off', () => assert.equal(B.todayList([lead('l', { touchedToday: true })], me, cfg).length, 0));
   test('someone snoozed until tomorrow is hidden; an old snooze is not', () => {
-    const m = { id: 'me', settings: { snoozed: { a: '2026-10-21', b: '2026-10-20' } } };
+    const m = { id: 'me', preferences: { snoozed: { a: '2026-10-21', b: '2026-10-20' } } };
     assert.deepEqual(B.todayList([fifty('a'), fifty('b')], m, cfg).map((x) => x.id), ['b']);
   });
   test('a person shows once even when two rules match', () => {

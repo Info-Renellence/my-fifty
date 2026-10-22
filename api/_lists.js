@@ -10,10 +10,12 @@ const FILLERS = ['saypha', 'restylane', 'juvederm', 'belotero', 'teoxane_rha', '
 const PRPS = ['exprecell_prf', 'arthrex_prf', 'alyssamed', 'regenlab', 'eclipse_prp', 'cellenis', 'world_prp', 'naturagel', 'other', 'none'];
 const RENAMED = {
   contacts_role: { nurse_injector: 'injector', clinic_owner: 'manager' },
-  contacts_prp: { exprecell: 'exprecell_prf', arthrex_angel: 'arthrex_prf' },
-  contacts_filler: {},
+  contacts_prp_used: { exprecell: 'exprecell_prf', arthrex_angel: 'arthrex_prf' },
+  contacts_fillers_used: {},
 };
-const LIST = { contacts_role: ROLES, contacts_filler: FILLERS, contacts_prp: PRPS };
+// Keyed by the list's type name in v2, <table>_<column> (db/v2-008, 2026-10-22: contacts_filler -> contacts_fillers_used,
+// contacts_prp -> contacts_prp_used).
+const LIST = { contacts_role: ROLES, contacts_fillers_used: FILLERS, contacts_prp_used: PRPS };
 
 // An old or new name as its new name (unknown names are kept, so nothing stored is ever hidden).
 const canon = (type, v) => (v == null ? v : (RENAMED[type] && RENAMED[type][v]) || v);

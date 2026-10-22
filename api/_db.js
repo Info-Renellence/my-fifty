@@ -5,7 +5,7 @@
 // signed-in person (api/_auth.js), the same rule the RLS policies apply to direct access.
 //
 // Writes go through asUser(): one transaction that tells the database who is acting and that it is My
-// Fifty, so the change_log trigger records the right person and source (db/001-my-fifty.sql).
+// Fifty, so the change_logs trigger records the right person and source (db/001-my-fifty.sql).
 const postgres = require('postgres');
 
 let sql = null;

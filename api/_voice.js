@@ -39,8 +39,8 @@ async function context(sql, me, contactId) {
     select kind::text, occurred_at, left(coalesce(body, subject, ''), 300) as body from interactions
      where contact_id = ${contactId} and deleted_at is null and coalesce(body, subject, '') <> '' order by occurred_at desc limit 4`;
   const lines = await sql`
-    select distinct l.name from order_lines l join orders o on o.id = l.order_id where o.contact_id = ${contactId} and o.deleted_at is null limit 12`;
-  const products = await sql`select name from products where active = ${true} order by name`;
+    select distinct l.product_name from order_lines l join orders o on o.id = l.order_id where o.contact_id = ${contactId} and o.deleted_at is null limit 12`;
+  const products = await sql`select name from products where is_active = ${true} order by name`;
   return { c, others, recent, lines, products };
 }
 
@@ -53,7 +53,7 @@ function prompt(me, x) {
     x.others.length ? 'Other people at this clinic: ' + x.others.map((o) => [o.first_name, o.last_name].filter(Boolean).join(' ')).join(', ') : '',
     (c.fillers || []).length ? 'Fillers they use: ' + c.fillers.map((f) => FILLER[f] || f).join(', ') : '',
     (c.prp || []).length ? 'PRP / PRF they use: ' + c.prp.map((f) => PRP[f] || f).join(', ') : '',
-    x.lines.length ? 'Products they have bought or received: ' + x.lines.map((l) => l.name).join('; ') : '',
+    x.lines.length ? 'Products they have bought or received: ' + x.lines.map((l) => l.product_name).join('; ') : '',
     x.recent.length ? 'Recent notes:\n' + x.recent.map((r) => '- ' + T.short(r.occurred_at) + ' (' + r.kind + '): ' + r.body.replace(/\s+/g, ' ')).join('\n') : '',
   ].filter(Boolean).join('\n');
   return 'This is a voice note recorded by ' + (me.name || 'a sales rep') + ', a sales rep at Renellence (aesthetic fillers, cannulas, needles, '
@@ -87,7 +87,7 @@ async function transcribe(sql, me, body, deps) {
   const draft = { note: brand(clean(out && out.note, 3000)), nextStep: brand(clean(out && out.nextStep, 300)),
     followUpDate: /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= T.ymd() ? date : '', transcript: brand(clean(out && out.transcript, 6000)) };
   const [ai] = await sql`
-    insert into ai_outputs (kind, contact_id, input, output, output_data, model, created_by)
+    insert into ai_outputs (kind, contact_id, input_text, output_text, output_json, model_name, created_by_id)
     values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${sql.json(draft)}, ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}, ${me.id})
     returning id`;
   return Object.assign({ aiOutputId: ai.id }, draft);

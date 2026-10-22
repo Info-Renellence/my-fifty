@@ -24,6 +24,8 @@ const FILE = process.env.SMOKE_FILE ? path.resolve(process.env.SMOKE_FILE) : pat
   let failed = null;
   try {
     await pool.begin(async (tx) => {
+      const practice = h.practiceSql();   // V2_PRACTICE_SQL: see test/helpers.js
+      if (practice) { await tx`set local lock_timeout = '60s'`; await tx.unsafe(practice); }
       const inner = h.inTx(tx);
       const sql = new Proxy(inner, { get(t, p) { if (p === 'end') return async () => finished(); return t[p]; } });
       dbm.setDb(sql);

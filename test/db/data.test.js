@@ -45,7 +45,7 @@ describe('boot', () => {
     assert.equal(b.me.initials, 'PU');
   }));
   test('someone whose first paid order came after the last visit "joined your Fifty"', () => h.withDb(async (sql) => {
-    const me = await h.user(sql, { settings: { fifty_seen_at: h.ago(2).toISOString() } });
+    const me = await h.user(sql, { preferences: { fifty_seen_at: h.ago(2).toISOString() } });
     const old = await h.contact(sql, me), fresh = await h.contact(sql, me, { first: 'Newbie' });
     await h.order(sql, old, me, { status: 'shipped', days: 10 });
     await h.order(sql, fresh, me, { status: 'shipped', days: 1 });
@@ -56,13 +56,13 @@ describe('boot', () => {
     assert.equal(b.firstVisit, false);
   }));
   test('nobody new since the last visit: no moment', () => h.withDb(async (sql) => {
-    const me = await h.user(sql, { settings: { fifty_seen_at: new Date().toISOString() } });
+    const me = await h.user(sql, { preferences: { fifty_seen_at: new Date().toISOString() } });
     await h.order(sql, await h.contact(sql, me), me, { status: 'shipped', days: 3 });
     assert.equal((await D.boot(sql, me)).joined, null);
   }));
   test('Gmail status comes from the latest connection', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    await sql`insert into user_connections (user_id, kind, status, credentials) values (${me.id}, 'gmail', 'connected', 'x')`;
+    await sql`insert into connections (user_id, provider, status, credentials_encrypted) values (${me.id}, 'gmail', 'connected', 'x')`;
     assert.equal((await D.boot(sql, me)).gmail, 'connected');
   }));
 });
@@ -129,8 +129,8 @@ describe('leads', () => {
   test('cold and warm leads say who added them', () => h.withDb(async (sql) => {
     const me = await h.user(sql), boss = await h.user(sql, { name: 'Robin Boss' });
     const { asUser } = require('../../api/_db');
-    await asUser(me.id, (tx) => tx`insert into contacts (owner_id, first_name, source_kind) values (${me.id}, 'Mine', 'cold')`);
-    await asUser(boss.id, (tx) => tx`insert into contacts (owner_id, first_name, source_kind) values (${me.id}, 'Given', 'cold')`);
+    await asUser(me.id, (tx) => tx`insert into contacts (owner_id, first_name, lead_source) values (${me.id}, 'Mine', 'cold')`);
+    await asUser(boss.id, (tx) => tx`insert into contacts (owner_id, first_name, lead_source) values (${me.id}, 'Given', 'cold')`);
     const subs = Object.fromEntries((await D.leads(sql, me, Q({ group: 'cold' }))).leads.map((x) => [x.name, x.sub]));
     assert.equal(subs.Mine, 'Added by you');
     assert.equal(subs.Given, 'Added by Robin');
@@ -172,7 +172,7 @@ describe('person', () => {
     const c = await h.contact(sql, me), md = await h.contact(sql, null, { owner: null, md: true });
     await h.order(sql, c, me, { lines: [['SAL400', 1, true]], shipped: 5, delivered: 4, mdId: md, mdSigned: true, status: 'delivered' });
     const [ag] = await sql`insert into agreements (kind, contact_id, status, sent_at) values ('onboarding', ${c}, 'waiting', now() - interval '2 days') returning id`;
-    await sql`insert into agreement_signers (agreement_id, contact_id, role, sign_order, status, signed_at) values (${ag.id}, ${c}, 'practitioner', 1, 'signed', now()), (${ag.id}, ${md}, 'md', 2, 'sent', null)`;
+    await sql`insert into agreement_signers (agreement_id, contact_id, role, signing_order, status, signed_at) values (${ag.id}, ${c}, 'practitioner', 1, 'signed', now()), (${ag.id}, ${md}, 'md', 2, 'sent', null)`;
     await sql`insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, agreement_id) values (${c}, ${c}, now(), 'submitted', ${ag.id})`;
     const p = await D.person(sql, me, Q({ id: c }));
     assert.equal(p.label, 'CANDIDATE');
@@ -182,7 +182,7 @@ describe('person', () => {
   test('waiting on the first signature, then nothing once onboarding is signed', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const [ag] = await sql`insert into agreements (kind, contact_id, status) values ('onboarding', ${c}, 'waiting') returning id`;
-    await sql`insert into agreement_signers (agreement_id, contact_id, role, sign_order, status) values (${ag.id}, ${c}, 'practitioner', 1, 'sent')`;
+    await sql`insert into agreement_signers (agreement_id, contact_id, role, signing_order, status) values (${ag.id}, ${c}, 'practitioner', 1, 'sent')`;
     const [onb] = await sql`insert into onboardings (primary_contact_id, submitted_at, status, agreement_id) values (${c}, now(), 'submitted', ${ag.id}) returning id`;
     assert.equal((await D.person(sql, me, Q({ id: c }))).status.label, 'Waiting on signature');
     await sql`update onboardings set status = 'complete' where id = ${onb.id}`;
@@ -359,7 +359,7 @@ describe('order, onboarding and rewards screens', () => {
     const me = await h.user(sql), c = await h.contact(sql, me), md = await h.contact(sql, null, { owner: null });
     assert.deepEqual(await D.onboarding(sql, me, Q({ id: c })).then((r) => r.none), true);
     const [ag] = await sql`insert into agreements (kind, contact_id, status, sent_at) values ('onboarding', ${c}, 'waiting', now() - interval '2 days') returning id`;
-    await sql`insert into agreement_signers (agreement_id, contact_id, role, sign_order, status, signed_at) values (${ag.id}, ${c}, 'practitioner', 1, 'signed', now()), (${ag.id}, ${md}, 'md', 2, 'sent', null)`;
+    await sql`insert into agreement_signers (agreement_id, contact_id, role, signing_order, status, signed_at) values (${ag.id}, ${c}, 'practitioner', 1, 'signed', now()), (${ag.id}, ${md}, 'md', 2, 'sent', null)`;
     const [onb] = await sql`insert into onboardings (primary_contact_id, submitted_at, status, agreement_id, card_saved_at) values (${c}, now(), 'submitted', ${ag.id}, now()) returning id`;
     const r = await D.onboarding(sql, me, Q({ id: c }));
     assert.deepEqual(r.steps.map((s) => [s.label, s.done]), [['Form submitted', true], ['Initial signature', true], ['MD signature', false], ['Ready to order', false]]);

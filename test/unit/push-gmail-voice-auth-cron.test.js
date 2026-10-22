@@ -84,7 +84,7 @@ describe('voice prompt', () => {
     c: { first_name: 'Maya', last_name: 'Sample', role: 'physician', clinic: 'Sample Clinic B', city: 'Testville', fillers: ['saypha', 'restylane'], prp: ['eclipse_prp'] },
     others: [{ first_name: 'Lee', last_name: 'Sample' }],
     recent: [{ kind: 'call', occurred_at: new Date('2026-10-15T13:00:00Z'), body: 'Left a voicemail.' }],
-    lines: [{ name: 'saypha® lips Lidocaine 1 ml' }],
+    lines: [{ product_name: 'saypha® lips Lidocaine 1 ml' }],
     products: [{ name: 'saypha® filler Lidocaine 1 ml' }],
   };
   test('carries the person, clinic, colleagues, what they use, recent notes and products', () => {

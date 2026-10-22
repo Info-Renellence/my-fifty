@@ -24,7 +24,7 @@ function fakeWebPush(status) {
   return { sent, restore() { require.cache[p].exports = real; } };
 }
 async function phone(sql, me, n) {
-  await sql`insert into user_connections (user_id, kind, account, credentials, status)
+  await sql`insert into connections (user_id, provider, external_account, credentials_encrypted, status)
             values (${me.id}, 'push', ${'dev' + (n || 1)}, ${seal(JSON.stringify({ endpoint: 'https://push.test/' + (n || 1), keys: { p256dh: 'P', auth: 'A' } }))}, 'connected')`;
 }
 
@@ -34,7 +34,7 @@ describe('rewards', () => {
   test('2% on a first order, 4% on reorders, only mine, only in the period, paid lines only', () => h.withDb(async (sql) => {
     const back = around();
     try {
-      await sql`update users set active = false where kind = 'rep'`;
+      await sql`update users set is_active = false where kind = 'rep'`;
       const me = await h.user(sql, { name: 'Pat Rep' }), other = await h.user(sql, { name: 'Robin Rep' });
       const a = await h.contact(sql, me), b = await h.contact(sql, me), c = await h.contact(sql, me);
       await h.order(sql, a, me, { status: 'shipped', days: 5, lines: [['SAF100', 2], ['HDB100', 1, true]] });     // new: 450 -> 9
@@ -62,7 +62,7 @@ describe('rewards', () => {
   test('the trip leaderboard: new people per rep, "You", and how many more to lead', () => h.withDb(async (sql) => {
     const back = around();
     try {
-      await sql`update users set active = false where kind = 'rep'`;
+      await sql`update users set is_active = false where kind = 'rep'`;
       const me = await h.user(sql, { name: 'Pat Rep' }), lead = await h.user(sql, { name: 'Robin Rep' }), third = await h.user(sql, { name: 'Ash Rep' }), fourth = await h.user(sql, { name: 'Bo Rep' });
       const newPeople = async (rep, n) => { for (let i = 0; i < n; i++) await h.order(sql, await h.contact(sql, rep), rep, { status: 'shipped', days: 2 }); };
       await newPeople(lead, 4); await newPeople(third, 3); await newPeople(fourth, 2); await newPeople(me, 1);
@@ -78,7 +78,7 @@ describe('rewards', () => {
   test('one more to lead says "person"; an admin who is not a rep still sees their row', () => h.withDb(async (sql) => {
     const back = around();
     try {
-      await sql`update users set active = false where kind = 'rep'`;
+      await sql`update users set is_active = false where kind = 'rep'`;
       const admin = await h.user(sql, { kind: 'admin', name: 'Ad Min' }), rep = await h.user(sql, { name: 'Robin Rep' });
       await h.order(sql, await h.contact(sql, rep), rep, { status: 'shipped', days: 1 });
       const r = await R.rewards(sql, admin);
@@ -96,11 +96,11 @@ describe('push: subscribe and notify', () => {
     // Phones are added minutes apart in real life; inside one test transaction they would share a time, so space them out.
     for (let i = 1; i <= 5; i++) {
       await P.subscribe(sql, me, { endpoint: 'https://push.test/phone' + i, keys: { p256dh: 'P', auth: 'A' } });
-      await sql`update user_connections set created_at = now() - make_interval(mins => ${10 - i}) where user_id = ${me.id} and account = ${P.deviceId('https://push.test/phone' + i)}`;
+      await sql`update connections set created_at = now() - make_interval(mins => ${10 - i}) where user_id = ${me.id} and external_account = ${P.deviceId('https://push.test/phone' + i)}`;
     }
     await P.subscribe(sql, me, { endpoint: 'https://push.test/phone6', keys: { p256dh: 'P', auth: 'A' } });
     await P.subscribe(sql, me, { endpoint: 'https://push.test/phone6', keys: { p256dh: 'P2', auth: 'A2' } });
-    const rows = await sql`select status::text from user_connections where user_id = ${me.id} and kind = 'push' order by created_at`;
+    const rows = await sql`select status::text from connections where user_id = ${me.id} and provider = 'push' order by created_at`;
     assert.deepEqual(rows.map((r) => r.status), ['off', 'connected', 'connected', 'connected', 'connected', 'connected']);
     assert.equal(await P.subscribe(sql, me, { endpoint: 'bad' }), false);
   }));
@@ -132,14 +132,14 @@ describe('push: subscribe and notify', () => {
       const me = await h.user(sql);
       await phone(sql, me, 1);
       await P.notify(sql, me.id, { kind: 'morning_summary', dedupeKey: 'g-' + h.uid(), title: 't', body: 'b' });
-      assert.equal((await sql`select status::text from user_connections where user_id = ${me.id}`)[0].status, 'off');
+      assert.equal((await sql`select status::text from connections where user_id = ${me.id}`)[0].status, 'off');
       wp.restore(); wp = fakeWebPush(500);
       const me2 = await h.user(sql);
       await phone(sql, me2, 1);
       const key = 'f-' + h.uid();
       assert.deepEqual(await P.notify(sql, me2.id, { kind: 'morning_summary', dedupeKey: key, title: 't', body: 'b' }), { sent: 0, failed: 1 });
-      const [n] = await sql`select status::text, error from notifications where dedupe_key = ${key}`;
-      assert.deepEqual(n, { status: 'failed', error: '500' });
+      const [n] = await sql`select status::text, error_message from notifications where dedupe_key = ${key}`;
+      assert.deepEqual(n, { status: 'failed', error_message: '500' });
     } finally { wp.restore(); }
   }));
 });
@@ -150,8 +150,8 @@ describe('gmail: the pull', () => {
     payload: { mimeType: 'text/plain', body: { data: b64(o.body || 'Hello from the clinic') }, headers: [{ name: 'From', value: from }, { name: 'To', value: to }, { name: 'Subject', value: o.subject || 'Order' }, { name: 'Message-ID', value: '<' + id + '-' + o.mid + '@x>' }] } });
   // Real mailboxes (made before this test's transaction began) are switched off for the test; it all rolls back.
   async function mailbox(sql, me) {
-    await sql`update user_connections set status = 'off' where kind = 'gmail' and created_at < now()`;
-    await sql`insert into user_connections (user_id, kind, account, credentials, status) values (${me.id}, 'gmail', ${me.email}, ${seal('rt')}, 'connected')`; }
+    await sql`update connections set status = 'off' where provider = 'gmail' and created_at < now()`;
+    await sql`insert into connections (user_id, provider, external_account, credentials_encrypted, status) values (${me.id}, 'gmail', ${me.email}, ${seal('rt')}, 'connected')`; }
   function google(messages, o = {}) {
     return h.fakeFetch((url) => {
       if (/oauth2/.test(url)) return o.revoked ? { status: 400, json: { error: 'invalid_grant' } } : { json: { access_token: 'at' } };
@@ -177,13 +177,13 @@ describe('gmail: the pull', () => {
     });
     const out = await Gm.sync(sql, 20000);
     assert.deepEqual(out, { mailboxes: 1, kept: 1, errors: 0 });
-    const rows = await sql`select contact_id, direction::text, source::text, subject, body, user_id, addresses from interactions where contact_id = ${c}`;
+    const rows = await sql`select contact_id, direction::text, source::text, subject, body, user_id, participants from interactions where contact_id = ${c}`;
     assert.equal(rows.length, 1);
     assert.deepEqual([rows[0].direction, rows[0].source, rows[0].subject, rows[0].body, rows[0].user_id], ['in', 'gmail', 'Order', 'Hello from the clinic', null]);
-    assert.equal(typeof rows[0].addresses, 'object');
-    const [ev] = await sql`select status::text, result_table, jsonb_typeof(payload) t from ingest_events where source = 'gmail' and external_key = ${'<m1-' + mid + '@x>|' + me.email}`;
+    assert.equal(typeof rows[0].participants, 'object');
+    const [ev] = await sql`select status::text, result_table, jsonb_typeof(payload) t from ingest_events where source = 'gmail' and external_id = ${'<m1-' + mid + '@x>|' + me.email}`;
     assert.deepEqual(ev, { status: 'done', result_table: 'interactions', t: 'object' });
-    const [conn] = await sql`select sync_cursor, last_synced_at from user_connections where user_id = ${me.id}`;
+    const [conn] = await sql`select sync_cursor, last_synced_at from connections where user_id = ${me.id}`;
     assert.equal(conn.sync_cursor, 'h1');
     assert.ok(conn.last_synced_at);
   }));
@@ -192,13 +192,13 @@ describe('gmail: the pull', () => {
     const client = 'client.' + h.uid() + '@clinic.test';
     const c = await h.contact(sql, me, { email: client });
     await mailbox(sql, me);
-    await sql`update user_connections set sync_cursor = 'h1' where user_id = ${me.id}`;
+    await sql`update connections set sync_cursor = 'h1' where user_id = ${me.id}`;
     f = google({ m9: msg('m9', me.email, client, { mid: h.uid() }) }, { added: ['m9'] });
     await Gm.sync(sql, 20000);
     assert.ok(f.calls.some((x) => /history\?historyTypes=messageAdded&startHistoryId=h1/.test(x.url)));
     const [i] = await sql`select direction::text, user_id from interactions where contact_id = ${c}`;
     assert.deepEqual(i, { direction: 'out', user_id: me.id });
-    assert.equal((await sql`select sync_cursor from user_connections where user_id = ${me.id}`)[0].sync_cursor, 'h2');
+    assert.equal((await sql`select sync_cursor from connections where user_id = ${me.id}`)[0].sync_cursor, 'h2');
   }));
   test('the same email in two mailboxes is stored once', () => h.withDb(async (sql) => {
     const a = await h.user(sql, { email: 'a.' + h.uid() + '@renellence.com' }), b = await h.user(sql, { email: 'b.' + h.uid() + '@renellence.com' });
@@ -228,14 +228,14 @@ describe('gmail: the pull', () => {
     f = google({}, { revoked: true });
     const err = console.error; console.error = () => {};
     try { assert.deepEqual(await Gm.sync(sql, 20000), { mailboxes: 0, kept: 0, errors: 1 }); } finally { console.error = err; }
-    assert.equal((await sql`select status::text from user_connections where user_id = ${me.id}`)[0].status, 'broken');
+    assert.equal((await sql`select status::text from connections where user_id = ${me.id}`)[0].status, 'broken');
   }));
   test('send: a revoked token marks Gmail broken', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     await mailbox(sql, me);
     f = google({}, { revoked: true });
     await assert.rejects(Gm.send(sql, me, { to: 'x@y.test', subject: 's', text: 't' }), (e) => e.message === 'gmail_reconnect');
-    assert.equal((await sql`select status::text from user_connections where user_id = ${me.id}`)[0].status, 'broken');
+    assert.equal((await sql`select status::text from connections where user_id = ${me.id}`)[0].status, 'broken');
   }));
   test('send: Gmail refusing the message is a 502', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -247,7 +247,7 @@ describe('gmail: the pull', () => {
     const me = await h.user(sql);
     assert.equal(await Gm.connection(sql, me.id), null);
     await mailbox(sql, me);
-    assert.equal((await Gm.connection(sql, me.id)).account, me.email);
+    assert.equal((await Gm.connection(sql, me.id)).external_account, me.email);
   }));
 });
 
@@ -278,7 +278,7 @@ describe('cron', () => {
   test('the morning summary: streak and list, once a day, only between 7:30 and 11', () => h.withDb(async (sql) => {
     const wp = fakeWebPush();
     try {
-      await sql`update user_connections set status = 'off' where kind = 'push'`;
+      await sql`update connections set status = 'off' where provider = 'push'`;
       const me = await h.user(sql);
       await phone(sql, me, 1);
       const c = await h.contact(sql, me); await h.order(sql, c, me, { status: 'shipped', days: 40 });
@@ -299,7 +299,7 @@ describe('cron', () => {
   test('a streak reads "N days in a row with your plan done"; nothing to say means no push', () => h.withDb(async (sql) => {
     const wp = fakeWebPush();
     try {
-      await sql`update user_connections set status = 'off' where kind = 'push'`;
+      await sql`update connections set status = 'off' where provider = 'push'`;
       const quiet = await h.user(sql);
       await phone(sql, quiet, 1);
       const day = businessDay();
@@ -314,7 +314,7 @@ describe('cron', () => {
     assert.equal(res.statusCode, 401);
     const wp = fakeWebPush();
     try {
-      await sql`update user_connections set status = 'off' where kind in ('push', 'gmail')`;
+      await sql`update connections set status = 'off' where provider in ('push', 'gmail')`;
       const ok = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=tick', headers: { 'x-cron-key': 'test-cron-key' } }, ok);
       assert.equal(ok.statusCode, 200);

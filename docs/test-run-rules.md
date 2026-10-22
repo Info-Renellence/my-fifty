@@ -67,7 +67,7 @@ A fix may only make the code do what these rules say.
   row-level security policies, indexes or cron jobs. If you think one is needed, describe it in the report as a proposal.
 - **Rows:** create, change and delete only fake rows that you made.
   Mark them the same way as the demo data: `legacy_id` starting `demo-test-`, emails ending `@demo.invalid`, names clearly fictional.
-- Never change or delete any row that isn't marked as fake. Never touch `change_log` (it is append-only by design).
+- Never change or delete any row that isn't marked as fake. Never touch `change_logs` (it is append-only by design).
 - Fake rows stay in v2 at the end so the owner can look at them. Extend `db/wipe-demo.sql` so it removes them too.
 
 ## 3. Outside connections: all off
@@ -77,7 +77,7 @@ The connections are Gemini, Gmail, web push, n8n (orders), Quo (calls and texts)
   Never test against my-fifty.vercel.app, and never call the live n8n workflow.
 - Before any test runs, prove that no request can leave the machine except to Supabase v2. If one can, stop and report it.
 - Make fake data for each connection that looks like what the real service would send or write:
-  Meta lead rows (`contacts` with `source_kind = 'social'` and the matching `ad_objects`), Gemini voice write-ups,
+  Meta lead rows (`contacts` with `lead_source = 'social'` and the matching `ad_objects`), Gemini voice write-ups,
   Gmail messages and pulled emails, Quo call and text records, n8n order replies, and push subscriptions with their results.
   Use fake replies in the tests (stubbed `fetch`). Never use real services.
 - The 5-minute timer (pg_cron `my-fifty-tick`) is paused for the whole run. Don't turn it back on.

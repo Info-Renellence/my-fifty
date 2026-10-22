@@ -22,8 +22,8 @@ describe('demo data', () => {
       (select count(*) from users where email like '%@demo.invalid')::int du, (select count(*) from clinics where legacy_id like 'demo-%')::int cl,
       (select count(*) from events where name like '% (demo)')::int e`)[0];
     assert.deepEqual(after, { p: before.p, s: before.s, u: before.u, c: 0, o: 0, du: 0, cl: 0, e: 0 });
-    const [orphans] = await sql`select count(*)::int n from change_log l where l.contact_id is not null and not exists (select 1 from contacts c where c.id = l.contact_id)`;
-    assert.equal(orphans.n, 0, 'no change_log row points at a removed person');
+    const [orphans] = await sql`select count(*)::int n from change_logs l where l.contact_id is not null and not exists (select 1 from contacts c where c.id = l.contact_id)`;
+    assert.equal(orphans.n, 0, 'no change_logs row points at a removed person');
   }));
   test('the seed loads after a wipe, all marked as demo', () => h.withDb(async (sql) => {
     await sql.unsafe(file('wipe-demo.sql'));
@@ -42,7 +42,7 @@ describe('demo data', () => {
     await sql`set local session_replication_role = origin`;
     await sql.unsafe(file('seed-demo.sql'));
     const names = await sql`select first_name || ' ' || coalesce(last_name, '') n from contacts where legacy_id like 'demo-%'
-                            union all select name from users where email like '%@demo.invalid' union all select name from clinics where legacy_id like 'demo-%'`;
+                            union all select full_name from users where email like '%@demo.invalid' union all select name from clinics where legacy_id like 'demo-%'`;
     const text = fs.readFileSync(path.join(__dirname, '..', '..', 'db', 'seed-demo.sql'), 'utf8');
     for (const real of REAL) {
       const word = new RegExp('\\b' + real + '\\b', 'i');

@@ -2,7 +2,7 @@
 //   GET  /api/wire?o=&u=&e=&s=   a small page: the order, and the day the money arrived (today unless changed)
 //   POST the same address          marks the wire payment succeeded, with paid_at = that day
 // The link is signed for one order and one admin and lasts 30 days (api/_wire.js). The page asks before it changes
-// anything, so a mail scanner opening the link does nothing. The change is recorded as that admin (change_log).
+// anything, so a mail scanner opening the link does nothing. The change is recorded as that admin (change_logs).
 const { db, asUser } = require('./_db');
 const { route, isUuid } = require('./_http');
 const B = require('./_book');
@@ -13,7 +13,7 @@ module.exports = route(async (req, res) => {
   const q = Object.fromEntries(new URL(req.url, 'http://x').searchParams);
   if (!isUuid(q.o) || !isUuid(q.u) || !W.verify(q)) return page(res, 403, 'This link has expired or is not valid', 'Open the latest overdue-wire email and use its button.');
   const sql = db();
-  const [admin] = await sql`select id, name from users where id = ${q.u} and kind = 'admin' and active is not false`;
+  const [admin] = await sql`select id, full_name from users where id = ${q.u} and kind = 'admin' and is_active is not false`;
   if (!admin) return page(res, 403, 'This link is not valid', 'Only an admin can mark a wire payment as received.');
   const [o] = await sql`
     select o.id, o.order_number, o.payment_method::text, o.submitted_at, o.invoiced_at, o.created_at, o.payment_terms_days,

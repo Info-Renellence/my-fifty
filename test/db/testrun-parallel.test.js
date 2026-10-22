@@ -12,8 +12,8 @@ const R = require('../../api/_rewards');
 after(() => db().end({ timeout: 5 }));
 const within = (p, ms) => Promise.race([p.then(() => 'ok'), new Promise((r) => setTimeout(() => r('hung'), ms))]);
 const someone = async () => {
-  const [u] = await db()`select id, email, name, kind from users where email like ${'%@demo.invalid'} order by email limit 1`;
-  return Object.assign(u, { first: 'Test', initials: 'TT', settings: {} });
+  const [u] = await db()`select id, email, full_name as name, kind from users where email like ${'%@demo.invalid'} order by email limit 1`;
+  return Object.assign(u, { first: 'Test', initials: 'TT', preferences: {} });
 };
 
 describe('reads at once', () => {

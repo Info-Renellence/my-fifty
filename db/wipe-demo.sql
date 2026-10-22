@@ -1,11 +1,11 @@
 -- Removes every row made by scripts/seed-demo.js (run before go-live). Real setup data (products, settings, staff) stays.
 -- Demo rows are: users @demo.invalid; clinics, contacts and orders with legacy_id 'demo-…'; events named '… (demo)';
--- and everything hanging off them, including their change_log rows.
+-- and everything hanging off them, including their change_logs rows.
 -- Test run 2026-10-21 (test/run/seed-test-data.js and the testing agent) adds: users test.*@demo.invalid; legacy_id 'demo-test-…';
 -- contacts owned by a demo user or with an @demo.invalid email (people added through the app during the run);
--- clinics named 'Testrun …' that nobody is left at; ad_objects with meta_id 'demo-test-…'; ingest_events with a 'demo-test' key.
+-- clinics named 'Testrun …' that nobody is left at; ad_objects with meta_object_id 'demo-test-…'; ingest_events with a 'demo-test' key.
 --
--- change_log is append-only and has real foreign keys to contacts and users, so this one clean-up runs with triggers
+-- change_logs is append-only and has real foreign keys to contacts and users, so this one clean-up runs with triggers
 -- off (session_replication_role = replica, which also turns off the foreign-key checks for this transaction). That is
 -- only acceptable because every row removed here is fictional; never use this pattern on real data.
 begin;
@@ -23,21 +23,21 @@ delete from files where contact_id in (select id from demo_contacts) or order_id
 delete from interactions where contact_id in (select id from demo_contacts);
 delete from payments where order_id in (select id from demo_orders);
 delete from order_lines where order_id in (select id from demo_orders);
-delete from onboardings where primary_contact_id in (select id from demo_contacts) or injector_contact_id in (select id from demo_contacts) or md_contact_id in (select id from demo_contacts);
+delete from onboardings where primary_contact_id in (select id from demo_contacts) or injector_contact_id in (select id from demo_contacts) or medical_director_contact_id in (select id from demo_contacts);
 delete from agreement_signers where contact_id in (select id from demo_contacts) or agreement_id in (select id from agreements where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders));
 delete from agreements where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders);
 delete from orders where id in (select id from demo_orders);
 delete from event_attendees where contact_id in (select id from demo_contacts);
-update contacts set source_event_id = null where id in (select id from demo_contacts);
+update contacts set lead_source_event_id = null where id in (select id from demo_contacts);
 delete from events where name like '% (demo)';
 delete from forecasts where contact_id in (select id from demo_contacts);
 delete from contacts where id in (select id from demo_contacts);
 delete from clinics where legacy_id like 'demo-%' or (name like 'Testrun %' and not exists (select 1 from contacts c where c.clinic_id = clinics.id));
-delete from ad_objects where meta_id like 'demo-test-%' and parent_id is not null;
-delete from ad_objects where meta_id like 'demo-test-%';
-delete from ingest_events where external_key like '%demo-test%';
-delete from user_connections where user_id in (select id from demo_users);
-delete from change_log where contact_id in (select id from demo_contacts) or actor_user_id in (select id from demo_users)
+delete from ad_objects where meta_object_id like 'demo-test-%' and parent_id is not null;
+delete from ad_objects where meta_object_id like 'demo-test-%';
+delete from ingest_events where external_id like '%demo-test%';
+delete from connections where user_id in (select id from demo_users);
+delete from change_logs where contact_id in (select id from demo_contacts) or actor_user_id in (select id from demo_users)
    or entity_id in (select id from demo_contacts) or entity_id in (select id from demo_orders) or entity_id in (select id from demo_users)
    or (entity_type in ('clinics', 'events', 'interactions', 'tasks', 'order_lines', 'payments', 'agreements', 'agreement_signers', 'onboardings')
        and not exists (select 1 from clinics c where c.id = entity_id) and not exists (select 1 from events e where e.id = entity_id)
@@ -55,9 +55,9 @@ delete from expenses where id::text like 'ed9e0000%' or external_id like 'demo-%
 delete from tasks where id::text like 'ed9e0000%';
 delete from targets where id::text like 'ed9e0000%';
 delete from events where id::text like 'ed9e0000%';
-delete from change_log where entity_id::text like 'ed9e0000%';
+delete from change_logs where entity_id::text like 'ed9e0000%';
 delete from users where id in (select id from demo_users);
--- Settings the demo touched on real people (snoozes, the "joined your Fifty" bookmark).
-update users set settings = settings - 'snoozed' - 'fifty_seen_at' where settings ?| array['snoozed', 'fifty_seen_at'];
+-- Preferences the demo touched on real people (snoozes, the "joined your Fifty" bookmark).
+update users set preferences = preferences - 'snoozed' - 'fifty_seen_at' where preferences ?| array['snoozed', 'fifty_seen_at'];
 
 commit;

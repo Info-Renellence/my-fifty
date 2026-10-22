@@ -5,7 +5,7 @@
 //   users     email ends @demo.invalid
 //   clinics, contacts, orders   legacy_id starts "demo-"
 //   events    name ends " (demo)"
-//   everything hanging off those (interactions, tasks, order lines, payments, agreements, onboardings, change_log)
+//   everything hanging off those (interactions, tasks, order lines, payments, agreements, onboardings, change_logs)
 //
 // The demo book belongs to the person running the demo (DEMO_OWNER, default admin@renellence.com), so signing in as
 // them shows a full My Fifty. Dates are relative to the day the file is generated.
@@ -39,9 +39,9 @@ const ME = "current_setting('app.owner')::uuid";
 // ---- demo staff ----
 const REPS = [['Jordan Demo', 'demo.jordan@demo.invalid'], ['Casey Demo', 'demo.casey@demo.invalid'], ['Riley Demo', 'demo.riley@demo.invalid']];
 const repId = {};
-for (const [name, email] of REPS) { repId[name] = uuid(); sql(`insert into users (id, email, name, kind, active, language) values (${q(repId[name])}, ${q(email)}, ${q(name)}, 'rep', true, 'en');`); }
+for (const [name, email] of REPS) { repId[name] = uuid(); sql(`insert into users (id, email, full_name, kind, is_active, language_code) values (${q(repId[name])}, ${q(email)}, ${q(name)}, 'rep', true, 'en');`); }
 const MANAGER = uuid();
-sql(`insert into users (id, email, name, kind, active, language) values (${q(MANAGER)}, 'demo.taylor@demo.invalid', 'Taylor Demo', 'admin', true, 'en');`);
+sql(`insert into users (id, email, full_name, kind, is_active, language_code) values (${q(MANAGER)}, 'demo.taylor@demo.invalid', 'Taylor Demo', 'admin', true, 'en');`);
 
 // ---- clinics ----
 const clinic = {};
@@ -57,7 +57,7 @@ const P = { filler: 'SAF100', lips: 'SAL400', volume: 'SAV200', plus: 'SAVP300',
 const EV = {};
 for (const [k, name, kind, days] of [['academy', 'Academy training', 'training', 67], ['webinar', 'Lips webinar', 'webinar', 5], ['launch', 'Launch event', 'launch', 17]]) {
   EV[k] = uuid();
-  sql(`insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values (${q(EV[k])}, ${q(name + ' (demo)')}, ${q(kind)}, ${ts(days, 18)}, 'Sampleton', '[]'::jsonb, array[${ME}], ${ME});`);
+  sql(`insert into events (id, name, kind, starts_at, location, cost_lines, rep_ids, created_by_id) values (${q(EV[k])}, ${q(name + ' (demo)')}, ${q(kind)}, ${ts(days, 18)}, 'Sampleton', '[]'::jsonb, array[${ME}], ${ME});`);
 }
 
 // ---- people ----
@@ -73,10 +73,10 @@ function person(o) {
   const email = (first + '.' + rest.join('')).toLowerCase() + '@sampleclinic' + (o.clinic || 'x').toLowerCase() + '.example';
   const by = o.addedBy ? `(select id from users where email = ${q(o.addedBy)})` : ME;
   sql(`select set_config('app.user_id', ${by}::text, true);`);
-  sql(`insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+  sql(`insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values (${q(id)}, ${o.clinic ? q(clinic[o.clinic]) : 'null'}, ${o.noOwner ? 'null' : o.owner ? q(o.owner) : ME}, ${q(first)}, ${q(rest.join(' '))}, ${q(email)}, ${roleSql(o.role)}, ${q('+1555020' + String(10000 + n).slice(1))},
     ${q((12 + n) + ' Sample St')}, 'Sampleton', 'ON', 'Z9Z 9Z9', ${q(o.source || 'warm')}, ${o.event ? q(EV[o.event]) : 'null'},
-    ${q('{' + (o.fillers || []).join(',') + '}')}::contacts_filler[], ${q('{' + (o.prp || []).join(',') + '}')}::contacts_prp[], ${q('demo-contact-' + n)}, ${o.createdAt ? q(o.createdAt) : o.created != null ? ts(o.created, 9) : ts(120)});`);
+    ${q('{' + (o.fillers || []).join(',') + '}')}::contacts_fillers_used[], ${q('{' + (o.prp || []).join(',') + '}')}::contacts_prp_used[], ${q('demo-contact-' + n)}, ${o.createdAt ? q(o.createdAt) : o.created != null ? ts(o.created, 9) : ts(120)});`);
   if (o.name.startsWith('Dr. ')) sql(`update contacts set designation = 'md' where id = ${q(id)};`);
   sql("select set_config('app.user_id', '', true);");
   return id;
@@ -88,17 +88,17 @@ function order(contactId, o) {
   const placed = ts(o.days, o.hour || 10, o.min || 0);
   const shipped = o.shipped != null ? ts(o.shipped, 14) : 'null';
   const status = o.status || (o.shipped != null ? 'shipped' : 'paid');
-  sql(`insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+  sql(`insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values (${q(id)}, ${q(contactId)}, ${o.rep ? q(o.rep) : ME}, ${o.rep ? q(o.rep) : ME}, 'stripe', ${q(status)}, ${placed}, ${o.approved === false ? 'null' : ts(o.days, (o.hour || 10) + 1)},
     ${o.samples ? 'null' : q(o.method || 'card_on_file')}, ${shipped}, ${o.delivered != null ? ts(o.delivered, 13) : 'null'}, ${o.md ? q(o.md) : 'null'}, ${o.mdSigned != null ? ts(o.mdSigned, 12) : 'null'},
     ${o.samples || status === 'submitted' ? 'null' : q('D' + (5000 + on))}, ${q('demo-order-' + on)}, ${placed});`);
   for (const [sku, qty] of o.lines) {
-    sql(`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+    sql(`insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select ${q(id)}, p.id, p.sku, p.name, ${qty}, ${o.samples ? 0 : 'p.list_price'}, p.list_price, ${o.samples ? 'true' : 'p.list_price = 0'} from products p where p.sku = ${q(sku)};`);
   }
   if (!o.samples && o.paid !== false) {
     const method = o.method || 'card_on_file';
-    sql(`insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+    sql(`insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select ${q(id)}, 'charge', ${q(method)}, sum(quantity * unit_price), 'CAD', ${method === 'wire' ? 'null' : 'round(sum(quantity * unit_price) * 0.029 + 0.3, 2)'}, 'succeeded', ${q(method === 'wire' ? 'wire' : 'stripe')},
       ${method === 'wire' ? 'null' : q('demo_pi_' + on)}, ${ts(o.days, (o.hour || 10) + 1)}, ${method === 'wire' ? 'null' : "'Visa'"}, ${method === 'wire' ? 'null' : "'4242'"}, true from order_lines where order_id = ${q(id)};`);
   }
@@ -106,15 +106,15 @@ function order(contactId, o) {
 }
 function touch(contactId, o) {
   const id = uuid();
-  sql(`insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+  sql(`insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values (${q(id)}, ${q(o.kind || 'call')}, ${q(contactId)}, ${o.user ? q(o.user) : ME}, ${ts(o.days, o.hour || 11, o.min || 0)}, 'out', ${q(o.kind === 'meeting' ? 'in_person' : o.kind === 'call' || !o.kind ? 'phone' : null)}, 'completed',
     ${q(o.kind === 'note' ? null : o.reached === false ? 'no_answer' : 'connected')}, ${q(o.body || null)}, 'import', ${o.user ? q(o.user) : ME});`);
-  if (o.next) sql(`insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, completed_at, source, from_interaction_id)
+  if (o.next) sql(`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, completed_at, source, from_interaction_id)
   values (${q(contactId)}, ${o.user ? q(o.user) : ME}, ${o.user ? q(o.user) : ME}, ${q(o.next)}, 'call', ${ts(o.days - 3, 9)}, 'done', ${ts(Math.max(0, o.days - 3), 9)}, 'manual', ${q(id)});`);
   return id;
 }
 function followUp(contactId, title, dueDaysAgo, type) {
-  sql(`insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values (${q(contactId)}, ${ME}, ${ME}, ${q(title)}, ${q(type || 'call')}, ${ts(dueDaysAgo, 9)}, 'open', 'manual');`);
+  sql(`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values (${q(contactId)}, ${ME}, ${ME}, ${q(title)}, ${q(type || 'call')}, ${ts(dueDaysAgo, 9)}, 'open', 'manual');`);
 }
 
 // -- Dr. Maya Sample: My Fifty, going cold, waiting on payment (the L7 / L14 / L19 example) --
@@ -132,7 +132,7 @@ const mayaOpen = order(maya, { days: 0, hour: 8, min: 47, lines: [[P.filler, 10]
 sql(`insert into payments (order_id, kind, method, amount, currency, status, provider, pay_link_url, is_test, created_at) select ${q(mayaOpen)}, 'charge', 'pay_link', sum(quantity * unit_price), 'CAD', 'pending', 'stripe', 'https://checkout.stripe.com/c/pay/demo', true, ${ts(0, 10, 5)} from order_lines where order_id = ${q(mayaOpen)};`);
 touch(maya, { kind: 'call', days: 0, hour: 8, min: 30, body: 'Wants to order before Christmas.\nNext: send lips pricing, call Monday' });
 sql(`insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values (${q(maya)}, ${q(maya)}, ${ts(49)}, 'complete', ${ts(48)}, null);`);
-sql(`insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values (${q(maya)}, ${ME}, ${ME}, 'Send lips pricing, call Monday', 'call', ${ts(-2, 9)}, 'open', 'manual');`);
+sql(`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values (${q(maya)}, ${ME}, ${ME}, 'Send lips pricing, call Monday', 'call', ${ts(-2, 9)}, 'open', 'manual');`);
 
 // -- the rest of My Fifty (warm) --
 const warmNames = [['Dr. Ben Sample', 'A'], ['Zoe Sample', 'D'], ['Raj Sample', 'Q'], ['Dr. Ella Sample', 'F'], ['Ivy Sample', 'G'], ['Max Sample', 'I'], ['Nora Sample', 'J'],
@@ -201,11 +201,11 @@ const lee = person({ name: 'Dr. Lee Sample', clinic: 'H', role: 'physician', sou
 sql(`update contacts set is_medical_director = true where id = ${q(lee)};`);
 order(sara, { days: 16, samples: true, lines: [[P.lips, 2]], shipped: 15, delivered: 14, md: lee, mdSigned: 16 });
 const agr = uuid();
-sql(`insert into agreements (id, kind, contact_id, envelope_id, status, sent_at) values (${q(agr)}, 'onboarding', ${q(sara)}, 'demo-env-1', 'waiting', ${ts(17)});`);
-sql(`insert into agreement_signers (agreement_id, contact_id, name, email, role, sign_order, status, signed_at) values
+sql(`insert into agreements (id, kind, contact_id, signatureapi_envelope_id, status, sent_at) values (${q(agr)}, 'onboarding', ${q(sara)}, 'demo-env-1', 'waiting', ${ts(17)});`);
+sql(`insert into agreement_signers (agreement_id, contact_id, name, email, role, signing_order, status, signed_at) values
   (${q(agr)}, ${q(sara)}, 'Dr. Sara Sample', 'sara@sampleclinich.example', 'practitioner', 1, 'signed', ${ts(17)}),
   (${q(agr)}, ${q(lee)}, 'Dr. Lee Sample', 'lee@sampleclinich.example', 'md', 2, 'sent', null);`);
-sql(`insert into onboardings (primary_contact_id, injector_contact_id, md_contact_id, submitted_at, status, card_saved_at, agreement_id) values (${q(sara)}, ${q(sara)}, ${q(lee)}, ${ts(17)}, 'submitted', ${ts(17)}, ${q(agr)});`);
+sql(`insert into onboardings (primary_contact_id, injector_contact_id, medical_director_contact_id, submitted_at, status, card_saved_at, agreement_id) values (${q(sara)}, ${q(sara)}, ${q(lee)}, ${ts(17)}, 'submitted', ${ts(17)}, ${q(agr)});`);
 sql(`update agreements set sent_at = ${ts(2)} where id = ${q(agr)};`);
 const mia = person({ name: 'Mia Sample', clinic: 'M', role: 'manager', source: 'warm', detail: 'Referral', created: 14 });
 order(mia, { days: 9, samples: true, lines: [[P.filler, 1], [P.lips, 1]], shipped: 8, delivered: 7 });
@@ -215,7 +215,7 @@ order(noah, { days: 4, samples: true, lines: [[P.lips, 2]], shipped: 3, delivere
 // A sample order still waiting on the MD (L21).
 const nina = person({ name: 'Nina Sample', clinic: 'E', role: 'injector', source: 'warm', detail: 'Clinic visit', created: 8 });
 const ninaOrder = order(nina, { days: 0, hour: 8, min: 47, samples: true, lines: [[P.lips, 2], [P.mask, 2]], md: lee, status: 'awaiting_md' });
-sql(`insert into agreements (kind, contact_id, order_id, envelope_id, status, sent_at) values ('md_pdr', ${q(nina)}, ${q(ninaOrder)}, 'demo-env-2', 'waiting', ${ts(0, 9, 12)});`);
+sql(`insert into agreements (kind, contact_id, order_id, signatureapi_envelope_id, status, sent_at) values ('md_pdr', ${q(nina)}, ${q(ninaOrder)}, 'demo-env-2', 'waiting', ${ts(0, 9, 12)});`);
 
 // -- leads --
 // Social media (newest first: two brand new today, the rest already touched)

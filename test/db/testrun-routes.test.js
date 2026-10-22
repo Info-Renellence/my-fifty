@@ -15,7 +15,7 @@ const get = async (q) => { const res = h.fakeRes(); await data({ method: 'GET', 
 const post = async (body) => { const res = h.fakeRes(); await act({ method: 'POST', url: '/api/act', headers: {}, body }, res); return res; };
 
 describe('ops are looked up safely', () => {
-  before(() => { me = { id: '00000000-0000-0000-0000-000000000000', email: 'nobody@demo.invalid', name: 'No Body', first: 'No', initials: 'NB', kind: 'rep', settings: {} }; });
+  before(() => { me = { id: '00000000-0000-0000-0000-000000000000', email: 'nobody@demo.invalid', name: 'No Body', first: 'No', initials: 'NB', kind: 'rep', preferences: {} }; });
   for (const op of ['__proto__', 'constructor', 'toString', 'hasOwnProperty', 'valueOf', 'isPrototypeOf']) {
     test('read op "' + op + '" is refused', async () => {
       const res = await get('op=' + op);
@@ -63,7 +63,7 @@ describe('random input against every write and read (no 500s)', () => {
   test('300 random write bodies: every answer is 2xx or 4xx', () => h2.withDb(async (sql) => {
     const u = await h2.user(sql);
     const c = await h2.contact(sql, u);
-    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', settings: {} };
+    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', preferences: {} };
     const bad = [];
     for (let i = 0; i < 300; i++) {
       const body = { op: OPS[rnd(OPS.length)] };
@@ -75,7 +75,7 @@ describe('random input against every write and read (no 500s)', () => {
   }));
   test('random read queries: every answer is 2xx or 4xx', () => h2.withDb(async (sql) => {
     const u = await h2.user(sql);
-    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', settings: {} };
+    me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', preferences: {} };
     const ops = Object.keys(require('../../api/data').OPS);
     const bad = [];
     for (let i = 0; i < 120; i++) {

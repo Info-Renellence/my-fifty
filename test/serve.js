@@ -16,8 +16,8 @@ const email = process.argv[3] || 'admin@renellence.com';
 const auth = require('../api/_auth');
 const { db } = require('../api/_db');
 auth.signedIn = async () => {
-  const [u] = await db()`select id, email, name, kind, settings from users where email = ${email}`;
-  return { id: u.id, email: u.email, name: u.name, first: u.name.split(' ')[0], initials: auth.initials(u.name), kind: u.kind, settings: u.settings || {} };
+  const [u] = await db()`select id, email, full_name, kind, preferences from users where email = ${email}`;
+  return { id: u.id, email: u.email, name: u.full_name, first: u.full_name.split(' ')[0], initials: auth.initials(u.full_name), kind: u.kind, preferences: u.preferences || {} };
 };
 const handlers = { '/api/data': require('../api/data'), '/api/act': require('../api/act') };
 const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.webmanifest': 'application/manifest+json' };

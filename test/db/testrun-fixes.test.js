@@ -33,18 +33,18 @@ describe('R24 wire orders: ordered when placed, paid when the money is marked re
     assert.equal(p.totalBought, 0, 'not paid until the money is marked received');
   }));
 });
-describe('users.settings that are not an object (seen live on a real row)', () => {
+describe('users.preferences that are not an object (seen live on a real row)', () => {
   test('seen_fifty and snooze still work when settings were saved as a list', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    await sql`update users set settings = '[{}, "{\\"fifty_seen_at\\":\\"2026-10-20T20:03:31.675Z\\"}"]'::jsonb where id = ${me.id}`;
-    me.settings = (await sql`select settings from users where id = ${me.id}`)[0].settings;
+    await sql`update users set preferences = '[{}, "{\\"fifty_seen_at\\":\\"2026-10-20T20:03:31.675Z\\"}"]'::jsonb where id = ${me.id}`;
+    me.preferences = (await sql`select preferences from users where id = ${me.id}`)[0].preferences;
     const c = await h.contact(sql, me);
     await A.seen_fifty(me);
     await A.snooze(me, { contactId: c });
-    const [u] = await sql`select settings, jsonb_typeof(settings) t from users where id = ${me.id}`;
+    const [u] = await sql`select preferences, jsonb_typeof(preferences) t from users where id = ${me.id}`;
     assert.equal(u.t, 'object', 'settings are an object again');
-    assert.ok(u.settings.fifty_seen_at, 'the bookmark is kept');
-    assert.ok(u.settings.snoozed && u.settings.snoozed[c], 'the snooze is kept');
+    assert.ok(u.preferences.fifty_seen_at, 'the bookmark is kept');
+    assert.ok(u.preferences.snoozed && u.preferences.snoozed[c], 'the snooze is kept');
   }));
 });
 describe('R5 / R12 cancelled visits are not visits', () => {
@@ -135,11 +135,11 @@ describe('voice notes (Gemini stubbed)', () => {
 describe('Tomorrow on two people at once (two phones, or two quick taps)', () => {
   test('both stay hidden: the second save does not wipe the first', () => h.withDb(async (sql) => {
     const me = await h.user(sql), a = await h.contact(sql, me), b = await h.contact(sql, me);
-    const stale = Object.assign({}, me, { settings: {} });     // both requests signed in before either saved
+    const stale = Object.assign({}, me, { preferences: {} });     // both requests signed in before either saved
     await A.snooze(stale, { contactId: a });
     await A.snooze(stale, { contactId: b });
-    const [u] = await sql`select settings from users where id = ${me.id}`;
-    assert.deepEqual(Object.keys(u.settings.snoozed).sort(), [a, b].sort());
+    const [u] = await sql`select preferences from users where id = ${me.id}`;
+    assert.deepEqual(Object.keys(u.preferences.snoozed).sort(), [a, b].sort());
   }));
 });
 
@@ -148,7 +148,7 @@ describe('Rewards: saypha syringes this month', () => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const o = await h.order(sql, c, me, { status: 'shipped', lines: [['SAF100', 2]] });
     for (const [sku, q] of [['HDB100', 3], ['SAYPHA-PAMPHLET', 1], ['ICE102', 2], ['LIP100', 1]]) {
-      await sql`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+      await sql`insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
         select ${o}, id, sku, name, ${q}, 0, list_price, false from products where sku = ${sku}`;
     }
     const r = await R.rewards(sql, me);
@@ -180,7 +180,7 @@ describe('Samples: the MD\'s email belongs to a removed person', () => {
     const gone = await h.contact(sql, null, { owner: null, email: 'gone.md.testrun@demo.invalid' });
     await sql`update contacts set deleted_at = now() where id = ${gone}`;
     const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr. Gone Testmd', mdEmail: 'gone.md.testrun@demo.invalid' });
-    assert.equal((await sql`select md_contact_id from orders where id = ${r.orderId}`)[0].md_contact_id, gone);
+    assert.equal((await sql`select medical_director_contact_id from orders where id = ${r.orderId}`)[0].medical_director_contact_id, gone);
   }));
 });
 
@@ -214,18 +214,18 @@ describe('L9 product step: prices and free units (the mockup, 2026-10-21)', () =
   test('a changed price is kept, with the list price beside it; "+ Free" units are free lines; no MD needed when something is paid', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2, price: 199.5 }, { sku: 'SAF100', qty: 1, free: true }, { sku: 'HDB100', qty: 1 }] });
-    const lines = await sql`select sku, quantity, unit_price::float8 p, list_price::float8 l, is_free from order_lines where order_id = ${r.orderId} order by is_free, sku`;
+    const lines = await sql`select product_sku as sku, quantity, unit_price::float8 p, list_price::float8 l, is_free from order_lines where order_id = ${r.orderId} order by is_free, product_sku`;
     assert.deepEqual(lines.map((x) => [x.sku, x.quantity, x.p, x.l, x.is_free]), [['SAF100', 2, 199.5, 225, false], ['HDB100', 1, 0, 0, true], ['SAF100', 1, 0, 225, true]]);
-    const [o] = await sql`select md_contact_id, payment_method::text m from orders where id = ${r.orderId}`;
-    assert.deepEqual([o.md_contact_id, o.m], [null, 'card_on_file'], 'mixed paid + free: no MD sign-off');
+    const [o] = await sql`select medical_director_contact_id, payment_method::text m from orders where id = ${r.orderId}`;
+    assert.deepEqual([o.medical_director_contact_id, o.m], [null, 'card_on_file'], 'mixed paid + free: no MD sign-off');
   }));
   test('only free units make a sample order, which needs the MD; a bad price is refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }] }), (e) => e.message === 'md_required');
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 1, price: 0 }] }), (e) => e.message === 'md_required', 'a $0 price is free too');
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }], mdName: 'Dr. Free Testmd', mdEmail: 'free.testmd.' + h.uid() + '@demo.invalid' });
-    const [o] = await sql`select md_contact_id, payment_method from orders where id = ${r.orderId}`;
-    assert.ok(o.md_contact_id);
+    const [o] = await sql`select medical_director_contact_id, payment_method from orders where id = ${r.orderId}`;
+    assert.ok(o.medical_director_contact_id);
     assert.equal(o.payment_method, null);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1, price: -5 }] }), (e) => e.message === 'bad_price');
   }));

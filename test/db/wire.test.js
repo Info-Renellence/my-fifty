@@ -124,7 +124,7 @@ describe('Mark as received (api/wire.js)', () => {
     const [p] = await sql`select status::text, paid_at from payments where order_id = ${s.id}`;
     assert.equal(p.status, 'succeeded');
     assert.equal(T.ymd(p.paid_at), day);
-    const [log] = await sql`select actor_user_id from change_log where entity_type = 'payments' and field = 'status' order by at desc limit 1`;
+    const [log] = await sql`select actor_user_id from change_logs where entity_type = 'payments' and field_name = 'status' order by changed_at desc limit 1`;
     assert.equal(log.actor_user_id, s.admin, 'recorded as the admin');
     assert.match((await call('GET', s.url)).body, /Already received/);
   }));

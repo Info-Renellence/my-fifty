@@ -3,10 +3,10 @@ begin;
 select set_config('app.source', 'import', true);
 select set_config('app.owner', (select id::text from users where lower(email) = 'admin@renellence.com'), true);
 do $$ begin if current_setting('app.owner', true) is null or current_setting('app.owner', true) = '' then raise exception 'Demo owner admin@renellence.com is not in users'; end if; end $$;
-insert into users (id, email, name, kind, active, language) values ('de000000-0000-4000-8000-000000000001', 'demo.jordan@demo.invalid', 'Jordan Demo', 'rep', true, 'en');
-insert into users (id, email, name, kind, active, language) values ('de000000-0000-4000-8000-000000000002', 'demo.casey@demo.invalid', 'Casey Demo', 'rep', true, 'en');
-insert into users (id, email, name, kind, active, language) values ('de000000-0000-4000-8000-000000000003', 'demo.riley@demo.invalid', 'Riley Demo', 'rep', true, 'en');
-insert into users (id, email, name, kind, active, language) values ('de000000-0000-4000-8000-000000000004', 'demo.taylor@demo.invalid', 'Taylor Demo', 'admin', true, 'en');
+insert into users (id, email, full_name, kind, is_active, language_code) values ('de000000-0000-4000-8000-000000000001', 'demo.jordan@demo.invalid', 'Jordan Demo', 'rep', true, 'en');
+insert into users (id, email, full_name, kind, is_active, language_code) values ('de000000-0000-4000-8000-000000000002', 'demo.casey@demo.invalid', 'Casey Demo', 'rep', true, 'en');
+insert into users (id, email, full_name, kind, is_active, language_code) values ('de000000-0000-4000-8000-000000000003', 'demo.riley@demo.invalid', 'Riley Demo', 'rep', true, 'en');
+insert into users (id, email, full_name, kind, is_active, language_code) values ('de000000-0000-4000-8000-000000000004', 'demo.taylor@demo.invalid', 'Taylor Demo', 'admin', true, 'en');
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-000000000005', 'Sample Clinic A', '+15550100000', '10 Sample St', 'Sampleton', 'ON', 'Z9Z 0Z0', 'demo-clinic-A');
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-000000000006', 'Sample Clinic B', '+15550100001', '13 Sample St', 'Sampleton', 'ON', 'Z9Z 1Z1', 'demo-clinic-B');
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-000000000007', 'Sample Clinic C', '+15550100002', '16 Sample St', 'Sampleton', 'ON', 'Z9Z 2Z2', 'demo-clinic-C');
@@ -33,1456 +33,1456 @@ insert into clinics (id, name, main_phone, street, city, province, postal_code, 
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-00000000001c', 'Sample Clinic X', '+15550100023', '79 Sample St', 'Sampleton', 'ON', 'Z9Z 5Z2', 'demo-clinic-X');
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-00000000001d', 'Sample Clinic Y', '+15550100024', '82 Sample St', 'Sampleton', 'ON', 'Z9Z 6Z3', 'demo-clinic-Y');
 insert into clinics (id, name, main_phone, street, city, province, postal_code, legacy_id) values ('de000000-0000-4000-8000-00000000001e', 'Sample Clinic Z', '+15550100025', '85 Sample St', 'Sampleton', 'ON', 'Z9Z 7Z4', 'demo-clinic-Z');
-insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values ('de000000-0000-4000-8000-00000000001f', 'Academy training (demo)', 'training', '2026-08-15T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
-insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values ('de000000-0000-4000-8000-000000000020', 'Lips webinar (demo)', 'webinar', '2026-10-16T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
-insert into events (id, name, kind, starts_at, place, cost_lines, rep_ids, created_by) values ('de000000-0000-4000-8000-000000000021', 'Launch event (demo)', 'launch', '2026-10-04T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
+insert into events (id, name, kind, starts_at, location, cost_lines, rep_ids, created_by_id) values ('de000000-0000-4000-8000-00000000001f', 'Academy training (demo)', 'training', '2026-08-15T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
+insert into events (id, name, kind, starts_at, location, cost_lines, rep_ids, created_by_id) values ('de000000-0000-4000-8000-000000000020', 'Lips webinar (demo)', 'webinar', '2026-10-16T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
+insert into events (id, name, kind, starts_at, location, cost_lines, rep_ids, created_by_id) values ('de000000-0000-4000-8000-000000000021', 'Launch event (demo)', 'launch', '2026-10-04T22:00:00.000Z', 'Sampleton', '[]'::jsonb, array[current_setting('app.owner')::uuid], current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000006', 'de000000-0000-4000-8000-000000000001', 'Maya', 'Sample', 'maya.sample@sampleclinicb.example', 'physician', '+15550200001',
     '13 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha,restylane}'::contacts_filler[], '{eclipse_prp}'::contacts_prp[], 'demo-contact-1', '2026-08-15T13:00:00.000Z');
+    '{saypha,restylane}'::contacts_fillers_used[], '{eclipse_prp}'::contacts_prp_used[], 'demo-contact-1', '2026-08-15T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-000000000022';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000023', 'de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-08-23T14:00:00.000Z', '2026-08-23T15:00:00.000Z',
     null, '2026-08-23T18:00:00.000Z', null, null, null,
     null, 'demo-order-1', '2026-08-23T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000023', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000024', 'meeting', 'de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000001', '2026-08-23T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Liked saypha lips at the training. Uses Restylane today.', 'import', 'de000000-0000-4000-8000-000000000001');
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, completed_at, source, from_interaction_id)
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, completed_at, source, from_interaction_id)
   values ('de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'Drop off samples', 'call', '2026-08-26T13:00:00.000Z', 'done', '2026-08-26T13:00:00.000Z', 'manual', 'de000000-0000-4000-8000-000000000024');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
 update contacts set owner_id = current_setting('app.owner')::uuid where id = 'de000000-0000-4000-8000-000000000022';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000025', 'de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-13T14:00:00.000Z', '2026-09-13T15:00:00.000Z',
     'card_on_file', '2026-09-15T18:00:00.000Z', null, null, null,
     'D5002', 'demo-order-2', '2026-09-13T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000025', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000025', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000025', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_2', '2026-09-13T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000025';
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000026', 'meeting', 'de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, '2026-09-13T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Happy with saypha, busy season.', 'import', current_setting('app.owner')::uuid);
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, completed_at, source, from_interaction_id)
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, completed_at, source, from_interaction_id)
   values ('de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Check back in October', 'call', '2026-09-16T13:00:00.000Z', 'done', '2026-09-16T13:00:00.000Z', 'manual', 'de000000-0000-4000-8000-000000000026');
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000027', 'call', 'de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, '2026-10-16T15:00:00.000Z', 'out', 'phone', 'completed',
     'no_answer', 'Left a voicemail.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000028', 'note', 'de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000004', '2026-10-20T15:00:00.000Z', 'out', null, 'completed',
     null, 'Bring the Exprecell demo kit.', 'import', 'de000000-0000-4000-8000-000000000004');
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000029', 'de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'approved', '2026-10-21T12:47:00.000Z', '2026-10-21T13:00:00.000Z',
     'pay_link', null, null, null, null,
     'D5003', 'demo-order-3', '2026-10-21T12:47:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000029', p.id, p.sku, p.name, 10, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000029', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000029', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
 insert into payments (order_id, kind, method, amount, currency, status, provider, pay_link_url, is_test, created_at) select 'de000000-0000-4000-8000-000000000029', 'charge', 'pay_link', sum(quantity * unit_price), 'CAD', 'pending', 'stripe', 'https://checkout.stripe.com/c/pay/demo', true, '2026-10-21T14:05:00.000Z' from order_lines where order_id = 'de000000-0000-4000-8000-000000000029';
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000002a', 'call', 'de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, '2026-10-21T12:30:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Wants to order before Christmas.
 Next: send lips pricing, call Monday', 'import', current_setting('app.owner')::uuid);
 insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values ('de000000-0000-4000-8000-000000000022', 'de000000-0000-4000-8000-000000000022', '2026-09-02T14:00:00.000Z', 'complete', '2026-09-03T14:00:00.000Z', null);
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send lips pricing, call Monday', 'call', '2026-10-23T13:00:00.000Z', 'open', 'manual');
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values ('de000000-0000-4000-8000-000000000022', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send lips pricing, call Monday', 'call', '2026-10-23T13:00:00.000Z', 'open', 'manual');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002b', 'de000000-0000-4000-8000-000000000005', current_setting('app.owner')::uuid, 'Ben', 'Sample', 'ben.sample@sampleclinica.example', 'physician', '+15550200002',
     '14 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{saypha,juvederm}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-contact-2', '2026-04-04T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{exprecell_prf}'::contacts_prp_used[], 'demo-contact-2', '2026-04-04T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-00000000002b';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002c', 'de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-06-23T14:00:00.000Z', '2026-06-23T15:00:00.000Z',
     'card_on_file', '2026-06-25T18:00:00.000Z', null, null, null,
     'D5004', 'demo-order-4', '2026-06-23T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002c', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002c', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000002c', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_4', '2026-06-23T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000002c';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002d', 'de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'paid', '2026-10-18T14:00:00.000Z', '2026-10-18T15:00:00.000Z',
     'card_on_file', null, null, null, null,
     'D5005', 'demo-order-5', '2026-10-18T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002d', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002d', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002d', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'EXPRECELL';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000002d', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_5', '2026-10-18T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000002d';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002e', 'de000000-0000-4000-8000-000000000008', current_setting('app.owner')::uuid, 'Zoe', 'Sample', 'zoe.sample@sampleclinicd.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200003',
     '15 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-3', '2026-04-09T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-3', '2026-04-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000002f', 'de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-06-27T14:00:00.000Z', '2026-06-27T15:00:00.000Z',
     'card_on_file', '2026-06-29T18:00:00.000Z', null, null, null,
     'D5006', 'demo-order-6', '2026-06-27T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002f', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000002f', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000002f', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_6', '2026-06-27T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000002f';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000030', 'de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'paid', '2026-10-17T14:00:00.000Z', '2026-10-17T15:00:00.000Z',
     'card_on_file', null, null, null, null,
     'D5007', 'demo-order-7', '2026-10-17T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000030', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000030', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000030', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000030', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_7', '2026-10-17T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000030';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000031', 'de000000-0000-4000-8000-000000000015', current_setting('app.owner')::uuid, 'Raj', 'Sample', 'raj.sample@sampleclinicq.example', 'manager', '+15550200004',
     '16 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-4', '2026-04-14T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-4', '2026-04-14T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000032', 'de000000-0000-4000-8000-000000000031', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-01T14:00:00.000Z', '2026-07-01T15:00:00.000Z',
     'card_on_file', '2026-07-03T18:00:00.000Z', null, null, null,
     'D5008', 'demo-order-8', '2026-07-01T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000032', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000032', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000032', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_8', '2026-07-01T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000032';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000033', 'de000000-0000-4000-8000-000000000031', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-16T14:00:00.000Z', '2026-10-16T15:00:00.000Z',
     'card_on_file', '2026-10-18T18:00:00.000Z', null, null, null,
     'D5009', 'demo-order-9', '2026-10-16T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000033', p.id, p.sku, p.name, 7, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000033', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000033', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000033', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_9', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000033';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000034', 'de000000-0000-4000-8000-00000000000a', current_setting('app.owner')::uuid, 'Ella', 'Sample', 'ella.sample@sampleclinicf.example', 'physician', '+15550200005',
     '17 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-5', '2026-04-19T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-5', '2026-04-19T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-000000000034';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000035', 'de000000-0000-4000-8000-000000000034', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-05T14:00:00.000Z', '2026-07-05T15:00:00.000Z',
     'card_on_file', '2026-07-07T18:00:00.000Z', null, null, null,
     'D5010', 'demo-order-10', '2026-07-05T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000035', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000035', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000035', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_10', '2026-07-05T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000035';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000036', 'de000000-0000-4000-8000-000000000034', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-15T14:00:00.000Z', '2026-10-15T15:00:00.000Z',
     'card_on_file', '2026-10-17T18:00:00.000Z', null, null, null,
     'D5011', 'demo-order-11', '2026-10-15T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000036', p.id, p.sku, p.name, 8, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000036', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000036', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000036', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_11', '2026-10-15T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000036';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000037', 'de000000-0000-4000-8000-00000000000b', current_setting('app.owner')::uuid, 'Ivy', 'Sample', 'ivy.sample@sampleclinicg.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200006',
     '18 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-6', '2026-04-24T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-6', '2026-04-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000038', 'de000000-0000-4000-8000-000000000037', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-09T14:00:00.000Z', '2026-07-09T15:00:00.000Z',
     'card_on_file', '2026-07-11T18:00:00.000Z', null, null, null,
     'D5012', 'demo-order-12', '2026-07-09T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000038', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000038', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000038', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_12', '2026-07-09T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000038';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000039', 'de000000-0000-4000-8000-000000000037', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-14T14:00:00.000Z', '2026-10-14T15:00:00.000Z',
     'card_on_file', '2026-10-16T18:00:00.000Z', null, null, null,
     'D5013', 'demo-order-13', '2026-10-14T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000039', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000039', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000039', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000039', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_13', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000039';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003a', 'de000000-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Max', 'Sample', 'max.sample@sampleclinici.example', 'manager', '+15550200007',
     '19 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-contact-7', '2026-04-29T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{exprecell_prf}'::contacts_prp_used[], 'demo-contact-7', '2026-04-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003b', 'de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-13T14:00:00.000Z', '2026-07-13T15:00:00.000Z',
     'wire', '2026-07-15T18:00:00.000Z', null, null, null,
     'D5014', 'demo-order-14', '2026-07-13T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003b', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003b', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000003b', 'charge', 'wire', sum(quantity * unit_price), 'CAD', null, 'succeeded', 'wire',
       null, '2026-07-13T15:00:00.000Z', null, null, true from order_lines where order_id = 'de000000-0000-4000-8000-00000000003b';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003c', 'de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-13T14:00:00.000Z', '2026-10-13T15:00:00.000Z',
     'card_on_file', '2026-10-15T18:00:00.000Z', null, null, null,
     'D5015', 'demo-order-15', '2026-10-13T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003c', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003c', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003c', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'EXPRECELL';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000003c', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_15', '2026-10-13T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000003c';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003d', 'de000000-0000-4000-8000-00000000000e', current_setting('app.owner')::uuid, 'Nora', 'Sample', 'nora.sample@sampleclinicj.example', 'physician', '+15550200008',
     '20 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-8', '2026-05-04T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-8', '2026-05-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003e', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-17T14:00:00.000Z', '2026-07-17T15:00:00.000Z',
     'card_on_file', '2026-07-19T18:00:00.000Z', null, null, null,
     'D5016', 'demo-order-16', '2026-07-17T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003e', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003e', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000003e', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_16', '2026-07-17T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000003e';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000003f', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-12T14:00:00.000Z', '2026-10-12T15:00:00.000Z',
     'card_on_file', '2026-10-14T18:00:00.000Z', null, null, null,
     'D5017', 'demo-order-17', '2026-10-12T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003f', p.id, p.sku, p.name, 7, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003f', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000003f', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000003f', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_17', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000003f';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000040', 'de000000-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Owen', 'Sample', 'owen.sample@sampleclinick.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200009',
     '21 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-9', '2026-05-09T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-9', '2026-05-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000041', 'de000000-0000-4000-8000-000000000040', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-21T14:00:00.000Z', '2026-07-21T15:00:00.000Z',
     'card_on_file', '2026-07-23T18:00:00.000Z', null, null, null,
     'D5018', 'demo-order-18', '2026-07-21T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000041', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000041', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000041', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_18', '2026-07-21T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000041';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000042', 'de000000-0000-4000-8000-000000000040', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-11T14:00:00.000Z', '2026-10-11T15:00:00.000Z',
     'card_on_file', '2026-10-13T18:00:00.000Z', null, null, null,
     'D5019', 'demo-order-19', '2026-10-11T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000042', p.id, p.sku, p.name, 8, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000042', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000042', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000042', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_19', '2026-10-11T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000042';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000043', 'de000000-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Priya', 'Sample', 'priya.sample@sampleclinicl.example', 'manager', '+15550200010',
     '22 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-10', '2026-05-14T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-10', '2026-05-14T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-000000000043';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000044', 'de000000-0000-4000-8000-000000000043', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-25T14:00:00.000Z', '2026-07-25T15:00:00.000Z',
     'card_on_file', '2026-07-27T18:00:00.000Z', null, null, null,
     'D5020', 'demo-order-20', '2026-07-25T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000044', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000044', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000044', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_20', '2026-07-25T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000044';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000045', 'de000000-0000-4000-8000-000000000043', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-10T14:00:00.000Z', '2026-10-10T15:00:00.000Z',
     'card_on_file', '2026-10-12T18:00:00.000Z', null, null, null,
     'D5021', 'demo-order-21', '2026-10-10T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000045', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000045', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000045', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000045', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_21', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000045';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000046', 'de000000-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Quinn', 'Sample', 'quinn.sample@sampleclinicm.example', 'physician', '+15550200011',
     '23 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-11', '2026-05-19T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-11', '2026-05-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000047', 'de000000-0000-4000-8000-000000000046', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-29T14:00:00.000Z', '2026-07-29T15:00:00.000Z',
     'card_on_file', '2026-07-31T18:00:00.000Z', null, null, null,
     'D5022', 'demo-order-22', '2026-07-29T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000047', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000047', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000047', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_22', '2026-07-29T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000047';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000048', 'de000000-0000-4000-8000-000000000046', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-09T14:00:00.000Z', '2026-10-09T15:00:00.000Z',
     'card_on_file', '2026-10-11T18:00:00.000Z', null, null, null,
     'D5023', 'demo-order-23', '2026-10-09T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000048', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000048', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000048', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000048', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_23', '2026-10-09T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000048';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000049', 'de000000-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Rosa', 'Sample', 'rosa.sample@sampleclinicn.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200012',
     '24 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha,juvederm}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-contact-12', '2026-05-24T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{exprecell_prf}'::contacts_prp_used[], 'demo-contact-12', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004a', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-02T14:00:00.000Z', '2026-08-02T15:00:00.000Z',
     'card_on_file', '2026-08-04T18:00:00.000Z', null, null, null,
     'D5024', 'demo-order-24', '2026-08-02T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004a', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004a', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000004a', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_24', '2026-08-02T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000004a';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004b', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-08T14:00:00.000Z', '2026-10-08T15:00:00.000Z',
     'card_on_file', '2026-10-10T18:00:00.000Z', null, null, null,
     'D5025', 'demo-order-25', '2026-10-08T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004b', p.id, p.sku, p.name, 7, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004b', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004b', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'EXPRECELL';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000004b', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_25', '2026-10-08T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000004b';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004c', 'de000000-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Tobi', 'Sample', 'tobi.sample@sampleclinico.example', 'manager', '+15550200013',
     '25 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-13', '2026-05-29T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-13', '2026-05-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004d', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-06T14:00:00.000Z', '2026-08-06T15:00:00.000Z',
     'wire', '2026-08-08T18:00:00.000Z', null, null, null,
     'D5026', 'demo-order-26', '2026-08-06T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004d', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004d', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000004d', 'charge', 'wire', sum(quantity * unit_price), 'CAD', null, 'succeeded', 'wire',
       null, '2026-08-06T15:00:00.000Z', null, null, true from order_lines where order_id = 'de000000-0000-4000-8000-00000000004d';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004e', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-07T14:00:00.000Z', '2026-10-07T15:00:00.000Z',
     'card_on_file', '2026-10-09T18:00:00.000Z', null, null, null,
     'D5027', 'demo-order-27', '2026-10-07T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004e', p.id, p.sku, p.name, 8, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004e', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000004e', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000004e', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_27', '2026-10-07T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000004e';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000004f', 'de000000-0000-4000-8000-000000000014', current_setting('app.owner')::uuid, 'Tess', 'Sample', 'tess.sample@sampleclinicp.example', 'physician', '+15550200014',
     '26 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-14', '2026-06-03T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-14', '2026-06-03T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000050', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-10T14:00:00.000Z', '2026-08-10T15:00:00.000Z',
     'card_on_file', '2026-08-12T18:00:00.000Z', null, null, null,
     'D5028', 'demo-order-28', '2026-08-10T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000050', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000050', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000050', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_28', '2026-08-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000050';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000051', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-06T14:00:00.000Z', '2026-10-06T15:00:00.000Z',
     'card_on_file', '2026-10-08T18:00:00.000Z', null, null, null,
     'D5029', 'demo-order-29', '2026-10-06T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000051', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000051', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000051', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000051', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_29', '2026-10-06T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000051';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000052', 'de000000-0000-4000-8000-000000000016', current_setting('app.owner')::uuid, 'Uri', 'Sample', 'uri.sample@sampleclinicr.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200015',
     '27 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-15', '2026-06-08T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-15', '2026-06-08T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000053', 'de000000-0000-4000-8000-000000000052', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-14T14:00:00.000Z', '2026-08-14T15:00:00.000Z',
     'card_on_file', '2026-08-16T18:00:00.000Z', null, null, null,
     'D5030', 'demo-order-30', '2026-08-14T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000053', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000053', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000053', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_30', '2026-08-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000053';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000054', 'de000000-0000-4000-8000-000000000052', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-05T14:00:00.000Z', '2026-10-05T15:00:00.000Z',
     'card_on_file', '2026-10-07T18:00:00.000Z', null, null, null,
     'D5031', 'demo-order-31', '2026-10-05T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000054', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000054', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000054', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000054', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_31', '2026-10-05T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000054';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000055', 'de000000-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Vera', 'Sample', 'vera.sample@sampleclinicu.example', 'manager', '+15550200016',
     '28 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-16', '2026-06-13T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-16', '2026-06-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000056', 'de000000-0000-4000-8000-000000000055', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-18T14:00:00.000Z', '2026-08-18T15:00:00.000Z',
     'card_on_file', '2026-08-20T18:00:00.000Z', null, null, null,
     'D5032', 'demo-order-32', '2026-08-18T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000056', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000056', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000056', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_32', '2026-08-18T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000056';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000057', 'de000000-0000-4000-8000-000000000055', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-04T14:00:00.000Z', '2026-10-04T15:00:00.000Z',
     'card_on_file', '2026-10-06T18:00:00.000Z', null, null, null,
     'D5033', 'demo-order-33', '2026-10-04T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000057', p.id, p.sku, p.name, 7, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000057', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000057', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000057', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_33', '2026-10-04T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000057';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000058', 'de000000-0000-4000-8000-00000000001a', current_setting('app.owner')::uuid, 'Will', 'Sample', 'will.sample@sampleclinicv.example', 'physician', '+15550200017',
     '29 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{exprecell_prf}'::contacts_prp[], 'demo-contact-17', '2026-06-18T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{exprecell_prf}'::contacts_prp_used[], 'demo-contact-17', '2026-06-18T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000059', 'de000000-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-22T14:00:00.000Z', '2026-08-22T15:00:00.000Z',
     'card_on_file', '2026-08-24T18:00:00.000Z', null, null, null,
     'D5034', 'demo-order-34', '2026-08-22T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000059', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000059', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000059', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_34', '2026-08-22T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000059';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005a', 'de000000-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-03T14:00:00.000Z', '2026-10-03T15:00:00.000Z',
     'card_on_file', '2026-10-05T18:00:00.000Z', null, null, null,
     'D5035', 'demo-order-35', '2026-10-03T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005a', p.id, p.sku, p.name, 8, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005a', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005a', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'EXPRECELL';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000005a', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_35', '2026-10-03T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000005a';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005b', 'de000000-0000-4000-8000-00000000001b', current_setting('app.owner')::uuid, 'Xena', 'Sample', 'xena.sample@sampleclinicw.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200018',
     '30 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{saypha,juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-18', '2026-06-23T13:00:00.000Z');
+    '{saypha,juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-18', '2026-06-23T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005c', 'de000000-0000-4000-8000-00000000005b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-26T14:00:00.000Z', '2026-08-26T15:00:00.000Z',
     'card_on_file', '2026-08-28T18:00:00.000Z', null, null, null,
     'D5036', 'demo-order-36', '2026-08-26T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005c', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005c', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000005c', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_36', '2026-08-26T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000005c';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005d', 'de000000-0000-4000-8000-00000000005b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-02T14:00:00.000Z', '2026-10-02T15:00:00.000Z',
     'card_on_file', '2026-10-04T18:00:00.000Z', null, null, null,
     'D5037', 'demo-order-37', '2026-10-02T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005d', p.id, p.sku, p.name, 5, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005d', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005d', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000005d', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_37', '2026-10-02T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000005d';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005e', 'de000000-0000-4000-8000-00000000001c', current_setting('app.owner')::uuid, 'Yuki', 'Sample', 'yuki.sample@sampleclinicx.example', 'manager', '+15550200019',
     '31 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-19', '2026-06-28T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-19', '2026-06-28T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000005f', 'de000000-0000-4000-8000-00000000005e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-30T14:00:00.000Z', '2026-08-30T15:00:00.000Z',
     'wire', '2026-09-01T18:00:00.000Z', null, null, null,
     'D5038', 'demo-order-38', '2026-08-30T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005f', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000005f', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000005f', 'charge', 'wire', sum(quantity * unit_price), 'CAD', null, 'succeeded', 'wire',
       null, '2026-08-30T15:00:00.000Z', null, null, true from order_lines where order_id = 'de000000-0000-4000-8000-00000000005f';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000060', 'de000000-0000-4000-8000-00000000005e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-01T14:00:00.000Z', '2026-10-01T15:00:00.000Z',
     'card_on_file', '2026-10-03T18:00:00.000Z', null, null, null,
     'D5039', 'demo-order-39', '2026-10-01T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000060', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000060', p.id, p.sku, p.name, 3, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000060', p.id, p.sku, p.name, 1, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'MN2550';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000060', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_39', '2026-10-01T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000060';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000061', 'de000000-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Gail', 'Sample', 'gail.sample@sampleclinics.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200020',
     '32 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-20', '2026-09-19T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-20', '2026-09-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000062', 'de000000-0000-4000-8000-000000000061', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-11T14:00:00.000Z', '2026-09-11T15:00:00.000Z',
     null, '2026-09-12T18:00:00.000Z', '2026-09-14T17:00:00.000Z', null, null,
     null, 'demo-order-40', '2026-09-11T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000062', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000063', 'de000000-0000-4000-8000-000000000061', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-09T14:00:00.000Z', '2026-10-09T15:00:00.000Z',
     'card_on_file', '2026-10-10T18:00:00.000Z', null, null, null,
     'D5041', 'demo-order-41', '2026-10-09T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000063', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000063', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000063', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAV200';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000063', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_41', '2026-10-09T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000063';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000064', 'de000000-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Hugo', 'Sample', 'hugo.sample@sampleclinict.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200021',
     '33 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-21', '2026-09-06T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-21', '2026-09-06T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000065', 'de000000-0000-4000-8000-000000000064', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-11T14:00:00.000Z', '2026-09-11T15:00:00.000Z',
     null, '2026-09-12T18:00:00.000Z', '2026-09-14T17:00:00.000Z', null, null,
     null, 'demo-order-42', '2026-09-11T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000065', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000066', 'de000000-0000-4000-8000-000000000064', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-26T14:00:00.000Z', '2026-09-26T15:00:00.000Z',
     'card_on_file', '2026-09-27T18:00:00.000Z', null, null, null,
     'D5043', 'demo-order-43', '2026-09-26T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000066', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000066', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000066', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAV200';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000066', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_43', '2026-09-26T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000066';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000067', 'de000000-0000-4000-8000-00000000001d', current_setting('app.owner')::uuid, 'Iris', 'Sample', 'iris.sample@sampleclinicy.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200022',
     '34 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-22', '2026-09-22T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-22', '2026-09-22T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000068', 'de000000-0000-4000-8000-000000000067', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-11T14:00:00.000Z', '2026-09-11T15:00:00.000Z',
     null, '2026-09-12T18:00:00.000Z', '2026-09-14T17:00:00.000Z', null, null,
     null, 'demo-order-44', '2026-09-11T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000068', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000069', 'de000000-0000-4000-8000-000000000067', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-12T14:00:00.000Z', '2026-10-12T15:00:00.000Z',
     'card_on_file', '2026-10-13T18:00:00.000Z', null, null, null,
     'D5045', 'demo-order-45', '2026-10-12T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000069', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000069', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000069', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAV200';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000069', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_45', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000069';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006a', 'de000000-0000-4000-8000-000000000037', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-10T14:00:00.000Z', '2026-09-10T15:00:00.000Z',
     'wire', '2026-09-12T18:00:00.000Z', null, null, null,
     'D5046', 'demo-order-46', '2026-09-10T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006a', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006a', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
 update orders set payment_terms_days = 30 where id = 'de000000-0000-4000-8000-00000000006a';
 insert into payments (order_id, kind, method, amount, currency, status, provider, is_test, created_at)
     select 'de000000-0000-4000-8000-00000000006a', 'charge', 'wire', sum(quantity * unit_price), 'CAD', 'pending', 'wire', true, '2026-09-10T14:00:00.000Z' from order_lines where order_id = 'de000000-0000-4000-8000-00000000006a';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006b', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-25T14:00:00.000Z', '2026-09-25T15:00:00.000Z',
     'wire', '2026-09-27T18:00:00.000Z', null, null, null,
     'D5047', 'demo-order-47', '2026-09-25T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006b', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006b', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
 update orders set payment_terms_days = 30 where id = 'de000000-0000-4000-8000-00000000006b';
 insert into payments (order_id, kind, method, amount, currency, status, provider, is_test, created_at)
     select 'de000000-0000-4000-8000-00000000006b', 'charge', 'wire', sum(quantity * unit_price), 'CAD', 'pending', 'wire', true, '2026-09-25T14:00:00.000Z' from order_lines where order_id = 'de000000-0000-4000-8000-00000000006b';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006c', 'de000000-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Omar', 'Sample', 'omar.sample@sampleclinics.example', 'physician', '+15550200023',
     '35 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-23', '2026-05-24T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-23', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006d', 'de000000-0000-4000-8000-00000000006c', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-25T14:00:00.000Z', '2026-07-25T15:00:00.000Z',
     'card_on_file', '2026-07-27T18:00:00.000Z', null, null, null,
     'D5048', 'demo-order-48', '2026-07-25T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006d', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000006d', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_48', '2026-07-25T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000006d';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006e', 'de000000-0000-4000-8000-00000000006c', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-13T14:00:00.000Z', '2026-09-13T15:00:00.000Z',
     'card_on_file', '2026-09-15T18:00:00.000Z', null, null, null,
     'D5049', 'demo-order-49', '2026-09-13T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006e', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-00000000006e', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-00000000006e', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_49', '2026-09-13T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-00000000006e';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-00000000006f', 'de000000-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Lina', 'Sample', 'lina.sample@sampleclinict.example', 'physician', '+15550200024',
     '36 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-24', '2026-05-24T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-24', '2026-05-24T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000070', 'de000000-0000-4000-8000-00000000006f', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-08-01T14:00:00.000Z', '2026-08-01T15:00:00.000Z',
     'card_on_file', '2026-08-03T18:00:00.000Z', null, null, null,
     'D5050', 'demo-order-50', '2026-08-01T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000070', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000070', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_50', '2026-08-01T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000070';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000071', 'de000000-0000-4000-8000-00000000006f', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-20T14:00:00.000Z', '2026-09-20T15:00:00.000Z',
     'card_on_file', '2026-09-22T18:00:00.000Z', null, null, null,
     'D5051', 'demo-order-51', '2026-09-20T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000071', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000071', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000071', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_51', '2026-09-20T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000071';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000072', 'de000000-0000-4000-8000-00000000001e', current_setting('app.owner')::uuid, 'Kai', 'Sample', 'kai.sample@sampleclinicz.example', 'physician', '+15550200025',
     '37 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{saypha}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-25', '2026-05-24T13:00:00.000Z');
+    '{saypha}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-25', '2026-05-24T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-000000000072';
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000073', 'de000000-0000-4000-8000-000000000072', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-07-30T14:00:00.000Z', '2026-07-30T15:00:00.000Z',
     'card_on_file', '2026-08-01T18:00:00.000Z', null, null, null,
     'D5052', 'demo-order-52', '2026-07-30T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000073', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000073', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_52', '2026-07-30T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000073';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-000000000074', 'de000000-0000-4000-8000-000000000072', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-18T14:00:00.000Z', '2026-09-18T15:00:00.000Z',
     'card_on_file', '2026-09-20T18:00:00.000Z', null, null, null,
     'D5053', 'demo-order-53', '2026-09-18T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000074', p.id, p.sku, p.name, 6, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-000000000074', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-000000000074', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_53', '2026-09-18T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-000000000074';
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000075', 'call', 'de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, '2026-10-20T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000076', 'call', 'de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, '2026-10-20T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000077', 'call', 'de000000-0000-4000-8000-000000000031', current_setting('app.owner')::uuid, '2026-10-20T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000078', 'meeting', 'de000000-0000-4000-8000-000000000034', current_setting('app.owner')::uuid, '2026-10-20T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Asked about volume plus.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000079', 'call', 'de000000-0000-4000-8000-000000000037', current_setting('app.owner')::uuid, '2026-10-20T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007a', 'call', 'de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, '2026-10-20T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007b', 'call', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, '2026-10-20T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007c', 'meeting', 'de000000-0000-4000-8000-000000000040', current_setting('app.owner')::uuid, '2026-10-20T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007d', 'call', 'de000000-0000-4000-8000-000000000034', current_setting('app.owner')::uuid, '2026-10-19T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007e', 'call', 'de000000-0000-4000-8000-000000000037', current_setting('app.owner')::uuid, '2026-10-19T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000007f', 'call', 'de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, '2026-10-19T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Asked about volume plus.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000080', 'meeting', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, '2026-10-19T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000081', 'call', 'de000000-0000-4000-8000-000000000040', current_setting('app.owner')::uuid, '2026-10-19T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000082', 'call', 'de000000-0000-4000-8000-000000000043', current_setting('app.owner')::uuid, '2026-10-19T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000083', 'call', 'de000000-0000-4000-8000-000000000046', current_setting('app.owner')::uuid, '2026-10-19T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000084', 'meeting', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, '2026-10-19T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000085', 'call', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, '2026-10-19T21:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000086', 'call', 'de000000-0000-4000-8000-00000000003d', current_setting('app.owner')::uuid, '2026-10-16T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000087', 'call', 'de000000-0000-4000-8000-000000000040', current_setting('app.owner')::uuid, '2026-10-16T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Asked about volume plus.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000088', 'call', 'de000000-0000-4000-8000-000000000043', current_setting('app.owner')::uuid, '2026-10-16T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000089', 'meeting', 'de000000-0000-4000-8000-000000000046', current_setting('app.owner')::uuid, '2026-10-16T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008a', 'call', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, '2026-10-16T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008b', 'call', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, '2026-10-16T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008c', 'call', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, '2026-10-16T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008d', 'meeting', 'de000000-0000-4000-8000-000000000052', current_setting('app.owner')::uuid, '2026-10-16T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008e', 'call', 'de000000-0000-4000-8000-000000000046', current_setting('app.owner')::uuid, '2026-10-15T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Asked about volume plus.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000008f', 'call', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, '2026-10-15T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000090', 'call', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, '2026-10-15T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000091', 'meeting', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, '2026-10-15T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000092', 'call', 'de000000-0000-4000-8000-000000000052', current_setting('app.owner')::uuid, '2026-10-15T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000093', 'call', 'de000000-0000-4000-8000-000000000055', current_setting('app.owner')::uuid, '2026-10-15T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000094', 'call', 'de000000-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, '2026-10-15T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000095', 'meeting', 'de000000-0000-4000-8000-00000000005b', current_setting('app.owner')::uuid, '2026-10-15T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000096', 'call', 'de000000-0000-4000-8000-00000000005e', current_setting('app.owner')::uuid, '2026-10-15T21:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000097', 'call', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, '2026-10-14T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000098', 'call', 'de000000-0000-4000-8000-000000000052', current_setting('app.owner')::uuid, '2026-10-14T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-000000000099', 'call', 'de000000-0000-4000-8000-000000000055', current_setting('app.owner')::uuid, '2026-10-14T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009a', 'meeting', 'de000000-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, '2026-10-14T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009b', 'call', 'de000000-0000-4000-8000-00000000005b', current_setting('app.owner')::uuid, '2026-10-14T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009c', 'call', 'de000000-0000-4000-8000-00000000005e', current_setting('app.owner')::uuid, '2026-10-14T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009d', 'call', 'de000000-0000-4000-8000-000000000061', current_setting('app.owner')::uuid, '2026-10-14T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009e', 'meeting', 'de000000-0000-4000-8000-000000000064', current_setting('app.owner')::uuid, '2026-10-14T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-00000000009f', 'call', 'de000000-0000-4000-8000-000000000058', current_setting('app.owner')::uuid, '2026-10-13T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Reorder coming soon.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a0', 'call', 'de000000-0000-4000-8000-00000000005b', current_setting('app.owner')::uuid, '2026-10-13T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a1', 'call', 'de000000-0000-4000-8000-00000000005e', current_setting('app.owner')::uuid, '2026-10-13T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a2', 'meeting', 'de000000-0000-4000-8000-000000000061', current_setting('app.owner')::uuid, '2026-10-13T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a3', 'call', 'de000000-0000-4000-8000-000000000064', current_setting('app.owner')::uuid, '2026-10-13T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a4', 'call', 'de000000-0000-4000-8000-000000000067', current_setting('app.owner')::uuid, '2026-10-13T18:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a5', 'call', 'de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, '2026-10-13T19:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a6', 'meeting', 'de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, '2026-10-13T20:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Asked about volume plus.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a7', 'call', 'de000000-0000-4000-8000-000000000031', current_setting('app.owner')::uuid, '2026-10-13T21:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Busy week, call next week.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a8', 'call', 'de000000-0000-4000-8000-000000000061', current_setting('app.owner')::uuid, '2026-10-09T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Went over cannula sizes.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000a9', 'call', 'de000000-0000-4000-8000-000000000064', current_setting('app.owner')::uuid, '2026-10-09T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Shared the lips before and afters.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000aa', 'call', 'de000000-0000-4000-8000-000000000067', current_setting('app.owner')::uuid, '2026-10-09T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Booked a visit.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000ab', 'meeting', 'de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, '2026-10-09T16:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000ac', 'call', 'de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, '2026-10-09T17:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000ad', 'call', 'de000000-0000-4000-8000-000000000049', current_setting('app.owner')::uuid, '2026-10-21T12:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Checked in, all good.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000ae', 'call', 'de000000-0000-4000-8000-00000000004c', current_setting('app.owner')::uuid, '2026-10-21T13:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Talked about the holiday promo.', 'import', current_setting('app.owner')::uuid);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000af', 'call', 'de000000-0000-4000-8000-00000000004f', current_setting('app.owner')::uuid, '2026-10-21T14:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Happy with saypha filler.', 'import', current_setting('app.owner')::uuid);
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send volume plus pricing', 'call', '2026-10-21T13:00:00.000Z', 'open', 'manual');
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Drop off the lips kit', 'visit', '2026-10-20T13:00:00.000Z', 'open', 'manual');
-insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values ('de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Ask about the Christmas order', 'call', '2026-10-15T13:00:00.000Z', 'open', 'manual');
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values ('de000000-0000-4000-8000-00000000002b', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Send volume plus pricing', 'call', '2026-10-21T13:00:00.000Z', 'open', 'manual');
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values ('de000000-0000-4000-8000-00000000002e', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Drop off the lips kit', 'visit', '2026-10-20T13:00:00.000Z', 'open', 'manual');
+insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values ('de000000-0000-4000-8000-00000000003a', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'Ask about the Christmas order', 'call', '2026-10-15T13:00:00.000Z', 'open', 'manual');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b0', 'de000000-0000-4000-8000-00000000000f', current_setting('app.owner')::uuid, 'Leo', 'Sample', 'leo.sample@sampleclinick.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200026',
     '38 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000021',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-26', '2026-09-21T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-26', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b1', 'de000000-0000-4000-8000-0000000000b0', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-09-28T14:00:00.000Z', '2026-09-28T15:00:00.000Z',
     null, '2026-09-29T18:00:00.000Z', '2026-10-01T17:00:00.000Z', null, null,
     null, 'demo-order-54', '2026-09-28T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000b1', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000b1', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'MSK100';
 insert into onboardings (primary_contact_id, injector_contact_id, submitted_at, status, completed_at, card_saved_at) values ('de000000-0000-4000-8000-0000000000b0', 'de000000-0000-4000-8000-0000000000b0', '2026-09-26T14:00:00.000Z', 'complete', '2026-09-27T14:00:00.000Z', '2026-09-27T14:00:00.000Z');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b2', 'de000000-0000-4000-8000-00000000000c', current_setting('app.owner')::uuid, 'Sara', 'Sample', 'sara.sample@sampleclinich.example', 'physician', '+15550200027',
     '39 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{juvederm}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-27', '2026-09-26T13:00:00.000Z');
+    '{juvederm}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-27', '2026-09-26T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-0000000000b2';
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b3', 'de000000-0000-4000-8000-00000000000c', null, 'Lee', 'Sample', 'lee.sample@sampleclinich.example', 'physician', '+15550200028',
     '40 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-28', '2026-09-26T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-28', '2026-09-26T13:00:00.000Z');
 update contacts set designation = 'md' where id = 'de000000-0000-4000-8000-0000000000b3';
 select set_config('app.user_id', '', true);
 update contacts set is_medical_director = true where id = 'de000000-0000-4000-8000-0000000000b3';
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b4', 'de000000-0000-4000-8000-0000000000b2', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-05T14:00:00.000Z', '2026-10-05T15:00:00.000Z',
     null, '2026-10-06T18:00:00.000Z', '2026-10-07T17:00:00.000Z', 'de000000-0000-4000-8000-0000000000b3', '2026-10-05T16:00:00.000Z',
     null, 'demo-order-55', '2026-10-05T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000b4', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into agreements (id, kind, contact_id, envelope_id, status, sent_at) values ('de000000-0000-4000-8000-0000000000b5', 'onboarding', 'de000000-0000-4000-8000-0000000000b2', 'demo-env-1', 'waiting', '2026-10-04T14:00:00.000Z');
-insert into agreement_signers (agreement_id, contact_id, name, email, role, sign_order, status, signed_at) values
+insert into agreements (id, kind, contact_id, signatureapi_envelope_id, status, sent_at) values ('de000000-0000-4000-8000-0000000000b5', 'onboarding', 'de000000-0000-4000-8000-0000000000b2', 'demo-env-1', 'waiting', '2026-10-04T14:00:00.000Z');
+insert into agreement_signers (agreement_id, contact_id, name, email, role, signing_order, status, signed_at) values
   ('de000000-0000-4000-8000-0000000000b5', 'de000000-0000-4000-8000-0000000000b2', 'Dr. Sara Sample', 'sara@sampleclinich.example', 'practitioner', 1, 'signed', '2026-10-04T14:00:00.000Z'),
   ('de000000-0000-4000-8000-0000000000b5', 'de000000-0000-4000-8000-0000000000b3', 'Dr. Lee Sample', 'lee@sampleclinich.example', 'md', 2, 'sent', null);
-insert into onboardings (primary_contact_id, injector_contact_id, md_contact_id, submitted_at, status, card_saved_at, agreement_id) values ('de000000-0000-4000-8000-0000000000b2', 'de000000-0000-4000-8000-0000000000b2', 'de000000-0000-4000-8000-0000000000b3', '2026-10-04T14:00:00.000Z', 'submitted', '2026-10-04T14:00:00.000Z', 'de000000-0000-4000-8000-0000000000b5');
+insert into onboardings (primary_contact_id, injector_contact_id, medical_director_contact_id, submitted_at, status, card_saved_at, agreement_id) values ('de000000-0000-4000-8000-0000000000b2', 'de000000-0000-4000-8000-0000000000b2', 'de000000-0000-4000-8000-0000000000b3', '2026-10-04T14:00:00.000Z', 'submitted', '2026-10-04T14:00:00.000Z', 'de000000-0000-4000-8000-0000000000b5');
 update agreements set sent_at = '2026-10-19T14:00:00.000Z' where id = 'de000000-0000-4000-8000-0000000000b5';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b6', 'de000000-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Mia', 'Sample', 'mia.sample@sampleclinicm.example', 'manager', '+15550200029',
     '41 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-29', '2026-10-07T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-29', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b7', 'de000000-0000-4000-8000-0000000000b6', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-12T14:00:00.000Z', '2026-10-12T15:00:00.000Z',
     null, '2026-10-13T18:00:00.000Z', '2026-10-14T17:00:00.000Z', null, null,
     null, 'demo-order-56', '2026-10-12T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000b7', p.id, p.sku, p.name, 1, 0, p.list_price, true from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000b7', p.id, p.sku, p.name, 1, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000b8', 'call', 'de000000-0000-4000-8000-0000000000b6', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Tried the lips sample on a client, loved it.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000b9', 'de000000-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Noah', 'Sample', 'noah.sample@sampleclinicn.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200030',
     '42 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000020',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-30', '2026-10-15T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-30', '2026-10-15T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ba', 'de000000-0000-4000-8000-0000000000b9', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'shipped', '2026-10-17T14:00:00.000Z', '2026-10-17T15:00:00.000Z',
     null, '2026-10-18T18:00:00.000Z', '2026-10-19T17:00:00.000Z', null, null,
     null, 'demo-order-57', '2026-10-17T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ba', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bb', 'de000000-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Nina', 'Sample', 'nina.sample@sampleclinice.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200031',
     '43 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-31', '2026-10-13T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-31', '2026-10-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bc', 'de000000-0000-4000-8000-0000000000bb', current_setting('app.owner')::uuid, current_setting('app.owner')::uuid, 'stripe', 'awaiting_md', '2026-10-21T12:47:00.000Z', '2026-10-21T13:00:00.000Z',
     null, null, null, 'de000000-0000-4000-8000-0000000000b3', null,
     null, 'demo-order-58', '2026-10-21T12:47:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000bc', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'SAL400';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000bc', p.id, p.sku, p.name, 2, 0, p.list_price, true from products p where p.sku = 'MSK100';
-insert into agreements (kind, contact_id, order_id, envelope_id, status, sent_at) values ('md_pdr', 'de000000-0000-4000-8000-0000000000bb', 'de000000-0000-4000-8000-0000000000bc', 'demo-env-2', 'waiting', '2026-10-21T13:12:00.000Z');
+insert into agreements (kind, contact_id, order_id, signatureapi_envelope_id, status, sent_at) values ('md_pdr', 'de000000-0000-4000-8000-0000000000bb', 'de000000-0000-4000-8000-0000000000bc', 'demo-env-2', 'waiting', '2026-10-21T13:12:00.000Z');
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bd', 'de000000-0000-4000-8000-000000000010', current_setting('app.owner')::uuid, 'Nadia', 'Sample', 'nadia.sample@sampleclinicl.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200032',
     '44 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-32', '2026-10-21T13:32:12.228Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-32', '2026-10-21T13:32:12.228Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000be', 'de000000-0000-4000-8000-000000000019', current_setting('app.owner')::uuid, 'Tara', 'Sample', 'tara.sample@sampleclinicu.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200033',
     '45 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-33', '2026-10-21T16:32:12.228Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-33', '2026-10-21T16:32:12.228Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000bf', 'de000000-0000-4000-8000-000000000009', current_setting('app.owner')::uuid, 'Jay', 'Sample', 'jay.sample@sampleclinice.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200034',
     '46 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-34', '2026-10-20T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-34', '2026-10-20T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000c0', 'call', 'de000000-0000-4000-8000-0000000000bf', current_setting('app.owner')::uuid, '2026-10-20T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000c1', 'de000000-0000-4000-8000-00000000001e', current_setting('app.owner')::uuid, 'Kim', 'Sample', 'kim.sample@sampleclinicz.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200035',
     '47 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-35', '2026-10-18T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-35', '2026-10-18T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000c2', 'text', 'de000000-0000-4000-8000-0000000000c1', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Sent the saypha lips info.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000c3', 'de000000-0000-4000-8000-000000000013', current_setting('app.owner')::uuid, 'Amy', 'Sample', 'amy.sample@sampleclinico.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200036',
     '48 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-36', '2026-10-16T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-36', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000c4', 'call', 'de000000-0000-4000-8000-0000000000c3', current_setting('app.owner')::uuid, '2026-10-17T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000c5', 'de000000-0000-4000-8000-00000000000d', current_setting('app.owner')::uuid, 'Liam', 'Sample', 'liam.sample@sampleclinici.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200037',
     '49 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-37', '2026-10-13T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-37', '2026-10-13T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000c6', 'meeting', 'de000000-0000-4000-8000-0000000000c5', current_setting('app.owner')::uuid, '2026-10-13T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000c7', 'de000000-0000-4000-8000-000000000014', current_setting('app.owner')::uuid, 'Pia', 'Sample', 'pia.sample@sampleclinicp.example', (select coalesce(max(e.enumlabel) filter (where e.enumlabel = 'injector'), 'nurse_injector') from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = 'contacts_role')::contacts_role, '+15550200038',
     '50 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'social', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-38', '2026-10-07T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-38', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000c8', 'email', 'de000000-0000-4000-8000-0000000000c7', current_setting('app.owner')::uuid, '2026-10-09T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Intro, interested in a visit.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000c9', 'de000000-0000-4000-8000-000000000007', current_setting('app.owner')::uuid, 'Cara', 'Sample', 'cara.sample@sampleclinicc.example', 'physician', '+15550200039',
     '51 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000020',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-39', '2026-10-16T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-39', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ca', 'de000000-0000-4000-8000-00000000001a', current_setting('app.owner')::uuid, 'Dan', 'Sample', 'dan.sample@sampleclinicv.example', 'physician', '+15550200040',
     '52 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000020',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-40', '2026-10-16T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-40', '2026-10-16T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000cb', 'call', 'de000000-0000-4000-8000-0000000000ca', current_setting('app.owner')::uuid, '2026-10-18T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000cc', 'de000000-0000-4000-8000-00000000000e', current_setting('app.owner')::uuid, 'Ines', 'Sample', 'ines.sample@sampleclinicj.example', 'physician', '+15550200041',
     '53 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000021',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-41', '2026-10-04T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-41', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000cd', 'meeting', 'de000000-0000-4000-8000-0000000000cc', current_setting('app.owner')::uuid, '2026-10-11T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ce', 'de000000-0000-4000-8000-000000000011', current_setting('app.owner')::uuid, 'Mo', 'Sample', 'mo.sample@sampleclinicm.example', 'physician', '+15550200042',
     '54 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000021',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-42', '2026-10-04T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-42', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000cf', 'de000000-0000-4000-8000-00000000000b', current_setting('app.owner')::uuid, 'Gia', 'Sample', 'gia.sample@sampleclinicg.example', 'physician', '+15550200043',
     '55 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-000000000021',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-43', '2026-10-04T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-43', '2026-10-04T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000d0', 'text', 'de000000-0000-4000-8000-0000000000cf', current_setting('app.owner')::uuid, '2026-10-07T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000d1', 'de000000-0000-4000-8000-00000000000c', current_setting('app.owner')::uuid, 'Hal', 'Sample', 'hal.sample@sampleclinich.example', 'physician', '+15550200044',
     '56 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'event', 'de000000-0000-4000-8000-00000000001f',
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-44', '2026-09-29T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-44', '2026-09-29T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000d2', 'call', 'de000000-0000-4000-8000-0000000000d1', current_setting('app.owner')::uuid, '2026-10-03T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Followed up after the event.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000d3', 'de000000-0000-4000-8000-00000000001b', current_setting('app.owner')::uuid, 'Wes', 'Sample', 'wes.sample@sampleclinicw.example', 'manager', '+15550200045',
     '57 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-45', '2026-10-20T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-45', '2026-10-20T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000d4', 'de000000-0000-4000-8000-00000000000a', current_setting('app.owner')::uuid, 'Faye', 'Sample', 'faye.sample@sampleclinicf.example', 'manager', '+15550200046',
     '58 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-46', '2026-10-15T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-46', '2026-10-15T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000d5', 'call', 'de000000-0000-4000-8000-0000000000d4', current_setting('app.owner')::uuid, '2026-10-17T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000d6', 'de000000-0000-4000-8000-000000000015', current_setting('app.owner')::uuid, 'Quin', 'Sample', 'quin.sample@sampleclinicq.example', 'manager', '+15550200047',
     '59 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-47', '2026-10-09T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-47', '2026-10-09T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000d7', 'email', 'de000000-0000-4000-8000-0000000000d6', current_setting('app.owner')::uuid, '2026-10-10T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000d8', 'de000000-0000-4000-8000-00000000001d', current_setting('app.owner')::uuid, 'Yara', 'Sample', 'yara.sample@sampleclinicy.example', 'manager', '+15550200048',
     '60 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-48', '2026-09-26T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-48', '2026-09-26T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000d9', 'meeting', 'de000000-0000-4000-8000-0000000000d8', current_setting('app.owner')::uuid, '2026-10-02T15:00:00.000Z', 'out', 'in_person', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000da', 'de000000-0000-4000-8000-000000000006', current_setting('app.owner')::uuid, 'Bea', 'Sample', 'bea.sample@sampleclinicb.example', 'manager', '+15550200049',
     '61 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-49', '2026-09-21T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-49', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000db', 'call', 'de000000-0000-4000-8000-0000000000da', current_setting('app.owner')::uuid, '2026-09-26T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Good chat, wants to know more.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000dc', 'de000000-0000-4000-8000-00000000001c', current_setting('app.owner')::uuid, 'Xia', 'Sample', 'xia.sample@sampleclinicx.example', 'other', '+15550200050',
     '62 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-50', '2026-10-19T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-50', '2026-10-19T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000dd', 'de000000-0000-4000-8000-000000000012', current_setting('app.owner')::uuid, 'Otto', 'Sample', 'otto.sample@sampleclinicn.example', 'other', '+15550200051',
     '63 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-51', '2026-10-12T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-51', '2026-10-12T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', (select id from users where email = 'demo.taylor@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000de', 'de000000-0000-4000-8000-000000000018', current_setting('app.owner')::uuid, 'Uma', 'Sample', 'uma.sample@sampleclinict.example', 'other', '+15550200052',
     '64 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-52', '2026-10-07T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-52', '2026-10-07T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000df', 'call', 'de000000-0000-4000-8000-0000000000de', current_setting('app.owner')::uuid, '2026-10-08T15:00:00.000Z', 'out', 'phone', 'completed',
     'connected', 'Cold intro.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', (select id from users where email = 'demo.taylor@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e0', 'de000000-0000-4000-8000-000000000016', current_setting('app.owner')::uuid, 'Vic', 'Sample', 'vic.sample@sampleclinicr.example', 'other', '+15550200053',
     '65 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-53', '2026-09-30T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-53', '2026-09-30T13:00:00.000Z');
 select set_config('app.user_id', '', true);
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e1', 'de000000-0000-4000-8000-000000000017', current_setting('app.owner')::uuid, 'Sol', 'Sample', 'sol.sample@sampleclinics.example', 'other', '+15550200054',
     '66 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'cold', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-54', '2026-09-21T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-54', '2026-09-21T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+insert into interactions (id, kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
   values ('de000000-0000-4000-8000-0000000000e2', 'email', 'de000000-0000-4000-8000-0000000000e1', current_setting('app.owner')::uuid, '2026-09-21T15:00:00.000Z', 'out', null, 'completed',
     'connected', 'Cold intro.', 'import', current_setting('app.owner')::uuid);
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e3', 'de000000-0000-4000-8000-000000000005', 'de000000-0000-4000-8000-000000000001', 'Jordanclient1', 'Sample', 'jordanclient1.sample@sampleclinica.example', null, '+15550200055',
     '67 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-55', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-55', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e4', 'de000000-0000-4000-8000-0000000000e3', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-16T14:00:00.000Z', '2026-10-16T15:00:00.000Z',
     'card_on_file', '2026-10-18T18:00:00.000Z', null, null, null,
     'D5059', 'demo-order-59', '2026-10-16T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e4', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e4', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000e4', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_59', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000e4';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e5', 'de000000-0000-4000-8000-000000000006', 'de000000-0000-4000-8000-000000000001', 'Jordanclient2', 'Sample', 'jordanclient2.sample@sampleclinicb.example', null, '+15550200056',
     '68 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-56', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-56', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e6', 'de000000-0000-4000-8000-0000000000e5', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-14T14:00:00.000Z', '2026-10-14T15:00:00.000Z',
     'card_on_file', '2026-10-16T18:00:00.000Z', null, null, null,
     'D5060', 'demo-order-60', '2026-10-14T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e6', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e6', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000e6', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_60', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000e6';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e7', 'de000000-0000-4000-8000-000000000007', 'de000000-0000-4000-8000-000000000001', 'Jordanclient3', 'Sample', 'jordanclient3.sample@sampleclinicc.example', null, '+15550200057',
     '69 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-57', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-57', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e8', 'de000000-0000-4000-8000-0000000000e7', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-12T14:00:00.000Z', '2026-10-12T15:00:00.000Z',
     'card_on_file', '2026-10-14T18:00:00.000Z', null, null, null,
     'D5061', 'demo-order-61', '2026-10-12T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e8', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000e8', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000e8', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_61', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000e8';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000e9', 'de000000-0000-4000-8000-000000000008', 'de000000-0000-4000-8000-000000000001', 'Jordanclient4', 'Sample', 'jordanclient4.sample@sampleclinicd.example', null, '+15550200058',
     '70 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-58', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-58', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ea', 'de000000-0000-4000-8000-0000000000e9', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-10T14:00:00.000Z', '2026-10-10T15:00:00.000Z',
     'card_on_file', '2026-10-12T18:00:00.000Z', null, null, null,
     'D5062', 'demo-order-62', '2026-10-10T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ea', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ea', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000ea', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_62', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000ea';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000eb', 'de000000-0000-4000-8000-000000000009', 'de000000-0000-4000-8000-000000000001', 'Jordanclient5', 'Sample', 'jordanclient5.sample@sampleclinice.example', null, '+15550200059',
     '71 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-59', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-59', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ec', 'de000000-0000-4000-8000-0000000000eb', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-08T14:00:00.000Z', '2026-10-08T15:00:00.000Z',
     'card_on_file', '2026-10-10T18:00:00.000Z', null, null, null,
     'D5063', 'demo-order-63', '2026-10-08T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ec', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ec', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000ec', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_63', '2026-10-08T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000ec';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ed', 'de000000-0000-4000-8000-00000000000a', 'de000000-0000-4000-8000-000000000001', 'Jordanclient6', 'Sample', 'jordanclient6.sample@sampleclinicf.example', null, '+15550200060',
     '72 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-60', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-60', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ee', 'de000000-0000-4000-8000-0000000000ed', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-06T14:00:00.000Z', '2026-10-06T15:00:00.000Z',
     'card_on_file', '2026-10-08T18:00:00.000Z', null, null, null,
     'D5064', 'demo-order-64', '2026-10-06T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ee', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000ee', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000ee', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_64', '2026-10-06T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000ee';
 select set_config('app.user_id', (select id from users where email = 'demo.jordan@demo.invalid')::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000ef', 'de000000-0000-4000-8000-00000000000b', 'de000000-0000-4000-8000-000000000001', 'Jordanclient7', 'Sample', 'jordanclient7.sample@sampleclinicg.example', null, '+15550200061',
     '73 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-61', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-61', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f0', 'de000000-0000-4000-8000-0000000000ef', 'de000000-0000-4000-8000-000000000001', 'de000000-0000-4000-8000-000000000001', 'stripe', 'shipped', '2026-10-04T14:00:00.000Z', '2026-10-04T15:00:00.000Z',
     'card_on_file', '2026-10-06T18:00:00.000Z', null, null, null,
     'D5065', 'demo-order-65', '2026-10-04T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f0', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f0', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000f0', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_65', '2026-10-04T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000f0';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f1', 'de000000-0000-4000-8000-000000000005', 'de000000-0000-4000-8000-000000000002', 'Caseyclient1', 'Sample', 'caseyclient1.sample@sampleclinica.example', null, '+15550200062',
     '74 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-62', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-62', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f2', 'de000000-0000-4000-8000-0000000000f1', 'de000000-0000-4000-8000-000000000002', 'de000000-0000-4000-8000-000000000002', 'stripe', 'shipped', '2026-10-16T14:00:00.000Z', '2026-10-16T15:00:00.000Z',
     'card_on_file', '2026-10-18T18:00:00.000Z', null, null, null,
     'D5066', 'demo-order-66', '2026-10-16T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f2', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f2', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000f2', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_66', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000f2';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f3', 'de000000-0000-4000-8000-000000000006', 'de000000-0000-4000-8000-000000000002', 'Caseyclient2', 'Sample', 'caseyclient2.sample@sampleclinicb.example', null, '+15550200063',
     '75 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-63', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-63', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f4', 'de000000-0000-4000-8000-0000000000f3', 'de000000-0000-4000-8000-000000000002', 'de000000-0000-4000-8000-000000000002', 'stripe', 'shipped', '2026-10-14T14:00:00.000Z', '2026-10-14T15:00:00.000Z',
     'card_on_file', '2026-10-16T18:00:00.000Z', null, null, null,
     'D5067', 'demo-order-67', '2026-10-14T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f4', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f4', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000f4', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_67', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000f4';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f5', 'de000000-0000-4000-8000-000000000007', 'de000000-0000-4000-8000-000000000002', 'Caseyclient3', 'Sample', 'caseyclient3.sample@sampleclinicc.example', null, '+15550200064',
     '76 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-64', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-64', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f6', 'de000000-0000-4000-8000-0000000000f5', 'de000000-0000-4000-8000-000000000002', 'de000000-0000-4000-8000-000000000002', 'stripe', 'shipped', '2026-10-12T14:00:00.000Z', '2026-10-12T15:00:00.000Z',
     'card_on_file', '2026-10-14T18:00:00.000Z', null, null, null,
     'D5068', 'demo-order-68', '2026-10-12T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f6', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f6', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000f6', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_68', '2026-10-12T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000f6';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f7', 'de000000-0000-4000-8000-000000000008', 'de000000-0000-4000-8000-000000000002', 'Caseyclient4', 'Sample', 'caseyclient4.sample@sampleclinicd.example', null, '+15550200065',
     '77 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-65', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-65', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f8', 'de000000-0000-4000-8000-0000000000f7', 'de000000-0000-4000-8000-000000000002', 'de000000-0000-4000-8000-000000000002', 'stripe', 'shipped', '2026-10-10T14:00:00.000Z', '2026-10-10T15:00:00.000Z',
     'card_on_file', '2026-10-12T18:00:00.000Z', null, null, null,
     'D5069', 'demo-order-69', '2026-10-10T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f8', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000f8', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000f8', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_69', '2026-10-10T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000f8';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000f9', 'de000000-0000-4000-8000-000000000005', 'de000000-0000-4000-8000-000000000003', 'Rileyclient1', 'Sample', 'rileyclient1.sample@sampleclinica.example', null, '+15550200066',
     '78 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-66', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-66', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000fa', 'de000000-0000-4000-8000-0000000000f9', 'de000000-0000-4000-8000-000000000003', 'de000000-0000-4000-8000-000000000003', 'stripe', 'shipped', '2026-10-16T14:00:00.000Z', '2026-10-16T15:00:00.000Z',
     'card_on_file', '2026-10-18T18:00:00.000Z', null, null, null,
     'D5070', 'demo-order-70', '2026-10-16T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000fa', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000fa', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000fa', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_70', '2026-10-16T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000fa';
 select set_config('app.user_id', current_setting('app.owner')::uuid::text, true);
-insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile, shipping_street, shipping_city, shipping_province, shipping_postal_code, source_kind, source_event_id, fillers_used, prp_used, legacy_id, created_at)
+insert into contacts (id, clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, shipping_street, shipping_city, shipping_province, shipping_postal_code, lead_source, lead_source_event_id, fillers_used, prp_used, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000fb', 'de000000-0000-4000-8000-000000000006', 'de000000-0000-4000-8000-000000000003', 'Rileyclient2', 'Sample', 'rileyclient2.sample@sampleclinicb.example', null, '+15550200067',
     '79 Sample St', 'Sampleton', 'ON', 'Z9Z 9Z9', 'warm', null,
-    '{}'::contacts_filler[], '{}'::contacts_prp[], 'demo-contact-67', '2026-09-11T13:00:00.000Z');
+    '{}'::contacts_fillers_used[], '{}'::contacts_prp_used[], 'demo-contact-67', '2026-09-11T13:00:00.000Z');
 select set_config('app.user_id', '', true);
-insert into orders (id, contact_id, rep_id, placed_by, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, md_contact_id, md_signed_at, order_number, legacy_id, created_at)
+insert into orders (id, contact_id, rep_id, placed_by_id, channel, status, submitted_at, approved_at, payment_method, shipped_at, delivered_at, medical_director_contact_id, medical_director_signed_at, order_number, legacy_id, created_at)
   values ('de000000-0000-4000-8000-0000000000fc', 'de000000-0000-4000-8000-0000000000fb', 'de000000-0000-4000-8000-000000000003', 'de000000-0000-4000-8000-000000000003', 'stripe', 'shipped', '2026-10-14T14:00:00.000Z', '2026-10-14T15:00:00.000Z',
     'card_on_file', '2026-10-16T18:00:00.000Z', null, null, null,
     'D5071', 'demo-order-71', '2026-10-14T14:00:00.000Z');
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000fc', p.id, p.sku, p.name, 4, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAF100';
-insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
+insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
     select 'de000000-0000-4000-8000-0000000000fc', p.id, p.sku, p.name, 2, p.list_price, p.list_price, p.list_price = 0 from products p where p.sku = 'SAL400';
-insert into payments (order_id, kind, method, amount, currency, fee, status, provider, provider_id, paid_at, card_brand, card_last4, is_test)
+insert into payments (order_id, kind, method, amount, currency, fee_amount, status, provider, external_id, paid_at, card_brand, card_last4, is_test)
     select 'de000000-0000-4000-8000-0000000000fc', 'charge', 'card_on_file', sum(quantity * unit_price), 'CAD', round(sum(quantity * unit_price) * 0.029 + 0.3, 2), 'succeeded', 'stripe',
       'demo_pi_71', '2026-10-14T15:00:00.000Z', 'Visa', '4242', true from order_lines where order_id = 'de000000-0000-4000-8000-0000000000fc';
 commit;

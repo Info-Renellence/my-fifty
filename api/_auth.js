@@ -41,15 +41,15 @@ async function signedIn(req) {
   const email = String(u.email || '').toLowerCase();
   if (!DOMAIN.test(email) || (u.user_metadata && u.user_metadata.email_verified === false)) throw fail(403, 'not_renellence');
   const sql = db();
-  let [row] = await sql`select id, email, name, kind, active, settings, auth_user_id from users where auth_user_id = ${u.id}`;
+  let [row] = await sql`select id, email, full_name, kind, is_active, preferences, auth_user_id from users where auth_user_id = ${u.id}`;
   if (!row) {
-    [row] = await sql`select id, email, name, kind, active, settings, auth_user_id from users where lower(email) = ${email}`;
+    [row] = await sql`select id, email, full_name, kind, is_active, preferences, auth_user_id from users where lower(email) = ${email}`;
     // Linked only for someone who may sign in; a switched-off account stays unlinked.
-    if (row && row.active !== false && !row.auth_user_id) await sql`update users set auth_user_id = ${u.id} where id = ${row.id}`;
+    if (row && row.is_active !== false && !row.auth_user_id) await sql`update users set auth_user_id = ${u.id} where id = ${row.id}`;
   }
-  if (!row || row.active === false) throw fail(403, 'not_set_up');
-  return { id: row.id, email: row.email, name: row.name || email, first: String(row.name || email).split(/\s+/)[0],
-    initials: initials(row.name || email), kind: row.kind, settings: row.settings && typeof row.settings === 'object' && !Array.isArray(row.settings) ? row.settings : {}, authUserId: u.id };
+  if (!row || row.is_active === false) throw fail(403, 'not_set_up');
+  return { id: row.id, email: row.email, name: row.full_name || email, first: String(row.full_name || email).split(/\s+/)[0],
+    initials: initials(row.full_name || email), kind: row.kind, preferences: row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences) ? row.preferences : {}, authUserId: u.id };
 }
 
 module.exports = { signedIn, initials, SUPABASE_URL, ANON };

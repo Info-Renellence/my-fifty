@@ -160,7 +160,7 @@ describe('data: order words and steps', () => {
     assert.equal(steps[2].current, true);
   });
   test('sampleSteps: signed and shipped', () => {
-    const steps = D.sampleSteps({ submitted_at: placed, approved_at: placed, md_signed_at: placed, shipped_at: placed }, null, null);
+    const steps = D.sampleSteps({ submitted_at: placed, approved_at: placed, medical_director_signed_at: placed, shipped_at: placed }, null, null);
     assert.equal(steps[2].done, true);
     assert.equal(steps[4].done, true);
   });

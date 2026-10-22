@@ -24,10 +24,10 @@ describe('fields and lists', () => {
     await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, role) values (${me.id}, 'nurse_injector')`), /invalid input value for enum/);
     await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, role) values (${me.id}, 'surgeon')`), /invalid input value for enum/);
   }));
-  test('source_kind is social, event, warm or cold, and the old meta_ad is gone', () => h.withDb(async (sql) => {
+  test('lead_source is social, event, warm or cold, and the old meta_ad is gone', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     for (const k of ['social', 'event', 'warm', 'cold']) await h.contact(sql, me, { source: k });
-    await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, source_kind) values (${me.id}, 'meta_ad')`), /invalid input value/);
+    await assert.rejects(sql.savepoint((s) => s`insert into contacts (owner_id, lead_source) values (${me.id}, 'meta_ad')`), /invalid input value/);
   }));
   test('fillers_used and prp_used are fixed lists that start empty', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -44,7 +44,7 @@ describe('fields and lists', () => {
   test('the new list values exist', () => h.withDb(async (sql) => {
     const has = async (type, v) => (await sql`select 1 from pg_enum e join pg_type t on t.oid = e.enumtypid where t.typname = ${type} and e.enumlabel = ${v}`).length === 1;
     assert.ok(await has('interactions_source', 'my_fifty'));
-    assert.ok(await has('change_log_source', 'my_fifty'));
+    assert.ok(await has('change_logs_source', 'my_fifty'));
     assert.ok(await has('notifications_kind', 'new_lead'));
   }));
 });
@@ -61,8 +61,8 @@ describe('triggers', () => {
     const me = await h.user(sql);
     const id = await h.contact(sql, me, { first: 'Old' });
     await asUser(me.id, (tx) => tx`update contacts set first_name = 'New', role = 'manager' where id = ${id}`);
-    const rows = await sql`select field, old_value, new_value, actor_user_id, actor_kind::text, source::text, action, contact_id from change_log where entity_id = ${id} and action = 'update' order by field`;
-    assert.deepEqual(rows.map((r) => r.field), ['first_name', 'role']);
+    const rows = await sql`select field_name, old_value, new_value, actor_user_id, actor_kind::text, source::text, action, contact_id from change_logs where entity_id = ${id} and action = 'update' order by field_name`;
+    assert.deepEqual(rows.map((r) => r.field_name), ['first_name', 'role']);
     assert.equal(rows[0].old_value, 'Old');
     assert.equal(rows[0].new_value, 'New');
     assert.equal(rows[0].actor_user_id, me.id);
@@ -73,45 +73,45 @@ describe('triggers', () => {
   test('a change with nobody set is logged as an integration from the database', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const id = await h.contact(sql, me);
-    const [r] = await sql`select actor_user_id, actor_kind::text, source::text, action from change_log where entity_id = ${id}`;
+    const [r] = await sql`select actor_user_id, actor_kind::text, source::text, action from change_logs where entity_id = ${id}`;
     assert.deepEqual([r.actor_user_id, r.actor_kind, r.source, r.action], [null, 'integration', 'db_trigger', 'create']);
   }));
   test('changing the owner is logged as a reassign', () => h.withDb(async (sql) => {
     const a = await h.user(sql), b = await h.user(sql);
     const id = await h.contact(sql, a);
     await sql`update contacts set owner_id = ${b.id} where id = ${id}`;
-    const [r] = await sql`select action from change_log where entity_id = ${id} and field = 'owner_id'`;
+    const [r] = await sql`select action from change_logs where entity_id = ${id} and field_name = 'owner_id'`;
     assert.equal(r.action, 'reassign');
   }));
   test('an order line change is filed under the order’s contact', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const c = await h.contact(sql, me);
     const o = await h.order(sql, c, me);
-    const [r] = await sql`select contact_id from change_log where entity_type = 'order_lines' and action = 'create' and contact_id = ${c}`;
+    const [r] = await sql`select contact_id from change_logs where entity_type = 'order_lines' and action = 'create' and contact_id = ${c}`;
     assert.ok(r);
     void o;
   }));
   test('Gmail and push credentials are masked in the log', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    const [uc] = await sql`insert into user_connections (user_id, kind, credentials, status) values (${me.id}, 'gmail', 'secret-1', 'connected') returning id`;
-    await sql`update user_connections set credentials = 'secret-2' where id = ${uc.id}`;
-    const [r] = await sql`select old_value, new_value, is_sensitive from change_log where entity_id = ${uc.id} and field = 'credentials'`;
+    const [uc] = await sql`insert into connections (user_id, provider, credentials_encrypted, status) values (${me.id}, 'gmail', 'secret-1', 'connected') returning id`;
+    await sql`update connections set credentials_encrypted = 'secret-2' where id = ${uc.id}`;
+    const [r] = await sql`select old_value, new_value, is_sensitive from change_logs where entity_id = ${uc.id} and field_name = 'credentials_encrypted'`;
     assert.deepEqual([r.old_value, r.new_value, r.is_sensitive], ['***', '***', true]);
   }));
   test('settings changes are logged by key', () => h.withDb(async (sql) => {
     await sql`insert into settings (key, value) values ('unit_test_key', '{"a":1}'::jsonb)`;
-    const [r] = await sql`select field, action from change_log where entity_type = 'settings' and field = 'unit_test_key'`;
-    assert.deepEqual([r.field, r.action], ['unit_test_key', 'insert']);
+    const [r] = await sql`select field_name, action from change_logs where entity_type = 'settings' and field_name = 'unit_test_key'`;
+    assert.deepEqual([r.field_name, r.action], ['unit_test_key', 'insert']);
   }));
   test('the change log cannot be edited or deleted, and sets its own time', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const id = await h.contact(sql, me);
-    const [r] = await sql`select id, at from change_log where entity_id = ${id}`;
-    assert.ok(Math.abs(new Date(r.at) - Date.now()) < 120000);
-    await assert.rejects(sql.savepoint((s) => s`update change_log set note = 'x' where id = ${r.id}`), /append-only/);
-    await assert.rejects(sql.savepoint((s) => s`delete from change_log where id = ${r.id}`), /append-only/);
-    const [ins] = await sql`insert into change_log (at, action, entity_type) values ('2000-01-01', 'test', 'x') returning at`;
-    assert.ok(new Date(ins.at) > new Date('2025-01-01'));
+    const [r] = await sql`select id, changed_at from change_logs where entity_id = ${id}`;
+    assert.ok(Math.abs(new Date(r.changed_at) - Date.now()) < 120000);
+    await assert.rejects(sql.savepoint((s) => s`update change_logs set note = 'x' where id = ${r.id}`), /append-only/);
+    await assert.rejects(sql.savepoint((s) => s`delete from change_logs where id = ${r.id}`), /append-only/);
+    const [ins] = await sql`insert into change_logs (changed_at, action, entity_type) values ('2000-01-01', 'test', 'x') returning changed_at`;
+    assert.ok(new Date(ins.changed_at) > new Date('2025-01-01'));
   }));
 });
 

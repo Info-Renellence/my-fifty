@@ -82,7 +82,7 @@ describe('book', () => {
     const mine = await h.contact(sql, me);
     await h.contact(sql, other);
     const del = await h.contact(sql, me); await sql`update contacts set deleted_at = now() where id = ${del}`;
-    const mer = await h.contact(sql, me); await sql`update contacts set merged_into_id = ${mine} where id = ${mer}`;
+    const mer = await h.contact(sql, me); await sql`update contacts set merged_into_contact_id = ${mine} where id = ${mer}`;
     assert.deepEqual((await B.book(sql, me)).people.map((p) => p.id), [mine]);
   }));
   test('stages: no orders = lead, samples only = candidate, a paid order = Fifty', () => h.withDb(async (sql) => {

@@ -16,7 +16,7 @@
 // An order n8n did not accept (down, timed out, refused) is sent again by the timer (api/cron.js resendOrders,
 // Yousef 2026-10-21, F22). Every order call carries a once-only key, X-Idempotency-Key: order:<id>, the same on
 // every try, so the n8n branch approves an order once however many times it arrives; an order n8n accepted is
-// recorded in change_log (action 'send') and never sent again.
+// recorded in change_logs (action 'send') and never sent again.
 async function call(action, payload) {
   const url = String(process.env.N8N_MYFIFTY_URL || '').trim();
   if (!url) return { queued: false, reason: 'n8n_not_connected' };

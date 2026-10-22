@@ -1,5 +1,5 @@
 // Everything My Fifty writes (POST /api/act, body { op, ... }). Every write runs as the signed-in person inside
-// asUser(), so the change_log trigger records who did it, from My Fifty.
+// asUser(), so the change_logs trigger records who did it, from My Fifty.
 //
 //   log              L3 Save: a call / visit / text, reached or not, the note, and the next follow-up
 //   undo             L4 Undo: takes that log back
@@ -38,7 +38,7 @@ const isAdmin = (me) => !!me && me.kind === 'admin';
 // The contact, if it is in this person's book (an admin: anyone's).
 async function mine(sql, me, id) {
   if (!isUuid(id)) throw fail(400, 'bad_id');
-  const [c] = await sql`select id, owner_id, first_name, last_name, designation, email, secondary_email, phone, mobile, clinic_id from contacts
+  const [c] = await sql`select id, owner_id, first_name, last_name, designation, email, secondary_email, phone, mobile_phone, clinic_id from contacts
     where id = ${id} and (owner_id = ${me.id} or ${isAdmin(me)}::boolean) and deleted_at is null`;
   if (!c) throw fail(404, 'not_found');
   return c;
@@ -77,7 +77,7 @@ const OPS = {
     const before = await B.book(sql, me, { contactId: c.id, everyone: isAdmin(me) });
     const out = await asUser(me.id, async (tx) => {
       const [i] = await tx`
-        insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by)
+        insert into interactions (kind, contact_id, user_id, occurred_at, direction, mode, status, outcome, body, source, created_by_id)
         values (${kind}, ${c.id}, ${me.id}, now(), 'out', ${kind === 'meeting' ? 'in_person' : kind === 'call' ? 'phone' : null}, 'completed',
                 ${b.reached ? 'connected' : 'no_answer'}, ${text}, 'my_fifty', ${me.id})
         returning id`;
@@ -86,10 +86,10 @@ const OPS = {
         update tasks set status = 'done', completed_at = now()
          where contact_id = ${c.id} and assignee_id = ${me.id} and status = 'open' and deleted_at is null returning id`;
       const [t] = await tx`
-        insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source, from_interaction_id)
+        insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source, from_interaction_id)
         values (${c.id}, ${me.id}, ${me.id}, ${next || 'Follow up'}, ${kind === 'meeting' ? 'visit' : 'call'}, ${due}, 'open', 'manual', ${i.id})
         returning id`;
-      if (isUuid(b.aiOutputId)) await tx`update ai_outputs set output_data = coalesce(output_data, '{}'::jsonb) || ${tx.json({ saved_as: i.id })} where id = ${b.aiOutputId} and created_by = ${me.id}`;
+      if (isUuid(b.aiOutputId)) await tx`update ai_outputs set output_json = coalesce(output_json, '{}'::jsonb) || ${tx.json({ saved_as: i.id })} where id = ${b.aiOutputId} and created_by_id = ${me.id}`;
       return { interactionId: i.id, taskId: t.id, closedTaskIds: closed.map((r) => r.id) };
     });
     const cfg = await B.settings(sql);
@@ -119,20 +119,20 @@ const OPS = {
     const tomorrow = T.addDays(T.ymd(), 1);
     await asUser(me.id, async (tx) => {
       if (isUuid(b.taskId)) await tx`update tasks set due_at = ${T.atLocal(tomorrow, 9, 0)} where id = ${b.taskId} and assignee_id = ${me.id} and status = 'open'`;
-      // Hidden from Today until tomorrow (SOP: dismissals of derived to-dos live in users.settings).
-      // Settings saved as anything but an object (seen in v2) are started again as an object.
+      // Hidden from Today until tomorrow (SOP: dismissals of derived to-dos live in users.preferences).
+      // Preferences saved as anything but an object (seen in v2) are started again as an object.
       // Read what is saved now (locked), not what was there at sign-in, so two quick saves never undo each other.
-      const [now] = await tx`select settings from users where id = ${me.id} for update`;
-      const snoozed = Object.assign({}, (objectOrEmpty(now && now.settings).snoozed) || {});
+      const [now] = await tx`select preferences from users where id = ${me.id} for update`;
+      const snoozed = Object.assign({}, (objectOrEmpty(now && now.preferences).snoozed) || {});
       for (const k of Object.keys(snoozed)) if (snoozed[k] <= T.ymd()) delete snoozed[k];
       snoozed[c.id] = tomorrow;
-      await tx`update users set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end) || ${tx.json({ snoozed })} where id = ${me.id}`;
+      await tx`update users set preferences = (case when jsonb_typeof(preferences) = 'object' then preferences else '{}'::jsonb end) || ${tx.json({ snoozed })} where id = ${me.id}`;
     });
     return { ok: true };
   },
 
   async seen_fifty(me) {
-    await asUser(me.id, (tx) => tx`update users set settings = (case when jsonb_typeof(settings) = 'object' then settings else '{}'::jsonb end) || ${tx.json({ fifty_seen_at: new Date().toISOString() })} where id = ${me.id}`);
+    await asUser(me.id, (tx) => tx`update users set preferences = (case when jsonb_typeof(preferences) = 'object' then preferences else '{}'::jsonb end) || ${tx.json({ fifty_seen_at: new Date().toISOString() })} where id = ${me.id}`);
     return { ok: true };
   },
 
@@ -156,7 +156,7 @@ const OPS = {
       if (dupe) throw fail(409, dupe.owner_id === me.id ? 'email_yours' : 'email_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     if (phone) {
-      const [dupe] = await sql`select id, owner_id from contacts where (phone = ${phone} or mobile = ${phone}) and deleted_at is null`;
+      const [dupe] = await sql`select id, owner_id from contacts where (phone = ${phone} or mobile_phone = ${phone}) and deleted_at is null`;
       if (dupe) throw fail(409, dupe.owner_id === me.id ? 'already_yours' : 'already_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     const id = await asUser(me.id, async (tx) => {
@@ -167,7 +167,7 @@ const OPS = {
       }
       // A new person's shipping address starts as their clinic's location (SOP section 4).
       const [c] = await tx`
-        insert into contacts (clinic_id, owner_id, first_name, last_name, email, role, mobile, source_kind,
+        insert into contacts (clinic_id, owner_id, first_name, last_name, email, role, mobile_phone, lead_source,
                               shipping_street, shipping_city, shipping_province, shipping_postal_code)
         values (${clinic ? clinic.id : null}, ${me.id}, ${first || null}, ${last || null}, ${email || null}, ${role}, ${phone || null},
                 ${warm ? 'warm' : 'cold'}, ${clinic ? clinic.street : null}, ${clinic ? clinic.city : null}, ${clinic ? clinic.province : null}, ${clinic ? clinic.postal_code : null})
@@ -194,7 +194,7 @@ const OPS = {
     await asUser(me.id, async (tx) => {
       const [t] = await tx`select id from tasks where contact_id = ${c.id} and assignee_id = ${me.id} and status = 'open' and deleted_at is null order by due_at nulls last limit 1`;
       if (t) await tx`update tasks set due_at = ${due} where id = ${t.id}`;
-      else await tx`insert into tasks (contact_id, assignee_id, created_by, title, type, due_at, status, source) values (${c.id}, ${me.id}, ${me.id}, 'Follow up', 'call', ${due}, 'open', 'manual')`;
+      else await tx`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values (${c.id}, ${me.id}, ${me.id}, 'Follow up', 'call', ${due}, 'open', 'manual')`;
     });
     return { ok: true, label: T.short(due) };
   },
@@ -204,11 +204,11 @@ const OPS = {
     const Ls = require('./_lists');
     const sql = db();
     const c = await mine(sql, me, b.contactId);
-    const fillers = Array.isArray(b.fillers) ? await Ls.listToDb(sql, 'contacts_filler', b.fillers) : null;
-    const prp = Array.isArray(b.prp) ? await Ls.listToDb(sql, 'contacts_prp', b.prp) : null;
+    const fillers = Array.isArray(b.fillers) ? await Ls.listToDb(sql, 'contacts_fillers_used', b.fillers) : null;
+    const prp = Array.isArray(b.prp) ? await Ls.listToDb(sql, 'contacts_prp_used', b.prp) : null;
     await asUser(me.id, async (tx) => {
-      if (fillers) await tx`update contacts set fillers_used = ${fillers}::contacts_filler[] where id = ${c.id}`;
-      if (prp) await tx`update contacts set prp_used = ${prp}::contacts_prp[] where id = ${c.id}`;
+      if (fillers) await tx`update contacts set fillers_used = ${fillers}::contacts_fillers_used[] where id = ${c.id}`;
+      if (prp) await tx`update contacts set prp_used = ${prp}::contacts_prp_used[] where id = ${c.id}`;
     });
     return { ok: true };
   },
@@ -259,13 +259,13 @@ const OPS = {
     // More than 999 of one product is refused, never silently left off the order.
     if (want.length < asked.length) throw fail(400, 'too_many');
     if (want.some((l) => l.price != null && !(l.price >= 0 && l.price <= 100000))) throw fail(400, 'bad_price');
-    const prods = await sql`select id, sku, name, list_price::float8 as price from products where active and sku = any(${want.map((l) => l.sku)})`;
+    const prods = await sql`select id, sku, name, list_price::float8 as price from products where is_active and sku = any(${want.map((l) => l.sku)})`;
     const by = Object.fromEntries(prods.map((p) => [p.sku, p]));
     if (want.some((l) => !by[l.sku])) throw fail(400, 'unknown_product');
     const lines = want.map((l) => {
       const p = by[l.sku];
       const unit = l.free ? 0 : l.price != null ? l.price : (p.price || 0);
-      return { product_id: p.id, sku: p.sku, name: p.name, quantity: l.qty, unit_price: unit, list_price: p.price, is_free: !(unit > 0) };
+      return { product_id: p.id, product_sku: p.sku, product_name: p.name, quantity: l.qty, unit_price: unit, list_price: p.price, is_free: !(unit > 0) };
     });
     const total = lines.reduce((a, l) => a + l.quantity * l.unit_price, 0);
     const samples = !(total > 0);   // nothing to pay: a sample order, which needs the MD
@@ -291,12 +291,12 @@ const OPS = {
         }
       }
       const [o] = await tx`
-        insert into orders (contact_id, rep_id, placed_by, channel, status, submitted_at, md_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)
+        insert into orders (contact_id, rep_id, placed_by_id, channel, status, submitted_at, medical_director_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)
         values (${c.id}, ${c.owner_id || me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null}, ${terms})
         returning id`;
       for (const l of lines) {
-        await tx`insert into order_lines (order_id, product_id, sku, name, quantity, unit_price, list_price, is_free)
-                 values (${o.id}, ${l.product_id}, ${l.sku}, ${l.name}, ${l.quantity}, ${l.unit_price}, ${l.list_price}, ${l.is_free})`;
+        await tx`insert into order_lines (order_id, product_id, product_sku, product_name, quantity, unit_price, list_price, is_free)
+                 values (${o.id}, ${l.product_id}, ${l.product_sku}, ${l.product_name}, ${l.quantity}, ${l.unit_price}, ${l.list_price}, ${l.is_free})`;
       }
       // A wire order counts as sold as soon as it is placed (orders.payment_method = 'wire', read by api/_book.js) and
       // is never marked paid for that. Collecting the money is tracked by one pending wire payment row (SOP), which an
@@ -310,15 +310,15 @@ const OPS = {
     const sent = await require('./_n8n').call('order', { orderId });
     // Accepted by n8n: recorded so the timer never sends it again. Not accepted: the timer tries again (F22).
     if (sent.queued) await asUser(me.id, (tx) => tx`
-      insert into change_log (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
+      insert into change_logs (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
       values (${me.id}, 'user', 'my_fifty', 'send', 'orders', ${orderId}, ${c.id}, 'Sent for approval')`);
     return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason };
   },
 
   async resend_pay_link(me, b) {
     const o = await myOrder(me, b.orderId);
-    // At most once an hour, like Remind MD (Yousef 2026-10-21, Q4); the last resend is in change_log.
-    const [last] = await db()`select max(at) as at from change_log where entity_type = 'orders' and entity_id = ${o.id} and action = 'resend' and note = 'Pay link resent'`;
+    // At most once an hour, like Remind MD (Yousef 2026-10-21, Q4); the last resend is in change_logs.
+    const [last] = await db()`select max(changed_at) as at from change_logs where entity_type = 'orders' and entity_id = ${o.id} and action = 'resend' and note = 'Pay link resent'`;
     if (last && last.at && Date.now() - new Date(last.at) < 3600000) throw fail(429, 'resent_recently');
     const sent = await require('./_n8n').call('resend_pay_link', { orderId: o.id });
     if (sent.queued) await logResend(me, 'orders', o.id, o.contact_id, 'Pay link resent');
@@ -366,7 +366,7 @@ const OPS = {
     if (!subject || !text) throw fail(400, 'subject_and_message_required');
     const r = await require('./_gmail').send(sql, me, { to, subject, text });
     await asUser(me.id, (tx) => tx`
-      insert into interactions (kind, contact_id, user_id, occurred_at, direction, status, subject, body, thread_id, addresses, source, external_id, created_by)
+      insert into interactions (kind, contact_id, user_id, occurred_at, direction, status, subject, body, thread_id, participants, source, external_id, created_by_id)
       values ('email', ${c.id}, ${me.id}, now(), 'out', 'completed', ${subject}, ${text}, ${r.threadId}, ${tx.json({ from: me.email, to })},
               'my_fifty', ${r.messageId}, ${me.id})`);
     return { ok: true };
@@ -390,10 +390,10 @@ async function myOrder(me, id) {
   return o;
 }
 
-// Resends are kept in change_log (SOP section 4: "Resend history goes in change_log").
+// Resends are kept in change_logs (SOP section 4: "Resend history goes in change_logs").
 async function logResend(me, table, id, contactId, note) {
   await asUser(me.id, (tx) => tx`
-    insert into change_log (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
+    insert into change_logs (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
     values (${me.id}, 'user', 'my_fifty', 'resend', ${table}, ${id}, ${contactId}, ${note})`);
 }
 

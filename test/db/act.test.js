@@ -41,8 +41,8 @@ describe('log (L3 Save)', () => {
     const r = await A.log(me, { contactId: c, kind: 'call', reached: true, followUp: 'tomorrow', note: 'Talked lips.\nNext: send pricing' });
     const [i] = await sql`select kind::text, mode::text, outcome, body, source::text, user_id, direction::text, status::text from interactions where id = ${r.interactionId}`;
     assert.deepEqual(i, { kind: 'call', mode: 'phone', outcome: 'connected', body: 'Talked lips.\nNext: send pricing', source: 'my_fifty', user_id: me.id, direction: 'out', status: 'completed' });
-    const [t] = await sql`select title, type::text, status::text, due_at, from_interaction_id from tasks where id = ${r.taskId}`;
-    assert.deepEqual([t.title, t.type, t.status, t.from_interaction_id, t.due_at.toISOString()], ['send pricing', 'call', 'open', r.interactionId, tomorrow9()]);
+    const [t] = await sql`select title, kind::text, status::text, due_at, from_interaction_id from tasks where id = ${r.taskId}`;
+    assert.deepEqual([t.title, t.kind, t.status, t.from_interaction_id, t.due_at.toISOString()], ['send pricing', 'call', 'open', r.interactionId, tomorrow9()]);
     const [o] = await sql`select status::text, completed_at from tasks where id = ${old}`;
     assert.equal(o.status, 'done');
     assert.ok(o.completed_at);
@@ -57,8 +57,8 @@ describe('log (L3 Save)', () => {
     const r = await A.log(me, { contactId: c, kind: 'visit', reached: false, followUp: 'eod', note: 'Nobody in.' });
     const [i] = await sql`select kind::text, mode::text, outcome from interactions where id = ${r.interactionId}`;
     assert.deepEqual(i, { kind: 'meeting', mode: 'in_person', outcome: 'no_answer' });
-    const [t] = await sql`select type::text, title from tasks where id = ${r.taskId}`;
-    assert.deepEqual(t, { type: 'visit', title: 'Follow up' });
+    const [t] = await sql`select kind::text, title from tasks where id = ${r.taskId}`;
+    assert.deepEqual(t, { kind: 'visit', title: 'Follow up' });
     // A no-show visit does not count toward the day (Yousef 2026-10-21, Q9); it used to count.
     assert.equal(r.day.done, 0);
     assert.equal(r.counted, false);
@@ -93,10 +93,10 @@ describe('log (L3 Save)', () => {
   }));
   test('a voice draft is linked to the saved log', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
-    const [ai] = await sql`insert into ai_outputs (kind, contact_id, output, output_data, created_by) values ('voice_note', ${c}, 'x', ${sql.json({ note: 'x' })}, ${me.id}) returning id`;
+    const [ai] = await sql`insert into ai_outputs (kind, contact_id, output_text, output_json, created_by_id) values ('voice_note', ${c}, 'x', ${sql.json({ note: 'x' })}, ${me.id}) returning id`;
     const r = await A.log(me, { contactId: c, kind: 'call', reached: true, followUp: 'eod', note: 'x note', aiOutputId: ai.id });
-    const [row] = await sql`select output_data from ai_outputs where id = ${ai.id}`;
-    assert.deepEqual(row.output_data, { note: 'x', saved_as: r.interactionId });
+    const [row] = await sql`select output_json from ai_outputs where id = ${ai.id}`;
+    assert.deepEqual(row.output_json, { note: 'x', saved_as: r.interactionId });
   }));
   test('the next person on Today is offered', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
@@ -107,7 +107,7 @@ describe('log (L3 Save)', () => {
   test('the change log records the log as mine, from My Fifty', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const r = await A.log(me, { contactId: c, kind: 'call', reached: true, followUp: 'eod', note: 'x note' });
-    const [l] = await sql`select actor_user_id, source::text from change_log where entity_id = ${r.interactionId}`;
+    const [l] = await sql`select actor_user_id, source::text from change_logs where entity_id = ${r.interactionId}`;
     assert.deepEqual([l.actor_user_id, l.source], [me.id, 'my_fifty']);
   }));
 });
@@ -146,13 +146,13 @@ describe('undo (L4)', () => {
 
 describe('snooze, seen_fifty', () => {
   test('Tomorrow moves the follow-up and hides the person until tomorrow; settings stay an object', () => h.withDb(async (sql) => {
-    const me = await h.user(sql, { settings: { snoozed: { gone: '2020-01-01' }, other: 1 } }), c = await h.contact(sql, me);
+    const me = await h.user(sql, { preferences: { snoozed: { gone: '2020-01-01' }, other: 1 } }), c = await h.contact(sql, me);
     const t = await h.task(sql, c, me.id);
     await A.snooze(me, { contactId: c, taskId: t });
     const [task] = await sql`select due_at from tasks where id = ${t}`;
     assert.equal(task.due_at.toISOString(), tomorrow9());
-    const [u] = await sql`select settings from users where id = ${me.id}`;
-    assert.deepEqual(u.settings, { other: 1, snoozed: { [c]: T.addDays(T.ymd(), 1) } }, 'an object, old snoozes dropped');
+    const [u] = await sql`select preferences from users where id = ${me.id}`;
+    assert.deepEqual(u.preferences, { other: 1, snoozed: { [c]: T.addDays(T.ymd(), 1) } }, 'an object, old snoozes dropped');
   }));
   test('snooze without a task only hides them; someone else’s person is refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);
@@ -160,18 +160,18 @@ describe('snooze, seen_fifty', () => {
     await assert.rejects(A.snooze(me, { contactId: await h.contact(sql, other) }), st(404, 'not_found'));
   }));
   test('seen_fifty keeps the other settings and stays an object', () => h.withDb(async (sql) => {
-    const me = await h.user(sql, { settings: { snoozed: { a: '2030-01-01' } } });
+    const me = await h.user(sql, { preferences: { snoozed: { a: '2030-01-01' } } });
     await A.seen_fifty(me);
-    const [u] = await sql`select settings, jsonb_typeof(settings) t from users where id = ${me.id}`;
+    const [u] = await sql`select preferences, jsonb_typeof(preferences) t from users where id = ${me.id}`;
     assert.equal(u.t, 'object');
-    assert.deepEqual(u.settings.snoozed, { a: '2030-01-01' });
-    assert.ok(Date.parse(u.settings.fifty_seen_at) > Date.now() - 60000);
+    assert.deepEqual(u.preferences.snoozed, { a: '2030-01-01' });
+    assert.ok(Date.parse(u.preferences.fifty_seen_at) > Date.now() - 60000);
   }));
   test('seen_fifty on a user with no settings at all', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
-    await sql`update users set settings = null where id = ${me.id}`;
+    await sql`update users set preferences = null where id = ${me.id}`;
     await A.seen_fifty(me);
-    const [u] = await sql`select jsonb_typeof(settings) t from users where id = ${me.id}`;
+    const [u] = await sql`select jsonb_typeof(preferences) t from users where id = ${me.id}`;
     assert.equal(u.t, 'object');
   }));
 });
@@ -187,17 +187,17 @@ describe('add_person (L13)', () => {
     const me = await h.user(sql);
     const cl = await h.clinic(sql, { name: 'Unit Clinic Reuse' });
     const r = await A.add_person(me, { firstName: ' Ana ', lastName: 'Lee', clinic: 'unit clinic reuse', phone: '647-555-0101', email: 'Ana.Lee@Test.invalid', role: 'injector', warm: false });
-    const [c] = await sql`select owner_id, clinic_id, first_name, email::text, mobile, role::text, source_kind::text, shipping_street, shipping_city from contacts where id = ${r.id}`;
-    assert.deepEqual(c, { owner_id: me.id, clinic_id: cl.id, first_name: 'Ana', email: 'ana.lee@test.invalid', mobile: '+16475550101', role: 'injector', source_kind: 'cold', shipping_street: '1 Test St', shipping_city: 'Testville' });
-    const [l] = await sql`select actor_user_id, action from change_log where entity_id = ${r.id} and action = 'create'`;
+    const [c] = await sql`select owner_id, clinic_id, first_name, email::text, mobile_phone, role::text, lead_source::text, shipping_street, shipping_city from contacts where id = ${r.id}`;
+    assert.deepEqual(c, { owner_id: me.id, clinic_id: cl.id, first_name: 'Ana', email: 'ana.lee@test.invalid', mobile_phone: '+16475550101', role: 'injector', lead_source: 'cold', shipping_street: '1 Test St', shipping_city: 'Testville' });
+    const [l] = await sql`select actor_user_id, action from change_logs where entity_id = ${r.id} and action = 'create'`;
     assert.equal(l.actor_user_id, me.id, '"Added by you" comes from this');
   }));
   test('a new clinic is made when none matches; warm is the default; an unknown role is dropped', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const name = 'Brand New Clinic ' + h.uid();
     const r = await A.add_person(me, { firstName: 'Bo', clinic: name, role: 'astronaut' });
-    const [c] = await sql`select cl.name, c.source_kind::text, c.role from contacts c join clinics cl on cl.id = c.clinic_id where c.id = ${r.id}`;
-    assert.deepEqual(c, { name, source_kind: 'warm', role: null });
+    const [c] = await sql`select cl.name, c.lead_source::text, c.role from contacts c join clinics cl on cl.id = c.clinic_id where c.id = ${r.id}`;
+    assert.deepEqual(c, { name, lead_source: 'warm', role: null });
   }));
   test('no clinic is fine', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -241,7 +241,7 @@ describe('set_follow_up, set_uses, edit_note, invoice_email', () => {
     const [r] = await sql`select fillers_used::text[] f, prp_used::text[] p from contacts where id = ${c}`;
     assert.deepEqual(r.f, ['saypha', 'other']);
     const L = require('../../api/_lists');
-    assert.deepEqual(L.canonAll('contacts_prp', r.p), ['exprecell_prf', 'arthrex_prf'], 'stored under whichever name v2 has, read as the new names');
+    assert.deepEqual(L.canonAll('contacts_prp_used', r.p), ['exprecell_prf', 'arthrex_prf'], 'stored under whichever name v2 has, read as the new names');
     await A.set_uses(me, { contactId: c, fillers: ['none', 'saypha'] });
     assert.deepEqual((await sql`select fillers_used::text[] f from contacts where id = ${c}`)[0].f, ['saypha'], '"none" never sits next to a filler');
     await A.set_uses(me, { contactId: c, fillers: ['none'] });
@@ -293,9 +293,9 @@ describe('order (L10 / L15 Send for approval)', () => {
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2 }, { sku: 'HDB100', qty: 1 }], approvalNote: 'Rush please', shippingNote: 'Back door' });
     assert.equal(r.sentToN8n, false);
     assert.equal(r.reason, 'n8n_not_connected');
-    const [o] = await sql`select status::text, rep_id, placed_by, payment_method::text, approval_note, shipping_note, channel::text from orders where id = ${r.orderId}`;
-    assert.deepEqual(o, { status: 'submitted', rep_id: me.id, placed_by: me.id, payment_method: 'card_on_file', approval_note: 'Rush please', shipping_note: 'Back door', channel: 'stripe' });
-    const lines = await sql`select sku, quantity, unit_price::float8 p, is_free from order_lines where order_id = ${r.orderId} order by sku`;
+    const [o] = await sql`select status::text, rep_id, placed_by_id, payment_method::text, approval_note, shipping_note, channel::text from orders where id = ${r.orderId}`;
+    assert.deepEqual(o, { status: 'submitted', rep_id: me.id, placed_by_id: me.id, payment_method: 'card_on_file', approval_note: 'Rush please', shipping_note: 'Back door', channel: 'stripe' });
+    const lines = await sql`select product_sku as sku, quantity, unit_price::float8 p, is_free from order_lines where order_id = ${r.orderId} order by product_sku`;
     assert.deepEqual([...lines], [{ sku: 'HDB100', quantity: 1, p: 0, is_free: true }, { sku: 'SAF100', quantity: 2, p: 225, is_free: false }]);
     assert.equal((await sql`select count(*)::int n from payments where order_id = ${r.orderId}`)[0].n, 0);
   }));
@@ -316,8 +316,8 @@ describe('order (L10 / L15 Send for approval)', () => {
     const me = await h.user(sql), c = await ready(sql, me);
     const md = await h.contact(sql, null, { owner: null, email: 'md.found@test.invalid' });
     const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 2 }], mdName: 'Dr. Found', mdEmail: 'MD.Found@test.invalid' });
-    const [o] = await sql`select md_contact_id, payment_method from orders where id = ${r.orderId}`;
-    assert.deepEqual(o, { md_contact_id: md, payment_method: null });
+    const [o] = await sql`select medical_director_contact_id, payment_method from orders where id = ${r.orderId}`;
+    assert.deepEqual(o, { medical_director_contact_id: md, payment_method: null });
     assert.equal((await sql`select is_medical_director from contacts where id = ${md}`)[0].is_medical_director, true);
     assert.ok((await sql`select bool_and(is_free) ok from order_lines where order_id = ${r.orderId}`)[0].ok);
   }));
@@ -325,7 +325,7 @@ describe('order (L10 / L15 Send for approval)', () => {
     const me = await h.user(sql), c = await ready(sql, me);
     const email = 'md.new.' + h.uid() + '@test.invalid';
     const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr. Lee Unit', mdEmail: email });
-    const [md] = await sql`select first_name, last_name, designation, owner_id, is_medical_director, role::text from contacts where id = (select md_contact_id from orders where id = ${r.orderId})`;
+    const [md] = await sql`select first_name, last_name, designation, owner_id, is_medical_director, role::text from contacts where id = (select medical_director_contact_id from orders where id = ${r.orderId})`;
     assert.deepEqual(md, { first_name: 'Lee', last_name: 'Unit', designation: 'md', owner_id: null, is_medical_director: true, role: 'physician' });
   }));
   test('with n8n connected, the order is sent with its id and the key', () => h.withDb(async (sql) => {
@@ -345,14 +345,14 @@ describe('resend_pay_link and remind_md', () => {
     await assert.rejects(A.resend_pay_link(me, { orderId: await h.order(sql, await h.contact(sql, other), other) }), st(404, 'not_found'));
     const o = await h.order(sql, await h.contact(sql, me), me);
     assert.deepEqual(await A.resend_pay_link(me, { orderId: o }), { ok: false, reason: 'n8n_not_connected' });
-    assert.equal((await sql`select count(*)::int n from change_log where entity_id = ${o} and action = 'resend'`)[0].n, 0);
+    assert.equal((await sql`select count(*)::int n from change_logs where entity_id = ${o} and action = 'resend'`)[0].n, 0);
   }));
   test('resend with n8n on is logged as a resend', () => h.withDb(async (sql) => {
     process.env.N8N_MYFIFTY_URL = 'https://n8n.test/hook';
     f = h.fakeFetch(() => ({ json: {} }));
     const me = await h.user(sql), c = await h.contact(sql, me), o = await h.order(sql, c, me);
     assert.equal((await A.resend_pay_link(me, { orderId: o })).ok, true);
-    const [l] = await sql`select actor_user_id, contact_id, note, source::text from change_log where entity_id = ${o} and action = 'resend'`;
+    const [l] = await sql`select actor_user_id, contact_id, note, source::text from change_logs where entity_id = ${o} and action = 'resend'`;
     assert.deepEqual(l, { actor_user_id: me.id, contact_id: c, note: 'Pay link resent', source: 'my_fifty' });
   }));
   test('resend pay link: at most once an hour (Q4)', () => h.withDb(async (sql) => {
@@ -379,7 +379,7 @@ describe('resend_pay_link and remind_md', () => {
     const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);
     const [onb] = await sql`insert into onboardings (primary_contact_id, status) values (${c}, 'submitted') returning id`;
     assert.equal((await A.remind_md(me, { onboardingId: onb.id })).ok, true);
-    const [l] = await sql`select note from change_log where entity_id = ${onb.id} and action = 'resend'`;
+    const [l] = await sql`select note from change_logs where entity_id = ${onb.id} and action = 'resend'`;
     assert.equal(l.note, 'MD reminded to sign');
     const [theirs] = await sql`insert into onboardings (primary_contact_id, status) values (${await h.contact(sql, other)}, 'submitted') returning id`;
     await assert.rejects(A.remind_md(me, { onboardingId: theirs.id }), st(404, 'not_found'));
@@ -395,8 +395,8 @@ describe('voice', () => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const r = await A.voice(me, { contactId: c, audio: 'AAAA', mime: 'audio/webm;codecs=opus' });
     assert.deepEqual([r.note, r.nextStep, r.followUpDate], ['Met Maya.', 'Send pricing', tomorrow]);
-    const [ai] = await sql`select kind::text, contact_id, output, jsonb_typeof(output_data) t, created_by from ai_outputs where id = ${r.aiOutputId}`;
-    assert.deepEqual(ai, { kind: 'voice_note', contact_id: c, output: 'Met Maya.', t: 'object', created_by: me.id });
+    const [ai] = await sql`select kind::text, contact_id, output_text, jsonb_typeof(output_json) t, created_by_id from ai_outputs where id = ${r.aiOutputId}`;
+    assert.deepEqual(ai, { kind: 'voice_note', contact_id: c, output_text: 'Met Maya.', t: 'object', created_by_id: me.id });
   }));
   test('a follow-up date in the past is dropped', () => h.withDb(async (sql) => {
     process.env.GEMINI_API_KEY = 'k';
@@ -443,15 +443,15 @@ describe('email, push_subscribe, gmail_connect', () => {
     const raw = Buffer.from(JSON.parse(f.calls[1].body).raw, 'base64').toString();
     assert.match(raw, /To: p\.mail2@test\.invalid/);
     assert.match(raw, /From: Pat Rep </);
-    const [i] = await sql`select kind::text, subject, thread_id, source::text, addresses from interactions where contact_id = ${c}`;
-    assert.deepEqual(i, { kind: 'email', subject: 'Pricing', thread_id: 'th1', source: 'my_fifty', addresses: { from: me.email, to: 'p.mail2@test.invalid' } });
+    const [i] = await sql`select kind::text, subject, thread_id, source::text, participants from interactions where contact_id = ${c}`;
+    assert.deepEqual(i, { kind: 'email', subject: 'Pricing', thread_id: 'th1', source: 'my_fifty', participants: { from: me.email, to: 'p.mail2@test.invalid' } });
   }));
   test('push_subscribe stores the phone encrypted; a bad one is refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const sub = { endpoint: 'https://push.test/abc123456789', keys: { p256dh: 'P', auth: 'A' } };
     await A.push_subscribe(me, { subscription: sub });
-    const [r] = await sql`select credentials, status::text from user_connections where user_id = ${me.id} and kind = 'push'`;
-    assert.deepEqual(JSON.parse(open(r.credentials)), sub);
+    const [r] = await sql`select credentials_encrypted, status::text from connections where user_id = ${me.id} and provider = 'push'`;
+    assert.deepEqual(JSON.parse(open(r.credentials_encrypted)), sub);
     assert.equal(r.status, 'connected');
     await assert.rejects(A.push_subscribe(me, { subscription: { endpoint: 'nope' } }), st(400, 'bad_subscription'));
   }));
@@ -459,8 +459,8 @@ describe('email, push_subscribe, gmail_connect', () => {
     const me = await h.user(sql);
     await A.gmail_connect(me, { refreshToken: 'old' });
     await A.gmail_connect(me, { refreshToken: 'new' });
-    const rows = await sql`select credentials, status::text from user_connections where user_id = ${me.id} and kind = 'gmail' order by created_at`;
-    assert.deepEqual(rows.map((r) => [open(r.credentials), r.status]), [['old', 'off'], ['new', 'connected']]);
+    const rows = await sql`select credentials_encrypted, status::text from connections where user_id = ${me.id} and provider = 'gmail' order by created_at`;
+    assert.deepEqual(rows.map((r) => [open(r.credentials_encrypted), r.status]), [['old', 'off'], ['new', 'connected']]);
     await assert.rejects(A.gmail_connect(me, { refreshToken: '' }), st(400, 'no_token'));
   }));
 });

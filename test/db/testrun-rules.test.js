@@ -143,7 +143,7 @@ describe('R15-R19 rewards edge cases', () => {
   test('a reorder for me after another rep made the first sale is a reorder, and their new person is theirs', () => h.withDb(async (sql) => {
     const back = around(T.addDays(T.ymd(), -30), T.addDays(T.ymd(), 5));
     try {
-      await sql`update users set active = false where kind = 'rep'`;
+      await sql`update users set is_active = false where kind = 'rep'`;
       const me = await h.user(sql, { name: 'Pat Rep' }), other = await h.user(sql, { name: 'Robin Rep' }), c = await h.contact(sql, me);
       await h.order(sql, c, other, { status: 'shipped', days: 10, lines: [['SAF100', 2]] });
       await h.order(sql, c, me, { status: 'shipped', days: 2, lines: [['SAF100', 2]] });
@@ -167,7 +167,7 @@ describe('R11 today\'s list', () => {
     const cand = await h.contact(sql, me); await h.order(sql, cand, me, { lines: [['SAL400', 1, true]], delivered: 5 });
     const reached = await h.contact(sql, me); await h.order(sql, reached, me, { status: 'shipped', days: 60 }); await h.touch(sql, reached, me.id, { at: new Date() });
     const hidden = await h.contact(sql, me); await h.order(sql, hidden, me, { status: 'shipped', days: 70 });
-    me.settings = { snoozed: { [hidden]: T.addDays(T.ymd(), 1) } };
+    me.preferences = { snoozed: { [hidden]: T.addDays(T.ymd(), 1) } };
     const cfg = await B.settings(sql);
     const list = B.todayList((await B.book(sql, me, { cfg })).people, me, cfg);
     assert.deepEqual(list.map((x) => [x.id, x.why]), [[lead, 'lead'], [fu, 'follow_up'], [cold, 'follow_up'], [cold2, 'going_cold'], [cand, 'candidate']]);
@@ -180,10 +180,10 @@ describe('orders and money through the app (act.order)', () => {
   test('quantities: 0, negative and junk lines are dropped; decimals round; unknown or inactive products are refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready2(sql, me);
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 2.6 }, { sku: 'SAL400', qty: 0 }, { sku: 'SAV200', qty: -3 }, { sku: 'SAF100', qty: 'x' }, null, 'junk'].filter(Boolean).map((l) => (typeof l === 'string' ? {} : l)) });
-    const lines = await sql`select sku, quantity from order_lines where order_id = ${r.orderId}`;
+    const lines = await sql`select product_sku as sku, quantity from order_lines where order_id = ${r.orderId}`;
     assert.deepEqual([...lines], [{ sku: 'SAF100', quantity: 3 }]);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'NOPE', qty: 1 }] }), (e) => e.message === 'unknown_product');
-    const [p] = await sql`select sku from products where not active limit 1`;
+    const [p] = await sql`select sku from products where not is_active limit 1`;
     if (p) await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: p.sku, qty: 1 }] }), (e) => e.message === 'unknown_product');
   }));
   test('only free products make a sample order (MD needed); samples make every line free whatever the price', () => h.withDb(async (sql) => {
@@ -233,8 +233,8 @@ describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () 
   test('log: a note that is only a "Next:" line becomes the follow-up title', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const r = await A.log(me, { contactId: c, kind: 'visit', reached: true, note: 'Next: bring the volume samples', followUp: 'eod' });
-    const [t] = await sql`select title, type::text from tasks where id = ${r.taskId}`;
-    assert.deepEqual([t.title, t.type], ['bring the volume samples', 'visit']);
+    const [t] = await sql`select title, kind::text from tasks where id = ${r.taskId}`;
+    assert.deepEqual([t.title, t.kind], ['bring the volume samples', 'visit']);
   }));
   test('undo twice: the second is refused and nothing else changes; an old log cannot be undone', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
@@ -245,21 +245,21 @@ describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () 
     await assert.rejects(A.undo(me, { interactionId: old }), (e) => e.status === 404);
   }));
   test('snooze keeps other people snoozed and drops old snoozes', () => h.withDb(async (sql) => {
-    const me = await h.user(sql, { settings: { snoozed: { old: '2020-01-01', keep: '2099-01-01' } } }), c = await h.contact(sql, me);
+    const me = await h.user(sql, { preferences: { snoozed: { old: '2020-01-01', keep: '2099-01-01' } } }), c = await h.contact(sql, me);
     await A.snooze(me, { contactId: c });
-    const [u] = await sql`select settings from users where id = ${me.id}`;
-    assert.deepEqual(Object.keys(u.settings.snoozed).sort(), [c, 'keep'].sort());
+    const [u] = await sql`select preferences from users where id = ${me.id}`;
+    assert.deepEqual(Object.keys(u.preferences.snoozed).sort(), [c, 'keep'].sort());
   }));
   test('add a person: phone formats, blank names, odd characters, very long text', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const r1 = await A.add_person(me, { firstName: '  Zoë  ', lastName: "O'Brien-Ñúñez 😀", phone: '(416) 555-0199', email: 'ZOE.Testrun@Demo.Invalid', clinic: 'Testrun Odd Clinic ' + 'x'.repeat(300) });
-    const [c1] = await sql`select first_name, last_name, mobile, email::text, length(cl.name) n from contacts c join clinics cl on cl.id = c.clinic_id where c.id = ${r1.id}`;
-    assert.deepEqual([c1.first_name, c1.last_name, c1.mobile, c1.email, c1.n], ['Zoë', "O'Brien-Ñúñez 😀", '+14165550199', 'zoe.testrun@demo.invalid', 160]);
+    const [c1] = await sql`select first_name, last_name, mobile_phone, email::text, length(cl.name) n from contacts c join clinics cl on cl.id = c.clinic_id where c.id = ${r1.id}`;
+    assert.deepEqual([c1.first_name, c1.last_name, c1.mobile_phone, c1.email, c1.n], ['Zoë', "O'Brien-Ñúñez 😀", '+14165550199', 'zoe.testrun@demo.invalid', 160]);
     await assert.rejects(A.add_person(me, { firstName: '   ', lastName: '' }), (e) => e.message === 'name_required');
     await assert.rejects(A.add_person(me, { firstName: 'A', phone: '123' }), (e) => e.message === 'bad_phone');
     await assert.rejects(A.add_person(me, { firstName: 'A', email: 'not-an-email' }), (e) => e.message === 'bad_email');
     const r2 = await A.add_person(me, { firstName: 'Intl', phone: '+44 20 7946 0958' });
-    assert.equal((await sql`select mobile from contacts where id = ${r2.id}`)[0].mobile, '+442079460958');
+    assert.equal((await sql`select mobile_phone from contacts where id = ${r2.id}`)[0].mobile_phone, '+442079460958');
   }));
   test('add a person who is already in another rep\'s book: warned (email) or refused (phone), without telling who or which record', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
@@ -285,7 +285,7 @@ describe('the timer, called directly, with every outside service faked or failin
   test('a full tick with junk Gmail answers and an unreachable push service still answers, and logs what failed', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const c = await h.contact(sql, me, { source: 'social', createdAt: h.ago(0, 1) });
-    await sql`insert into user_connections (user_id, kind, account, credentials, status) values (${me.id}, 'gmail', ${me.email}, ${require('../../api/_crypto').seal('fake-refresh')}, 'connected')`;
+    await sql`insert into connections (user_id, provider, external_account, credentials_encrypted, status) values (${me.id}, 'gmail', ${me.email}, ${require('../../api/_crypto').seal('fake-refresh')}, 'connected')`;
     await require('../../api/_push').subscribe(sql, me, { endpoint: 'https://push.demo.invalid/abc', keys: { p256dh: 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', auth: 'tBHItJI5svbpez7KI4CCXg' } });
     f = h.fakeFetch((url) => (/oauth2/.test(url) ? { json: { access_token: 'at' } } : { status: 200, text: '<html>not json</html>' }));
     const res = await call(process.env.CRON_SECRET);
@@ -293,7 +293,7 @@ describe('the timer, called directly, with every outside service faked or failin
     const out = res.json();
     assert.ok(out.leads.found >= 1);
     assert.ok(out.gmail.errors >= 1, 'the junk Gmail answer is counted as an error, not a crash');
-    const [n] = await sql`select status::text, error from notifications where dedupe_key = ${'new_lead:' + c}`;
+    const [n] = await sql`select status::text, error_message from notifications where dedupe_key = ${'new_lead:' + c}`;
     assert.equal(n.status, 'failed', 'the push that could not be delivered is logged as failed');
   }));
 });
