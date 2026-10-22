@@ -8,7 +8,9 @@
 //                         a WARM lead (leadGroup), whatever their first source. A lead whose onboarding is fully
 //                         signed (the onboarding agreement completed: injector and MD) and who has no order of any
 //                         kind yet (samples or paid, not cancelled or rejected) is in the ONBOARDED group (leadGroup
-//                         'onboarded', shown first; Yousef 2026-10-22, item B); any order takes them out of it
+//                         'onboarded', shown first; Yousef 2026-10-22, item B); any order takes them out of it. The
+//                         group lists the onboarding's primary contact, never its medical director (medical_director_contact_id)
+//                         unless the MD is also the primary contact (Yousef 2026-10-22)
 //   goingCold  a Fifty person with no order and no visit (in person or video; a no-show is not a visit) in the last N days (settings, default 30)
 //   isNew      a lead nobody has called, texted, emailed or visited yet
 // Ordered and paid are different: "ordered" is every placed order that isn't cancelled or rejected; "paid" (used for
@@ -80,7 +82,10 @@ async function book(sql, me, opts) {
            c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code,
            exists (select 1 from agreements a where a.kind = 'onboarding' and a.status = 'completed'
                     and (a.contact_id = c.id or exists (select 1 from onboardings ob where ob.agreement_id = a.id
-                                                         and (ob.primary_contact_id = c.id or ob.injector_contact_id = c.id)))) as onboarding_signed
+                                                         and (ob.primary_contact_id = c.id or ob.injector_contact_id = c.id)))
+                    -- never the onboarding's medical director, unless they are also its primary contact (Yousef 2026-10-22)
+                    and not exists (select 1 from onboardings md where md.agreement_id = a.id and md.medical_director_contact_id = c.id
+                                                                   and md.primary_contact_id is distinct from c.id)) as onboarding_signed
       from contacts c
       left join clinics cl on cl.id = c.clinic_id
       left join events ev on ev.id = c.lead_source_event_id

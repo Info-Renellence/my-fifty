@@ -16,7 +16,9 @@ A fix may only make the code do what these rules say.
 - **New lead**: a lead nobody has called, texted, emailed or visited yet.
 - **Onboarded** (Yousef 2026-10-22, item B, both apps, shared `book.js`): a lead whose onboarding is fully signed (the
   onboarding agreement completed: injector and MD) and who has placed no order of any kind (samples or paid, not
-  cancelled or rejected) is in the "Onboarded" group at the top of Leads; any order takes them out of it.
+  cancelled or rejected) is in the "Onboarded" group at the top of Leads; any order takes them out of it. The group lists
+  the onboarding's primary contact (`primary_contact_id`), never its medical director (`medical_director_contact_id`)
+  unless the MD is also the primary contact (Yousef 2026-10-22).
 - **Going cold**: a Fifty person with no paid order and no in-person visit for more than 30 days (`settings.my_fifty.going_cold_days`). A no-show is not a visit (S1, 2026-10-22).
 - **Ready to order** (L9): the main contact of a signed onboarding (never the injector on it, Q8), or someone who has ordered before. Edge follows the same rule (2026-10-22, F6).
 

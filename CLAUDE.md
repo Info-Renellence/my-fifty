@@ -3,6 +3,7 @@
 Read README.md first. Short rules:
 - Data: follow `../renellence-edge/docs/data-model-sop.md` strictly. Never add, rename or remove a table, field or enum
   value in Supabase v2 without asking Yousef first, and record every v2 change in CHANGELOG-v2.md.
+- Onboarded leads group (shared `_book.js`, Yousef 2026-10-22): lists the onboarding's `primary_contact_id`, never its `medical_director_contact_id` unless the MD is also the primary contact.
 - UI: follow "Edge – Final Mockup" exactly (L1-L25, not L12, L16-L18; product picker = original #12). Don't invent UI.
 - No HubSpot. Everything reads and writes Supabase v2 (`ojphplepzuwchjtuycpv`).
 - Vercel Hobby: 60 s functions, daily crons only, 12 functions max (data.js, act.js, cron.js; helpers start with `_`).
