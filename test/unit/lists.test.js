@@ -12,6 +12,13 @@ const AFTER = { contacts_role: ['physician', 'injector', 'dentist', 'manager', '
 
 beforeEach(() => L.forgetValues());
 
+describe('order', () => {
+  test('fillers and PRP/PRF are in the rules order (LO, Yousef 2026-10-22)', () => {
+    assert.deepEqual(L.FILLERS, ['saypha', 'restylane', 'juvederm', 'belotero', 'teoxane_rha', 'revanesse', 'stylage', 'yvoire', 'other', 'none']);
+    assert.deepEqual(L.PRPS, ['exprecell_prf', 'arthrex_prf', 'alyssamed', 'regenlab', 'eclipse_prp', 'cellenis', 'world_prp', 'naturagel', 'other', 'none']);
+  });
+});
+
 describe('reading', () => {
   test('old names read as the new ones; unknown names are kept', () => {
     assert.equal(L.canon('contacts_role', 'nurse_injector'), 'injector');

@@ -5,8 +5,9 @@
 //   role:   nurse_injector -> injector, clinic_owner -> manager
 //   prp:    exprecell -> exprecell_prf, arthrex_angel -> arthrex_prf, emcyte removed (still shown if stored)
 const ROLES = ['physician', 'injector', 'dentist', 'manager', 'other'];
-const FILLERS = ['saypha', 'juvederm', 'restylane', 'teoxane_rha', 'belotero', 'revanesse', 'stylage', 'yvoire', 'other', 'none'];
-const PRPS = ['eclipse_prp', 'regenlab', 'arthrex_prf', 'exprecell_prf', 'alyssamed', 'cellenis', 'world_prp', 'naturagel', 'other', 'none'];
+// In the rules' order (Edge test-run rules section 1; Yousef 2026-10-22, LO).
+const FILLERS = ['saypha', 'restylane', 'juvederm', 'belotero', 'teoxane_rha', 'revanesse', 'stylage', 'yvoire', 'other', 'none'];
+const PRPS = ['exprecell_prf', 'arthrex_prf', 'alyssamed', 'regenlab', 'eclipse_prp', 'cellenis', 'world_prp', 'naturagel', 'other', 'none'];
 const RENAMED = {
   contacts_role: { nurse_injector: 'injector', clinic_owner: 'manager' },
   contacts_prp: { exprecell: 'exprecell_prf', arthrex_angel: 'arthrex_prf' },
