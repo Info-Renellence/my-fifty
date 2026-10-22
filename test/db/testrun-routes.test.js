@@ -35,6 +35,15 @@ describe('ops are looked up safely', () => {
       assert.equal(res.json().error, 'bad_group');
     }));
   }
+  test('SH: values that cannot become text are bad input (400), not a server error', () => h.withDb(async () => {
+    const odd = { toString: 'x' };
+    for (const body of [{ op: 'order', contactId: odd }, { op: 'log', contactId: odd }, { op: 'add_person', firstName: odd, lastName: odd }, { op: 'invoice_email', contactId: odd, email: odd }]) {
+      const res = await post(body);
+      assert.equal(res.statusCode, 400, JSON.stringify(body) + ' -> ' + res.statusCode);
+    }
+    const res = await post({ op: 'voice', contactId: odd, audio: odd, mime: odd });
+    assert.ok(res.statusCode < 500, 'voice: ' + res.statusCode);
+  }));
   test('a junk or list body is an unknown op, not a crash', async () => {
     for (const body of ['{not json', '[1,2,3]', 'null', '42']) {
       const res = await post(body);

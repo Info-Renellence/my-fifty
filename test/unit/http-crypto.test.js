@@ -85,6 +85,18 @@ describe('fail, isUuid, clean', () => {
     assert.equal(H.clean(null), '');
     assert.equal(H.clean('x'.repeat(600)).length, 500);
   });
+  test('SH: a value that cannot become text is bad input (400), never a crash', () => {
+    for (const x of [{ toString: 'x' }, { a: 1 }, ['a'], () => 'x']) assert.throws(() => H.clean(x), (e) => e.status === 400 && e.message === 'bad_input');
+    assert.equal(H.clean(5), '5'); assert.equal(H.clean(true), 'true');
+    assert.equal(H.isUuid({ toString: 'x' }), false);
+    assert.equal(H.isUuid({ toString: () => 'de000000-0000-4000-8000-000000000022' }), false);
+    assert.equal(H.isUuid(['de000000-0000-4000-8000-000000000022']), false);
+  });
+  test('SH: a route that hits a value String() cannot convert answers 400 bad_input', async () => {
+    const res = fakeRes();
+    await H.route(async () => String({ toString: 'x' }))({ method: 'POST', url: '/' }, res);
+    assert.deepEqual([res.statusCode, res.json().error], [400, 'bad_input']);
+  });
 });
 
 describe('seal and open', () => {

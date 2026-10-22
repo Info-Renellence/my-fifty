@@ -22,7 +22,9 @@ const query = (req) => new URL(req.url, 'http://x').searchParams;
 const route = (fn) => async (req, res) => {
   try {
     await fn(req, res);
-  } catch (e) {
+  } catch (err) {
+    // A request value String() cannot convert (e.g. {"toString":"x"}) anywhere in a route is bad input, not a crash (SH).
+    const e = err instanceof TypeError && /primitive value/.test(err.message) ? fail(400, 'bad_input') : err;
     const status = e && e.status && e.status < 600 ? e.status : 500;
     if (status >= 500) {
       // A server error says only "server_error" to the client; what went wrong (often the database's own message, with
@@ -35,9 +37,13 @@ const route = (fn) => async (req, res) => {
 };
 
 const fail = (status, message, detail) => { const e = new Error(message); e.status = status; if (detail) e.detail = detail; return e; };
-const isUuid = (s) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(s || ''));
+// Only a string can be an id: anything else (a number, a list, an object such as {"toString":"x"}) is not one.
+const isUuid = (s) => typeof s === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s);
 // obj[key] only when it is the object's own entry, so names like 'constructor' or '__proto__' never match.
 const own = (obj, key) => (typeof key === 'string' && Object.prototype.hasOwnProperty.call(obj, key) ? obj[key] : undefined);
-const clean = (s, n) => String(s == null ? '' : s).replace(/\r/g, '').trim().slice(0, n || 500);
+// Text from a request: a string, number or true/false is turned into text; a list or object (e.g. {"toString":"x"},
+// which String() cannot even convert) is bad input, a 400 rather than a server error (test run SH / F17, Yousef 2026-10-22).
+const asText = (s) => { if (s == null) return ''; const t = typeof s; if (t === 'string') return s; if (t === 'number' || t === 'boolean') return String(s); throw fail(400, 'bad_input'); };
+const clean = (s, n) => asText(s).replace(/\r/g, '').trim().slice(0, n || 500);
 
 module.exports = { send, body, query, route, fail, isUuid, clean, own };
