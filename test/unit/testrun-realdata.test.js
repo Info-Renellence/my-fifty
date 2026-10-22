@@ -38,3 +38,10 @@ test('long words (links, emails used as a name, long clinic names) wrap instead 
   assert.ok(rule, 'the html, body rule');
   assert.match(rule[2], /overflow-wrap:\s*(break-word|anywhere)/);
 });
+
+// RD8: 18 real people have no first name. "No phone number for  yet." named nobody; the full name (or the email,
+// when there is no name at all) is used instead.
+test('the no-phone / no-email messages name the person even with no first name', () => {
+  const app = require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'app.js'), 'utf8');
+  for (const m of app.match(/toast\('No (phone number|email address) for ' \+ [^)]*\)/g) || ['missing']) assert.match(m, /p\.first \|\| p\.name/);
+});

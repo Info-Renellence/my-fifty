@@ -502,7 +502,7 @@
   function callOrText(contactId, what) {
     read('person', { id: contactId }).then(function (p) {
       current = current && current.id === p.id ? current : p;
-      if (!p.phone) { toast('No phone number for ' + p.first + ' yet.'); return; }
+      if (!p.phone) { toast('No phone number for ' + (p.first || p.name) + ' yet.'); return; }
       var n = encodeURIComponent(p.phone);
       location.href = what === 'text' ? 'openphone://message?number=' + n : 'openphone://dial?number=' + n + '&action=call';
       setTimeout(function () { openLog(p.id, what === 'text' ? 'text' : 'call'); }, 700);
@@ -822,7 +822,7 @@
 
   // ---- Email (L7 Email): sent from the rep's Gmail ------------------------------------------------------------
   function openEmail(p) {
-    if (!p.email) { toast('No email address for ' + p.first + ' yet.'); return; }
+    if (!p.email) { toast('No email address for ' + (p.first || p.name) + ' yet.'); return; }
     if (BOOT.gmail !== 'connected') {
       $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
         + '<span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Connect Gmail</span>'
