@@ -131,3 +131,4 @@ Rules both apps share, changed in code only (no table, field, enum, function, tr
 | # | Change | Where |
 |---|---|---|
 | S1 | A no-show visit (status no_show, or a visit logged as not reached) is not a visit for going cold | `api/_book.js` (shared with Edge `api/_edge/book.js`) |
+| F9 | A server error (5xx) answers only `server_error`; the detail is logged on the server only (4xx answers unchanged) | `api/_http.js` (shared with Edge `api/_edge/http.js`) |

@@ -47,7 +47,16 @@ describe('route', () => {
     const err = console.error; console.error = () => {};
     try { await H.route(async () => { throw new Error('boom'); })({ method: 'GET', url: '/' }, res); } finally { console.error = err; }
     assert.equal(res.statusCode, 500);
-    assert.equal(res.json().error, 'boom');
+    // F9 (Yousef 2026-10-22): the client gets only "server_error"; the message stays in the server log.
+    assert.deepEqual(res.json(), { error: 'server_error' });
+  });
+  test('a 5xx with a message and detail still says only server_error (F9)', async () => {
+    const res = fakeRes();
+    const logged = []; const err = console.error; console.error = (...a) => logged.push(a.join(' '));
+    try { await H.route(async () => { throw H.fail(503, 'relation "contacts" does not exist', 'column owner_id'); })({ method: 'GET', url: '/' }, res); } finally { console.error = err; }
+    assert.equal(res.statusCode, 503);
+    assert.deepEqual(res.json(), { error: 'server_error' });
+    assert.ok(logged.some((l) => l.includes('relation "contacts"') && l.includes('column owner_id')), 'the detail is logged on the server');
   });
   test('a nonsense status is treated as a 500', async () => {
     const res = fakeRes();

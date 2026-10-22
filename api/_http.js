@@ -24,7 +24,12 @@ const route = (fn) => async (req, res) => {
     await fn(req, res);
   } catch (e) {
     const status = e && e.status && e.status < 600 ? e.status : 500;
-    if (status >= 500) console.error('MYFIFTY_ERROR', req.method, req.url, e && (e.stack || e.message));
+    if (status >= 500) {
+      // A server error says only "server_error" to the client; what went wrong (often the database's own message, with
+      // table and column names) stays in the server log (test run F9, Yousef 2026-10-22). 4xx answers are unchanged.
+      console.error('MYFIFTY_ERROR', req.method, req.url, e && (e.stack || e.message), e && e.detail ? 'detail: ' + e.detail : '');
+      return send(res, status, { error: 'server_error' });
+    }
     send(res, status, { error: (e && e.message) || 'server_error', detail: e && e.detail });
   }
 };
