@@ -5,7 +5,10 @@
 //   stage      fifty      a (non-sample) order placed in the last 3 months (settings fifty_months), paid or not
 //              candidate  has a sample order (every line free), and is not in the Fifty
 //              lead       otherwise. Someone who left the Fifty (no order for 3 months) is a lead again and shows as
-//                         a WARM lead (leadGroup), whatever their first source
+//                         a WARM lead (leadGroup), whatever their first source. A lead whose onboarding is fully
+//                         signed (the onboarding agreement completed: injector and MD) and who has no order of any
+//                         kind yet (samples or paid, not cancelled or rejected) is in the ONBOARDED group (leadGroup
+//                         'onboarded', shown first; Yousef 2026-10-22, item B); any order takes them out of it
 //   goingCold  a Fifty person with no order and no visit (in person or video; a no-show is not a visit) in the last N days (settings, default 30)
 //   isNew      a lead nobody has called, texted, emailed or visited yet
 // Ordered and paid are different: "ordered" is every placed order that isn't cancelled or rejected; "paid" (used for
@@ -74,7 +77,10 @@ async function book(sql, me, opts) {
            c.source_kind, c.source_ad_id, c.source_event_id, ev.name as event_name, c.created_at,
            c.fillers_used::text[] as fillers_used, c.prp_used::text[] as prp_used,
            c.shipping_street, c.shipping_city, c.shipping_province, c.shipping_postal_code,
-           c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code
+           c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code,
+           exists (select 1 from agreements a where a.kind = 'onboarding' and a.status = 'completed'
+                    and (a.contact_id = c.id or exists (select 1 from onboardings ob where ob.agreement_id = a.id
+                                                         and (ob.primary_contact_id = c.id or ob.injector_contact_id = c.id)))) as onboarding_signed
       from contacts c
       left join clinics cl on cl.id = c.clinic_id
       left join events ev on ev.id = c.source_event_id
@@ -132,7 +138,9 @@ async function book(sql, me, opts) {
     p.firstOrderAt = ordered.length ? ordered.map(placedAt).reduce((a, x) => (x < a ? x : a)) : null;
     const inFifty = lastOrderAt && new Date(lastOrderAt) > monthsAgo(cfg.fifty_months, now);
     p.stage = inFifty ? 'fifty' : samples.length && !ordered.length ? 'candidate' : 'lead';
-    p.leadGroup = ordered.length ? 'warm' : p.sourceKind;   // left the Fifty: a warm lead
+    p.onboarded = !!c.onboarding_signed;
+    // Left the Fifty: a warm lead. Onboarded with no order of any kind yet: the Onboarded group (item B, 2026-10-22).
+    p.leadGroup = ordered.length ? 'warm' : p.onboarded && !os.length ? 'onboarded' : p.sourceKind;
     if (p.stage === 'fifty') {
       const lastActive = [lastOrderAt, p.lastVisitAt].filter(Boolean).reduce((a, x) => (x > a ? x : a));
       p.lastActiveAt = lastActive;

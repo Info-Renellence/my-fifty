@@ -4,7 +4,7 @@
 //   boot        who is signed in, their initials, and a "joined your Fifty" moment if one is due
 //   today       L2: the day ring, streak, Fifty tile, suggested next and the list
 //   people      L6: My Fifty (warm / going cold), Candidates, Leads (four groups)
-//   leads       L22-L25: one lead group, newest first (&group=social|event|warm|cold)
+//   leads       L22-L25: one lead group, newest first (&group=onboarded|social|event|warm|cold)
 //   person      L7/L8: one person's card (&id=)
 //   history     L14: one person's history (&id=)
 //   ready       L9: people ready to order (onboarded, or ordered before)
@@ -21,7 +21,8 @@ const T = require('./_time');
 const R = require('./_rewards');
 
 const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-CA');
-const LEAD_GROUPS = { social: 'Social media', event: 'Events and training', warm: 'Other warm leads', cold: 'Cold leads' };
+// Onboarded (Yousef 2026-10-22, item B) comes first: fully signed onboarding and no order of any kind yet (_book.js).
+const LEAD_GROUPS = { onboarded: 'Onboarded', social: 'Social media', event: 'Events and training', warm: 'Other warm leads', cold: 'Cold leads' };
 const TOUCH_WORD = { call: 'Called', text: 'Texted', meeting: 'Visited', email: 'Emailed' };
 
 module.exports = route(async (req, res) => {
@@ -112,7 +113,7 @@ const OPS = {
     return {
       id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold,
       label: p.stage === 'fifty' ? (p.goingCold ? 'MY FIFTY · GOING COLD' : 'MY FIFTY') : p.stage === 'candidate' ? 'CANDIDATE'
-        : 'LEAD · ' + ({ social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
+        : 'LEAD · ' + ({ onboarded: 'ONBOARDED', social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
       totalBought: p.stage === 'fifty' ? money(p.totalBought) : null,
       lastOrder: p.lastPaid ? { total: money(p.lastPaid.total), date: T.short(B.paidAt(p.lastPaid)) } : null,
       status, followUp: p.followUp ? { id: p.followUp.id, date: T.ymd(p.followUp.due_at), label: T.short(p.followUp.due_at), title: p.followUp.title } : null,

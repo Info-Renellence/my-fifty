@@ -130,7 +130,7 @@
   var ROUTES = [
     [/^\/$/, function () { return screenToday(); }],
     [/^\/people$/, function () { return screenPeople(); }],
-    [/^\/people\/leads\/(social|event|warm|cold)$/, function (m) { return screenLeads(m[1]); }],
+    [/^\/people\/leads\/(onboarded|social|event|warm|cold)$/, function (m) { return screenLeads(m[1]); }],
     [/^\/person\/([0-9a-f-]{36})$/, function (m) { return screenPerson(m[1]); }],
     [/^\/person\/([0-9a-f-]{36})\/history$/, function (m) { return screenHistory(m[1]); }],
     [/^\/person\/([0-9a-f-]{36})\/onboarding$/, function (m) { return screenOnboarding(m[1]); }],
