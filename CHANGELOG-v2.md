@@ -123,3 +123,11 @@ Additive only, so My Fifty keeps working unchanged. Applied by Yousef from the s
 
 - **Data feeds** for Meta leads, Quo calls and texts, and Stripe payments, rebuilt for the v2 tables. Edge's ingest functions write to the old sandbox schema, so they can't just be redeployed.
 - **Supabase Auth → Google** needs a Google OAuth client ID and secret, entered in the v2 dashboard.
+
+## 13. Owner decisions on the Edge test run, 2026-10-22 (no database change)
+
+Rules both apps share, changed in code only (no table, field, enum, function, trigger, policy, index or cron job changed).
+
+| # | Change | Where |
+|---|---|---|
+| S1 | A no-show visit (status no_show, or a visit logged as not reached) is not a visit for going cold | `api/_book.js` (shared with Edge `api/_edge/book.js`) |

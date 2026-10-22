@@ -6,7 +6,7 @@
 //              candidate  has a sample order (every line free), and is not in the Fifty
 //              lead       otherwise. Someone who left the Fifty (no order for 3 months) is a lead again and shows as
 //                         a WARM lead (leadGroup), whatever their first source
-//   goingCold  a Fifty person with no order and no visit (in person or video) in the last N days (settings, default 30)
+//   goingCold  a Fifty person with no order and no visit (in person or video; a no-show is not a visit) in the last N days (settings, default 30)
 //   isNew      a lead nobody has called, texted, emailed or visited yet
 // Ordered and paid are different: "ordered" is every placed order that isn't cancelled or rejected; "paid" (used for
 // rewards and Total bought) needs the money: a paid status or a succeeded payment, and for a wire order only its wire
@@ -87,7 +87,8 @@ async function book(sql, me, opts) {
       select i.contact_id,
              max(i.occurred_at) filter (where i.kind <> 'note') as last_touch_at,
              (array_agg(i.kind::text order by i.occurred_at desc) filter (where i.kind <> 'note'))[1] as last_touch_kind,
-             max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode in ('in_person', 'video') and i.status is distinct from 'cancelled') as last_visit_at,   -- a video call counts as a visit
+             max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode in ('in_person', 'video') and i.status is distinct from 'cancelled'
+                                         and ${REACHED(sql)}) as last_visit_at,   -- a video call counts as a visit; a no-show does not (S1, Yousef 2026-10-22)
              count(*) filter (where i.kind <> 'note') as touches,
              bool_or(i.user_id = ${me.id} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today

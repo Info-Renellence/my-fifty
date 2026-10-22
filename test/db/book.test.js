@@ -129,6 +129,15 @@ describe('book', () => {
     assert.equal(by[c].goingCold, true);
     assert.equal(by[v].goingCold, false);
   }));
+  test('a no-show visit is not a visit: the person still goes cold (S1, Yousef 2026-10-22)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), a = await h.contact(sql, me), b = await h.contact(sql, me);
+    await h.order(sql, a, me, { status: 'shipped', days: 40 });
+    await h.touch(sql, a, me.id, { kind: 'meeting', status: 'no_show', days: 3 });
+    await h.order(sql, b, me, { status: 'shipped', days: 40 });
+    await h.touch(sql, b, me.id, { kind: 'meeting', outcome: 'no_answer', days: 3 });   // logged as not reached
+    const by = Object.fromEntries((await B.book(sql, me)).people.map((p) => [p.id, p]));
+    assert.deepEqual([by[a].goingCold, by[b].goingCold, by[a].lastVisitAt], [true, true, null]);
+  }));
   test('a lead is new until anyone calls, texts, emails or visits; notes do not count', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const a = await h.contact(sql, me), b = await h.contact(sql, me);
