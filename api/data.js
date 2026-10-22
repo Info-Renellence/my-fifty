@@ -437,6 +437,10 @@ function markCurrent(steps, waitingText) {
 }
 
 // wire: api/_wire.js state() for a wire order (due, overdue or received), shown on the Payment step.
+// How far the order's status says it got. Orders brought over from Shopify are shipped or delivered with no
+// approved / warehouse / shipped times (real-data run 2026-10-22, RD6): the status still counts, the step just has no date.
+const STATUS_RANK = { submitted: 0, awaiting_md: 0, approved: 1, invoiced: 1, paid: 1, sent_to_warehouse: 2, shipped: 3, delivered: 3 };
+const reached = (o, status) => (STATUS_RANK[o.status] || 0) >= STATUS_RANK[status];
 function orderSteps(o, x, pays, wire) {
   const paid = x && x.paid_flag;
   const pay = pays[0];
@@ -448,10 +452,10 @@ function orderSteps(o, x, pays, wire) {
   else if (pay && pay.method === 'pay_link') payWhen = 'No card on file · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '');
   const steps = [
     { label: 'Order placed', when: fmtTime(o.submitted_at || o.created_at), done: true },
-    { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at },
+    { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at || reached(o, 'approved') },
     { label: 'Payment', when: payWhen, done: !!paid },
-    { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) },
-    { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) + (o.tracking_number ? ' · ' + o.tracking_number : '') : '', done: !!o.shipped_at },
+    { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) || reached(o, 'sent_to_warehouse') },
+    { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) + (o.tracking_number ? ' · ' + o.tracking_number : '') : '', done: !!o.shipped_at || reached(o, 'shipped') },
   ];
   return markCurrent(steps, () => 'Waiting');
 }
@@ -460,10 +464,10 @@ function sampleSteps(o, md, ag) {
   const mdName = md ? B.fullName(md) : 'the MD';
   const steps = [
     { label: 'Order placed', when: fmtTime(o.submitted_at || o.created_at), done: true },
-    { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at },
-    { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at },
-    { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) },
-    { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) : '', done: !!o.shipped_at },
+    { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at || reached(o, 'approved') },
+    { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at || reached(o, 'sent_to_warehouse') },
+    { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) || reached(o, 'sent_to_warehouse') },
+    { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) : '', done: !!o.shipped_at || reached(o, 'shipped') },
   ];
   return markCurrent(steps, () => 'Waiting');
 }
