@@ -310,6 +310,14 @@ describe('ready, products and search', () => {
     assert.equal((await D.search(sql, me, Q({ q: 'nobody-here' }))).people.length, 0);
     assert.equal((await D.search(sql, me, Q({}))).people.length, 1);
   }));
+  test('search ignores accents and case: "zoe" finds Zoë and "ZOË" finds Zoe (Edge Q7, 2026-10-22)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const a = await h.contact(sql, me, { first: 'Zoë', last: 'Accentcase' }), b = await h.contact(sql, me, { first: 'Zoe', last: 'Plaincase' });
+    const ids = async (q) => (await D.search(sql, me, Q({ q }))).people.map((p) => p.id).sort();
+    assert.deepEqual(await ids('zoe'), [a, b].sort());
+    assert.deepEqual(await ids('ZOË'), [a, b].sort());
+    assert.deepEqual(await ids('zoë accent'), [a]);
+  }));
 });
 
 describe('order, onboarding and rewards screens', () => {

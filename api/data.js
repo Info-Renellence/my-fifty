@@ -203,9 +203,11 @@ const OPS = {
   },
 
   async search(sql, me, q) {
-    const term = String(q.get('q') || '').trim().toLowerCase();
+    // Accents and case don't matter (Yousef 2026-10-22, Edge Q7): "Zoe" finds "Zoë" and the reverse.
+    const fold = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const term = fold(String(q.get('q') || '').trim());
     const { people } = await B.book(sql, me);
-    const hits = people.filter((p) => !term || (p.name + ' ' + p.clinic + ' ' + p.email + ' ' + p.phone).toLowerCase().includes(term))
+    const hits = people.filter((p) => !term || fold(p.name + ' ' + p.clinic + ' ' + p.email + ' ' + p.phone).includes(term))
       .sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
     return { people: hits.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage, initials: initials(p.name) })) };
   },
