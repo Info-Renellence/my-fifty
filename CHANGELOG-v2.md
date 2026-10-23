@@ -222,3 +222,19 @@ table count changed except settings +1 and its change_logs row, existing orders 
 Code (behind the switch): shared `my-fifty/api/_dispatch.js` = `renellence-edge/api/_edge/dispatch.js`. n8n side:
 `renellence-ops/ops/n8n/order-dispatch-proposal.md` (proposal only). When applied, add the five columns to the SOP
 (Section 10, `orders`) and the dictionary artifacts.
+
+## 18. Intake health (`renellence-edge/db/v2-012-ingest-health.sql`), 2026-10-23, PROPOSED, NOT APPLIED
+
+Data map risk #5 (owner 2026-10-23): the integrations can stop silently. **Waiting for the owner's yes (one new table).**
+Apply with `node renellence-ops/ops/fixes/apply-v2-012.js v2 --dry`, then without `--dry`. De-duplication needs no
+change: `ingest_events` already has UNIQUE (`source`, `external_id`).
+
+| # | Change | Why |
+|---|---|---|
+| 73 | `ingest_events_source` gains `signatureapi` | Its callback can land in `ingest_events` once switched over |
+| 74 | New table `ingest_rejections` (source, day, rejected, last_reason, last_at; UNIQUE source + day; RLS, admins read) | Refused webhook deliveries counted, nothing of them kept; the daily report flags them (an expired or changed secret) |
+| 75 | Indexes `ingest_events_failed_idx` (partial, failed) and `ingest_events_source_received_idx` | The failed-events list / replay and the per-source daily counts |
+
+Code: `renellence-edge/supabase/functions/_shared/guard.ts` + `ingest.ts` (signatures, once-only, not deployed),
+`renellence-ops/ops/ingest/replay.js`, `renellence-ops/ops/health/daily-report.js`, n8n side
+`renellence-ops/ops/n8n/health-email-proposal.md`. When applied, add `ingest_rejections` to the SOP (System section).
