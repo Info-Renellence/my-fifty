@@ -173,10 +173,41 @@ passes on its own with and without the change; the re-run had nothing new). No d
 - pg_cron on v1 could not be switched off by the test login (conductor's SETUP.md); no function on v1 calls out.
 - 3 wire tests and 2 smoke checks fail on this copy for data reasons (baseline.md): RD1, and the demo history not copied.
 
-## 6. How to remove the fake data
+## 6. How to remove the fake data (see also Round 2: soft-deleted at 10:54 PM)
 Tonight's fake rows (all on v1, the test copy; none on v2):
 - `contacts` with `legacy_id` `demo-test-rd-mvk83d01` (a cold lead in Sam's book), `demo-test-rd-merged` (merged into it) and
   `demo-test-rd-meta` (a social lead in Lucas's book), all with `@demo.invalid` emails;
 - what hangs off them: a few calls and texts (undone), follow-up tasks (one assigned to admin@), change-log entries.
 `db/wipe-demo.sql` already removes them (contacts with a `demo-` legacy id or an `@demo.invalid` email, and everything on them).
 Change-log entries stay (append-only by design).
+
+## Round 2 (10:40 to 11:40 PM)
+
+**Edge orders read in My Fifty (the conductor's top item): not a bug.** Lane A saw My Fifty's order view return an empty line
+list for a wire order placed through Edge. Reproduced: Edge run locally on v1 (network guard) as a real rep, a fake customer
+(`demo-test-rd-b-*`) added through Edge, then a wire order (10 saypha filler), a card order (2 paid + 1 free) and a samples order
+placed through Edge's API. Edge writes `order_lines` in the same shape My Fifty does, and My Fifty reads them: totals $2,250 and
+$450 (the free line not counted), History shows "10 filler" / "2 filler", the samples order lists its lines. The empty list is
+on purpose: `api/data.js` returns lines only for a samples order, because the mockup's L19 (paid order) has no product list and
+L21 (samples) has one. Nothing changed.
+
+Also tried (each one line in `tried.md`):
+- **Lane A's kept fake rows** (`demo-test-rd-a-*`, Emily's book) were already soft-deleted by lane A when checked; My Fifty hides
+  them (404, not listed).
+- **Merged people's history (RD19, low, proposal):** a call or order on a merged-away person does not show in the History of the
+  person they were merged into, and their orders would not count for the kept person. No real person is merged yet and no merge
+  tool exists; when one is built it should move calls, tasks and orders to the kept person (or the book should read both).
+- **No clinic, every screen:** a fake person with no clinic through the card, History, Who is it for, products, quantity list,
+  review ("Ship to: No address yet") and the order screen: no layout problems.
+- **Quantity list on a real book's order flow (fake person):** 0-100 plus "More than 100…"; 3 gives "3 items · $675"; 150 typed
+  gives "153 items · $34,425"; 5000 typed is refused and the box goes back. Nothing was sent.
+- **Event leads with partial names:** the 6 real event leads with only a first name (3 with no clinic) show correctly
+  (one initial, the event or clinic as the subline).
+- **Forecasts, events and RSVPs:** My Fifty has no forecast or event screens (Edge only), so nothing to try there.
+- **Design:** final-code screens for Angela's and Emily's books and head office match the mockup. One mismatch in the mockup itself:
+  its streak tile says "6 weeks · plan done", but the rule and the app count days. The rule wins; flagged, not changed.
+- **Wipe:** Lane B's fake rows (5 contacts `demo-test-rd-*`, 5 orders, their calls and tasks) were soft-deleted on v1; none are
+  left live. A hard delete is refused for the test login (change-log entries point at them); `db/wipe-demo.sql`, run by the
+  owner, removes them fully.
+
+No code changed in round 2; no push to Edge.
