@@ -15,6 +15,7 @@ second admin (everyone).
 | Candidates (all-free sample order, no paid-goods order) | ok | identical to SQL for every user |
 | Candidate days / Today candidates | Q RD7 | 154 of 184 real shipped/delivered orders have no shipped/delivered time: candidates say "Not shipped" and never reach Today |
 | Onboarded group = primary contact only | ok | identical to SQL; 0 of 64 injectors / MDs / non-primary signers shown |
+| Ready to order (L9) | ok | identical to SQL for the 5 reps and head office |
 | Lead groups (social, event, warm, cold) | ok | leads op and People counts agree for every user |
 | Going cold | ok / Q RD4 | identical to SQL; 55 imported meetings have no mode (changes 1 person) |
 | New lead / reached today / touches | Q RD3 | inbound emails, texts and calls count as touches |
@@ -50,6 +51,7 @@ second admin (everyone).
 | Rep asks for another book's person / history / onboarding / products / order (560 reads) | ok | all 404 |
 | Search for a surname from another book | ok | no hits |
 | Head office opens an order it is credited on, in a rep's book | ok (by design) / Q RD5 | |
+| Database rules: a signed-in outsider (testrun-rls test on the copy) | Q RD13 | can still read the staff list (10-21 F6) |
 
 ## Writes on the real books (fake rows only: demo-test-rd-, @demo.invalid)
 
@@ -72,3 +74,5 @@ second admin (everyone).
 | Random taps in the browser on a real book (2 seeds, writes blocked) | ok | no page errors |
 | Load: 20 parallel Today (rep), 10 parallel (admin, every book) | ok | 5 s / 9 s, all answered |
 | Shared copies (book, lists, time, http) identical in both repos | ok | apart from the header line and require paths |
+| Clock on the real books: tomorrow, weekend, Monday, Nov 1 clock change, Dec 31 / Jan 1 | ok | app clock moved, database clock not |
+| Both admins: every read screen for every person (1,409 on v1) | ok | 0 errors |
