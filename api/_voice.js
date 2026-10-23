@@ -75,7 +75,9 @@ const brand = (s) => String(s || '').replace(/\bsaypha(®?)((?:\s+(?:volume\s+pl
 
 async function transcribe(sql, me, body, deps) {
   const gem = (deps && deps.gemini) || gemini;
-  if (!gem.available()) throw fail(503, 'voice_not_set_up');
+  // 409, not 503: route() turns every 5xx into a bare "server_error" (test run F9), so the app could never show its
+  // "Voice notes aren't set up yet" message. Found 2026-10-23 when a new op moved the random-input test onto it.
+  if (!gem.available()) throw fail(409, 'voice_not_set_up');
   const audio = String((body && body.audio) || '');
   const mime = String((body && body.mime) || '').split(';')[0].trim().toLowerCase();
   if (!audio || !/^[A-Za-z0-9+/=]+$/.test(audio.slice(0, 2000))) throw fail(400, 'no_audio');

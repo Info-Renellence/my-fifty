@@ -406,7 +406,7 @@ describe('voice', () => {
   }));
   test('refuses no audio, the wrong type, too long, no key, and someone else’s person', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);
-    await assert.rejects(A.voice(me, { contactId: c, audio: 'AAAA', mime: 'audio/webm' }), st(503, 'voice_not_set_up'));
+    await assert.rejects(A.voice(me, { contactId: c, audio: 'AAAA', mime: 'audio/webm' }), st(409, 'voice_not_set_up'));
     process.env.GEMINI_API_KEY = 'k';
     await assert.rejects(A.voice(me, { contactId: c, audio: '', mime: 'audio/webm' }), st(400, 'no_audio'));
     await assert.rejects(A.voice(me, { contactId: c, audio: '%%%', mime: 'audio/webm' }), st(400, 'no_audio'));
