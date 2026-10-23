@@ -10,6 +10,7 @@
 //   set_uses         L7/L8 Filler / PRP they use
 //   edit_note        L14 Edit (your own entries)
 //   invoice_email    L10 "+ Add an invoice email" (contacts.secondary_email)
+//   shipping_address L10 "+ Add a shipping address" (contacts.shipping_*; billing too when it is empty)
 //   order            L10 / L15 Send for approval
 //   resend_pay_link  L19
 //   remind_md        L20 / L21
@@ -242,6 +243,22 @@ const OPS = {
     return { ok: true, email };
   },
 
+  // RD11 (Yousef 2026-10-23): an order can't be sent without a shipping address, so Review lets the rep add one. Billing
+  // copies it when the person has no billing address yet (billing copies shipping).
+  async shipping_address(me, b) {
+    const street = clean(b.street, 200), city = clean(b.city, 100), province = clean(b.province, 40), postal = clean(b.postal, 20).toUpperCase();
+    if (!street || !city) throw fail(400, 'address_required');
+    const sql = db();
+    const c = await mine(sql, me, b.contactId);
+    await asUser(me.id, (tx) => tx`
+      update contacts set shipping_street = ${street}, shipping_city = ${city}, shipping_province = ${province || null}, shipping_postal_code = ${postal || null},
+             billing_street = coalesce(nullif(billing_street, ''), ${street}), billing_city = case when coalesce(billing_street, '') = '' then ${city} else billing_city end,
+             billing_province = case when coalesce(billing_street, '') = '' then ${province || null} else billing_province end,
+             billing_postal_code = case when coalesce(billing_street, '') = '' then ${postal || null} else billing_postal_code end
+       where id = ${c.id}`);
+    return { ok: true };
+  },
+
   // lines: [{ sku, qty, price?, free? }] (L9 product step, the mockup since 2026-10-21). A paid line carries the rep's
   // price (any amount from $0; list price when left out; the list price is kept on the line too, so the approver sees
   // a changed price). free: true lines are free units ("+ Free"). An order whose every line is free is a sample order
@@ -282,6 +299,9 @@ const OPS = {
       if (!mdName || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mdEmail)) throw fail(400, 'md_required');
       md = { name: mdName, email: mdEmail };
     }
+    // No shipping address, no order (RD11, Yousef 2026-10-23): Send waits until one is added on Review.
+    const [ship] = await sql`select coalesce(shipping_street, '') <> '' and coalesce(shipping_city, '') <> '' as ok from contacts where id = ${c.id}`;
+    if (!ship.ok) throw fail(409, 'no_shipping_address');
     const terms = method === 'wire' ? await require('./_wire').termsFor(sql, c.id) : null;
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;

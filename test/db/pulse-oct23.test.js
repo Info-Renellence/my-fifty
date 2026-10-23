@@ -61,3 +61,28 @@ test('RD4 a meeting with no type is a call, not a visit', () => h.withDb(async (
   assert.deepEqual([e.kind, e.title], ['call', 'Call · reached']);
   assert.match(await D.lastHistoryLine(sql, p), /^Call · reached/);
 }));
+
+// RD11 (owner 2026-10-23): a ready-to-order person with no shipping address can't send an order; Review asks for one,
+// and saving it (billing copies it when empty) lets Send go through.
+test('RD11 no shipping address, no order: Send waits until the address is added', () => h.withDb(async (sql) => {
+  const A = require('../../api/act').OPS;
+  const me = await h.user(sql), other = await h.user(sql);
+  const c = await h.contact(sql, me);
+  await sql`update contacts set shipping_street = null, shipping_city = null, billing_street = null, billing_city = null where id = ${c}`;
+  await sql`insert into onboardings (primary_contact_id, status) values (${c}, 'complete')`;
+  const order = () => A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }], payment: 'wire' });
+  await assert.rejects(order(), (e) => e.status === 409 && e.message === 'no_shipping_address');
+  assert.equal((await sql`select count(*)::int as n from orders where contact_id = ${c}`)[0].n, 0, 'nothing written');
+  await assert.rejects(A.shipping_address(me, { contactId: c, street: ' ', city: 'Toronto' }), (e) => e.status === 400 && e.message === 'address_required');
+  await assert.rejects(A.shipping_address(other, { contactId: c, street: '1 Unit St', city: 'Toronto' }), (e) => e.status === 404);
+  assert.deepEqual(await A.shipping_address(me, { contactId: c, street: ' 1 Unit St ', city: 'Toronto', province: 'ON', postal: 'm5v 1a1' }), { ok: true });
+  const [r] = await sql`select shipping_street, shipping_city, shipping_province, shipping_postal_code, billing_street, billing_city from contacts where id = ${c}`;
+  assert.deepEqual(r, { shipping_street: '1 Unit St', shipping_city: 'Toronto', shipping_province: 'ON', shipping_postal_code: 'M5V 1A1', billing_street: '1 Unit St', billing_city: 'Toronto' });
+  const done = await order();
+  assert.ok(done.orderId);
+  // A billing address already there is kept.
+  await sql`update contacts set billing_street = '9 Bill Rd', billing_city = 'Ottawa' where id = ${c}`;
+  await A.shipping_address(me, { contactId: c, street: '2 Unit St', city: 'Toronto' });
+  const [r2] = await sql`select billing_street, billing_city from contacts where id = ${c}`;
+  assert.deepEqual(r2, { billing_street: '9 Bill Rd', billing_city: 'Ottawa' });
+}));

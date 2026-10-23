@@ -53,3 +53,15 @@ test('History folds a long note or email to three lines with More / Less', () =>
   assert.match(app, /classList\.toggle\('clamp3'\)[^\n]*'Less' : 'More'/);
   assert.match(fs.readFileSync(path.join(__dirname, '..', '..', 'app.css'), 'utf8'), /\.clamp3 \{[^}]*-webkit-line-clamp: 3/);
 });
+
+// RD11 (owner 2026-10-23): Review with no shipping address says so, holds Send and offers "+ Add a shipping address".
+test('Review holds Send without a shipping address and offers to add one', () => {
+  const L = require('../../lib');
+  assert.equal(L.errText({ message: 'no_shipping_address' }), 'Add a shipping address before sending this order.');
+  const at = app.indexOf('function screenReview'); const fn = app.slice(at, app.indexOf('$app.addEventListener', at));
+  assert.match(fn, /noShip = dft\.noShip = !\(who\.shipping\.street && who\.shipping\.city\)/);
+  assert.match(fn, /\+ Add a shipping address/);
+  assert.match(fn, /Add a shipping address to send this order\./);
+  assert.match(app, /if \(draft\.noShip\) \{ toast\(errText\(\{ message: 'no_shipping_address' \}\)\); shippingSheet\(draft\.contactId\); return; \}/);
+  assert.match(app, /act\('shipping_address', \{ contactId: contactId, street: v\('street'\), city: v\('city'\)/);
+});

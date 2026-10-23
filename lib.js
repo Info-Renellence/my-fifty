@@ -24,6 +24,7 @@
     bad_email: 'That email doesn’t look right.', bad_phone: 'That phone number doesn’t look right.',
     already_yours: 'This person is already in your book.', email_yours: 'Someone in your book already has this email.', email_someones: 'Someone in another rep’s book already has this email.', already_someones: 'This person is already in someone else’s book.',
     no_products: 'Add products first.', md_required: 'Add the medical director’s name and email.', not_ready_to_order: 'They need to finish onboarding before ordering.',
+    no_shipping_address: 'Add a shipping address before sending this order.', address_required: 'Add the street and city.',
     voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
     gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.', resent_recently: 'Pay link already resent in the last hour.',
     subject_and_message_required: 'Add a subject and a message.', not_set_up: 'Your account isn’t set up in My Fifty yet. Ask an admin.',

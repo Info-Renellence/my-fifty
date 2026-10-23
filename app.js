@@ -1164,13 +1164,16 @@
           + '<span style="font-size:15px;color:#6B7486;flex:none">' + label + '</span><span style="font-size:15px;font-weight:600;text-align:right">' + value + '</span></div>';
       }
       var billingSame = L.billingSame(who);
+      // No shipping address: Send waits, with a way to add one here (RD11, Yousef 2026-10-23).
+      var noShip = dft.noShip = !(who.shipping.street && who.shipping.city);
       var FREE = '<span style="height:20px;padding:0 8px;border-radius:10px;background:#EAF3FC;color:#1170C0;font-size:12px;font-weight:700;display:inline-flex;align-items:center">Free</span>';
       var h = '<div class="scr">' + backLink('/order/' + contactId, 'Edit order')
         + '<span style="font-size:30px;font-weight:700;letter-spacing:-0.7px;padding:0 4px 8px">Review</span>'
         + smallLabel((who.name + (who.clinic ? ' · ' + who.clinic : '')).toUpperCase())
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">'
-        + infoRow('Email', esc(who.email || 'None'), true) + infoRow('Ship to', esc(who.shipping.line || 'No address yet'))
+        + infoRow('Email', esc(who.email || 'None'), true) + infoRow('Ship to', noShip ? '<span style="color:#B3261E">No address yet</span>' : esc(who.shipping.line))
         + infoRow('Billing', billingSame ? 'Same as shipping' : esc(who.billing.line)) + (who.secondaryEmail ? infoRow('Invoice email', esc(who.secondaryEmail)) : '') + '</section>'
+        + (noShip ? '<button type="button" data-ship-address style="display:block;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px 10px">+ Add a shipping address</button>' : '')
         + (who.secondaryEmail ? '' : '<button type="button" data-invoice-email style="display:block;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px 10px">+ Add an invoice email</button>')
         + smallLabel('ITEMS', '<a href="/order/' + contactId + '" data-nav style="font-size:14px;font-weight:600;color:#1170C0">Edit</a>')
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + lines.map(function (l, i) {
@@ -1204,7 +1207,8 @@
       }
       h += smallLabel('NOTES') + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:12px">' + noteRow('approvalNote', 'Note for approval', true) + noteRow('shippingNote', 'Shipping note') + '</section>'
         // Pinned above the tabs like the mockup (L10 / L15), so Send is always in reach without scrolling.
-        + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 10px;margin-top:auto;z-index:5"><button type="button" data-send-order style="height:56px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
+        + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 10px;margin-top:auto;z-index:5">' + (noShip ? '<span style="display:block;font-size:14px;font-weight:600;color:#B3261E;text-align:center;padding:0 4px 8px">Add a shipping address to send this order.</span>' : '')
+        + '<button type="button" data-send-order' + (noShip ? ' aria-disabled="true"' : '') + ' style="height:56px;border-radius:14px;background:' + (noShip ? '#A9C6E3' : '#1170C0') + ';color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
       return h + '</div>';
     }, 'order');
   }
@@ -1228,16 +1232,38 @@
       return;
     }
     if (e.target.closest('[data-invoice-email]')) { invoiceEmailSheet(draft.contactId); return; }
+    if (e.target.closest('[data-ship-address]')) { shippingSheet(draft.contactId); return; }
     if ((b = e.target.closest('[data-send-order]'))) {
       if (b.disabled) return;
+      if (draft.noShip) { toast(errText({ message: 'no_shipping_address' })); shippingSheet(draft.contactId); return; }
       b.disabled = true; b.textContent = 'Sending…';
       var d = draft;
       act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
         lines: orderLines(d.products, d).map(function (l) { return l.free ? { sku: l.p.sku, qty: l.qty, free: true } : { sku: l.p.sku, qty: l.qty, price: l.price }; }) })
         .then(function (r) { draft = null; toast(r.sentToN8n ? 'Sent for approval' : 'Saved. It goes for approval automatically as soon as the order connection answers.'); go('/orders/' + r.orderId, true); },
-          function (err) { b.disabled = false; b.textContent = 'Send for approval'; toast(errText(err)); });
+          function (err) { b.disabled = false; b.textContent = 'Send for approval'; toast(errText(err)); if (err && err.message === 'no_shipping_address') shippingSheet(d.contactId); });
     }
   });
+  // RD11: the shipping address, added from Review (billing copies it when they have none yet).
+  function shippingSheet(contactId) {
+    var s = (draft && draft.products && draft.products.person && draft.products.person.shipping) || {};
+    var field = function (k, label, ph, first) {
+      return '<label style="display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #D6DCE6') + '"><span style="width:72px;font-size:15px;color:#6B7486;flex:none">' + label + '</span>'
+        + '<input type="text" data-addr="' + k + '" value="' + esc(s[k] || '') + '" placeholder="' + ph + '" style="flex:1 1 auto;min-width:0;border:0;background:transparent;font-size:17px;color:#062064;outline:none"></label>';
+    };
+    $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
+      + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Shipping address</span>'
+      + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600">Cancel</button></div>'
+      + '<div style="background:#EEF2F8;border-radius:14px">' + field('street', 'Street', '12 Main St', true) + field('city', 'City', 'Toronto') + field('province', 'Province', 'ON') + field('postal', 'Postal', 'M5V 1A1') + '</div>'
+      + '<button type="button" data-save style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Save</button></div>';
+    setTimeout(function () { var i = $sheet.querySelector('[data-addr="street"]'); if (i) i.focus(); }, 60);
+    sheetHandler = function (e, type) {
+      if (type || !e.target.closest('[data-save]')) return;
+      var v = function (k) { return $sheet.querySelector('[data-addr="' + k + '"]').value; };
+      act('shipping_address', { contactId: contactId, street: v('street'), city: v('city'), province: v('province'), postal: v('postal') })
+        .then(function () { closeSheet(); screenReview(contactId); }, function (err) { toast(errText(err)); });
+    };
+  }
   function invoiceEmailSheet(contactId) {
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
       + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Invoice email</span>'
