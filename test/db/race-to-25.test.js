@@ -56,7 +56,7 @@ describe('Race to 25', () => {
     assert.ok(r2.race.rows.find((x) => x.you).done);
   }));
 
-  test('only first names and counts: no other rep\'s people, ids or emails; an admin who is not a rep sees their own row', () => h.withDb(async (sql) => {
+  test('only first names and counts: no other rep\'s people, ids or emails',() => h.withDb(async (sql) => {
     await sql`update users set is_active = false where kind = 'rep'`;
     const admin = await h.user(sql, { kind: 'admin', name: 'Ad Min' }), rep = await h.user(sql, { name: 'Robin Rep' });
     const theirs = await h.contact(sql, rep, { first: 'Secret', last: 'Customer' });
@@ -66,6 +66,31 @@ describe('Race to 25', () => {
     for (const row of r.race.rows) assert.deepEqual(Object.keys(row).sort(), ['done', 'n', 'name', 'rank', 'you']);
     const text = JSON.stringify(r.race);
     assert.ok(!text.includes('Secret') && !text.includes(theirs) && !text.includes(rep.id) && !text.includes('@'), 'nothing about the other rep\'s people');
-    assert.deepEqual(r.race.rows.map((x) => [x.name, x.n]), [['You', 2], ['Robin', 1]], 'the admin counts the people they own, not the whole company');
+    assert.deepEqual(r.race.rows.map((x) => [x.name, x.n]), [['Robin', 1]], 'reps only: the admin has no row of their own');
+  }));
+
+  test('reps only (Yousef 2026-10-23): an admin or head-office user sees the reps\' ranking with no row of their own', () => h.withDb(async (sql) => {
+    await sql`update users set is_active = false where kind = 'rep'`;
+    const admin = await h.user(sql, { kind: 'admin', name: 'Ad Min' }), office = await h.user(sql, { kind: 'head_office', name: 'Head Office' });
+    const a = await h.user(sql, { name: 'Ash Rep' }), b = await h.user(sql, { name: 'Bo Rep' }), c = await h.user(sql, { name: 'Cy Rep' }), d = await h.user(sql, { name: 'Di Rep' });
+    await fifty(sql, admin, 9); await fifty(sql, office, 8);          // they own customers, more than any rep, and still are not ranked
+    await fifty(sql, a, 4); await fifty(sql, b, 3); await fifty(sql, c, 2);
+    await fifty(sql, d, 1, { days: 45 });                               // going cold (no order for 45 days) still counts
+    const reps = [
+      { rank: 1, name: 'Ash', n: 4, you: false, done: false },
+      { rank: 2, name: 'Bo', n: 3, you: false, done: false },
+      { rank: 3, name: 'Cy', n: 2, you: false, done: false },
+    ];
+    for (const who of [admin, office]) {
+      const r = await R.rewards(sql, who);
+      assert.deepEqual(r.race.rows, reps, who.kind + ': the top three reps, no own row');
+      assert.ok(!r.race.rows.some((x) => x.you || ['You', 'Ad', 'Head'].includes(x.name)), who.kind + ' is never on the board');
+      assert.equal(r.race.line, '', who.kind + ': no "N more to reach 25" for someone who is not in the race');
+    }
+    // A rep asking sees the same counts and their own row, the going-cold customer included.
+    const asD = await R.rewards(sql, d);
+    assert.ok((await B.book(sql, d, {})).people.some((p) => p.stage === 'fifty' && p.goingCold), 'the book calls it going cold');
+    assert.deepEqual(asD.race.rows.map((x) => [x.rank, x.name, x.n]), [[1, 'Ash', 4], [2, 'Bo', 3], [4, 'You', 1]]);
+    assert.equal(asD.race.line, '24 more to reach 25');
   }));
 });
