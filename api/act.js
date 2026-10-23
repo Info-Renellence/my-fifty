@@ -44,6 +44,10 @@ async function mine(sql, me, id) {
   return c;
 }
 
+// A person merged into another (contacts.merged_into_contact_id) is hidden everywhere: a duplicate found on them points
+// to the person they were merged into, so "Open" lands on a live card (real-data run 2026-10-22, RD10).
+const intoLive = (sql) => sql`left join contacts t on t.id = c.merged_into_contact_id and t.deleted_at is null`;
+
 const realDay = (s) => { const t = Date.parse(s + 'T12:00:00Z'); return !Number.isNaN(t) && new Date(t).toISOString().slice(0, 10) === s; };
 
 // The follow-up moment for EOD / Tomorrow / a picked date (5 PM Toronto, the end of the working day).
@@ -151,12 +155,14 @@ const OPS = {
     // An email someone already has is a warning, not a stop (v2 part B: clinics can share a front-desk email).
     // It is looked up first; the rep sees who has it and can save anyway (sharedEmailOk).
     if (email && !b.sharedEmailOk) {
-      const [dupe] = await sql`select id, owner_id from contacts where (lower(email::text) = ${email} or lower(secondary_email::text) = ${email}) and deleted_at is null
-        order by (owner_id = ${me.id}) desc limit 1`;
+      const [dupe] = await sql`select coalesce(t.id, c.id) as id, coalesce(t.owner_id, c.owner_id) as owner_id from contacts c ${intoLive(sql)}
+        where (lower(c.email::text) = ${email} or lower(c.secondary_email::text) = ${email}) and c.deleted_at is null
+        order by (coalesce(t.owner_id, c.owner_id) = ${me.id}) desc limit 1`;
       if (dupe) throw fail(409, dupe.owner_id === me.id ? 'email_yours' : 'email_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     if (phone) {
-      const [dupe] = await sql`select id, owner_id from contacts where (phone = ${phone} or mobile_phone = ${phone}) and deleted_at is null`;
+      const [dupe] = await sql`select coalesce(t.id, c.id) as id, coalesce(t.owner_id, c.owner_id) as owner_id from contacts c ${intoLive(sql)}
+        where (c.phone = ${phone} or c.mobile_phone = ${phone}) and c.deleted_at is null`;
       if (dupe) throw fail(409, dupe.owner_id === me.id ? 'already_yours' : 'already_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     const id = await asUser(me.id, async (tx) => {
