@@ -18,7 +18,7 @@ create temp table demo_orders on commit drop as select id from orders where lega
 
 delete from notifications where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders) or user_id in (select id from demo_users);
 delete from ai_outputs where contact_id in (select id from demo_contacts) or interaction_id in (select id from interactions where contact_id in (select id from demo_contacts));
-delete from tasks where contact_id in (select id from demo_contacts);
+delete from tasks where contact_id in (select id from demo_contacts) or (contact_id is null and assignee_id in (select id from demo_users));
 delete from files where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders);
 delete from interactions where contact_id in (select id from demo_contacts);
 delete from payments where order_id in (select id from demo_orders);
@@ -30,6 +30,29 @@ delete from orders where id in (select id from demo_orders);
 delete from event_attendees where contact_id in (select id from demo_contacts);
 update contacts set lead_source_event_id = null where id in (select id from demo_contacts);
 delete from events where name like '% (demo)';
+-- Compass (db/v2-010-compass.sql, 2026-10-23): demo reps' check-ins, picks, forecast reasons, 1-on-1s (and the tasks
+-- they set) and My Fifty statuses, and any pick or status on a demo person. Guarded, so the wipe still runs on a
+-- database without the Compass tables. Their change_logs rows go first, by id.
+do $$
+begin
+  if to_regclass('public.account_picks') is not null then
+    create temporary table demo_compass on commit drop as
+      select id from checkins where rep_id in (select id from demo_users)
+      union select id from one_on_ones where rep_id in (select id from demo_users) or held_by_id in (select id from demo_users)
+      union select id from account_picks where contact_id in (select id from demo_contacts) or checkin_id in (select id from checkins where rep_id in (select id from demo_users))
+      union select id from forecast_changes where checkin_id in (select id from checkins where rep_id in (select id from demo_users))
+         or forecast_id in (select id from forecasts where contact_id in (select id from demo_contacts))
+      union select id from fifty_statuses where contact_id in (select id from demo_contacts) or set_by_id in (select id from demo_users)
+         or one_on_one_id in (select id from one_on_ones where rep_id in (select id from demo_users));
+    delete from change_logs where entity_id in (select id from demo_compass);
+    delete from tasks where one_on_one_id in (select id from one_on_ones where rep_id in (select id from demo_users));
+    delete from fifty_statuses where id in (select id from demo_compass);
+    delete from forecast_changes where id in (select id from demo_compass);
+    delete from account_picks where id in (select id from demo_compass);
+    delete from one_on_ones where id in (select id from demo_compass);
+    delete from checkins where id in (select id from demo_compass);
+  end if;
+end $$;
 delete from forecasts where contact_id in (select id from demo_contacts);
 delete from contacts where id in (select id from demo_contacts);
 delete from clinics where legacy_id like 'demo-%' or (name like 'Testrun %' and not exists (select 1 from contacts c where c.clinic_id = clinics.id));

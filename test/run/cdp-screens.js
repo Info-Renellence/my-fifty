@@ -138,6 +138,15 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await go('/rewards'); await shot('L11-rewards');
       await go('/person/00000000-0000-0000-0000-000000000000'); await shot('err-person-not-found');
       await go('/nowhere'); await shot('err-unknown-path');
+    } else if (SCEN === 'week') {
+      // The week (Compass) on Today: focus + Confirm my week, visits (Missed / Undo / Log), calls (serve as a demo rep with a saved week).
+      await shot('week-today'); await shot('week-today-full', true);
+      await click('[data-confirm-week]'); await wait(1200); await shot('week-confirmed');
+      await click('[data-missed]'); await wait(1200); await shot('week-missed', true);
+      await click('[data-unmissed]'); await wait(1200); await shot('week-unmissed', true);
+      await click('[data-log][data-kind="visit"]'); await click('[data-type]'); await type('[data-note]', 'Talked through the first order.');
+      await click('[data-save]'); await wait(1800); await shot('week-logged');
+      await go('/'); await shot('week-done', true);
     } else if (SCEN === 'flows') {
       // Real taps through whole flows (writes go to the fake test rep's fake people only).
       const all = await api('op=search&q=');
