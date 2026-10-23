@@ -1,6 +1,6 @@
 {
-  "name": "My Fifty",
-  "short_name": "My Fifty",
+  "name": "Pulse",
+  "short_name": "Pulse",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

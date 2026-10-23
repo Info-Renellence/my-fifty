@@ -60,7 +60,7 @@ test('Review holds Send without a shipping address and offers to add one', () =>
   assert.equal(L.errText({ message: 'no_shipping_address' }), 'Add a shipping address before sending this order.');
   const at = app.indexOf('function screenReview'); const fn = app.slice(at, app.indexOf('$app.addEventListener', at));
   assert.match(fn, /noShip = dft\.noShip = !\(who\.shipping\.street && who\.shipping\.city\)/);
-  assert.match(fn, /\+ Add a shipping address/);
+  assert.match(fn, /ic\('plus', 14\) \+ 'Add a shipping address/);   // the "+" is drawn as an icon (UI polish 2026-10-23)
   assert.match(fn, /Add a shipping address to send this order\./);
   assert.match(app, /if \(draft\.noShip\) \{ toast\(errText\(\{ message: 'no_shipping_address' \}\)\); shippingSheet\(draft\.contactId\); return; \}/);
   assert.match(app, /act\('shipping_address', \{ contactId: contactId, street: v\('street'\), city: v\('city'\)/);

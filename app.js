@@ -1,4 +1,4 @@
-/* My Fifty: the phone app. Screens follow "Edge – Final Mockup" (L1-L25, without L12 and L16-L18; the
+/* Pulse (the rep phone app; "My Fifty" is the name of the customer list in it). Screens follow "Edge – Final Mockup" (L1-L25, without L12 and L16-L18; the
    product picker is the original #12). Plain JS, no build step. Every read is GET /api/data?op=..., every write
    POST /api/act { op }. Sign-in is Supabase Auth with Google (@renellence.com). */
 (function () {
@@ -63,6 +63,7 @@
     chev: '<path d="M9 6l6 6-6 6"/>',
     back: '<path d="M15 5l-7 7 7 7"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    minus: '<path d="M5 12h14"/>',
     search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
     mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
     box: '<path d="M3 7.5L12 3l9 4.5v9L12 21l-9-4.5z"/><path d="M3 7.5l9 4.5 9-4.5M12 12v9"/>',
@@ -79,15 +80,16 @@
     note: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/>',
     x: '<path d="M6 6l12 12M18 6L6 18"/>',
   };
+  // One stroke for the whole set (UI polish 2026-10-23): 2 at 18px and up, 2.4 below. The width argument is ignored.
   function ic(name, size, width, extra) {
-    return '<svg width="' + (size || 16) + '" height="' + (size || 16) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (width || 2.2)
+    var z = size || 16; void width;
+    return '<svg width="' + z + '" height="' + z + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (z >= 18 ? 2 : 2.4)
       + '" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"' + (extra || '') + '>' + P[name] + '</svg>';
   }
-  var FLAME = '<svg width="14" height="14" viewBox="0 0 24 24" fill="#3D2A00" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
+  var FLAME = '<svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="color:var(--flame, #3D2A00)" aria-hidden="true"><path d="M12 2c1 4 5 6 5 11a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5 0 2 1 3 2 3 0-3-1-6 1-9.5z"/></svg>';
   var LOGO = '<img src="/logo.png" alt="Renellence" style="height:15px;width:auto;align-self:flex-start;margin:0 4px 12px">';
 
   // ---- shared pieces ---------------------------------------------------------------------------------
-  var MUTED = 'color:#6B7486';
   function tabs(on) {
     function t(href, key, icon, label) {
       return '<a href="' + href + '" data-nav class="' + (on === key ? 'on' : '') + '">' + icon + label + '</a>';
@@ -100,7 +102,7 @@
       + '</nav>';
   }
   function backLink(href, label) {
-    return '<a href="' + esc(href) + '" data-nav style="display:flex;align-items:center;gap:4px;font-size:17px;color:#1170C0;padding:0 0 10px;align-self:flex-start">'
+    return '<a href="' + esc(href) + '" data-nav style="display:flex;align-items:center;gap:4px;font-size:17px;color:#1170C0;min-height:44px;padding:0 8px 0 0;margin:-11px 0 -1px;align-self:flex-start">'
       + ic('back', 18, 2.4) + esc(label) + '</a>';
   }
   function bigTitle(text, right) {
@@ -108,18 +110,39 @@
       + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">' + esc(text) + '</span>' + (right || '') + '</div>';
   }
   function sectionLabel(left, right) {
-    return '<span style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:#6B7486;letter-spacing:0.3px;padding:0 4px 8px">'
+    return '<span style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.3px;padding:0 4px 8px">'
       + '<span>' + esc(left) + '</span><span style="letter-spacing:0;font-weight:500">' + esc(right || '') + '</span></span>';
   }
   function smallLabel(left, right) {
     return '<span style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 4px">'
-      + '<span style="font-size:13px;font-weight:700;color:#6B7486;letter-spacing:0.4px">' + esc(left) + '</span>' + (right || '') + '</span>';
+      + '<span style="font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.3px">' + esc(left) + '</span>' + (right || '') + '</span>';
+  }
+  // Empty state: a tint circle with a blue icon, the sentence in navy, an optional muted line.
+  function empty(icon, text, sub, extra) {
+    return '<section class="empty"' + (extra ? ' style="' + extra + '"' : '') + '><span class="ico">' + ic(icon, 18) + '</span><span class="t">' + esc(text)
+      + (sub ? '<span class="s">' + esc(sub) + '</span>' : '') + '</span></section>';
+  }
+  // Skeletons shaped like the screen while it loads (instead of a bare spinner).
+  function skRows(n, h) { var r = ''; for (var i = 0; i < n; i++) r += '<span class="sk" style="display:block;height:' + (h || 56) + 'px;margin-bottom:8px"></span>'; return r; }
+  function skeleton(kind) {
+    var head = '<span class="sk line" style="width:40%;margin:4px 4px 10px"></span><span class="sk" style="display:block;width:55%;height:36px;margin:0 4px 16px"></span>';
+    if (kind === 'today') {
+      return head + '<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:80px 80px;gap:10px;margin-bottom:14px">'
+        + '<span class="sk tile" style="grid-row:1 / span 2"></span><span class="sk tile"></span><span class="sk tile"></span></div>'
+        + '<span class="sk tile" style="display:block;height:132px;margin-bottom:14px"></span>' + skRows(4, 54);
+    }
+    if (kind === 'card') return '<span class="sk line" style="width:30%;margin:4px 4px 14px"></span><span class="sk tile" style="display:block;height:110px;margin-bottom:10px"></span>'
+      + '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px"><span class="sk" style="height:68px"></span><span class="sk" style="height:68px"></span><span class="sk" style="height:68px"></span><span class="sk" style="height:68px"></span></div>' + skRows(3, 52);
+    return head + skRows(6, 56);
   }
   var CHEV = '<span style="color:#C4C7CE;display:flex">' + ic('chev', 15, 2.4) + '</span>';
-  function loading() { return '<div class="scr" style="align-items:center;justify-content:center"><span class="spin"></span></div>'; }
+  // One disabled look for main actions: readable, clearly not ready (UI polish 2026-10-23).
+  var OFFBTN = 'background:#EAF3FC;color:#5A6373;box-shadow:none';
+  function loading(kind) { return '<div class="scr" aria-busy="true" aria-label="Loading">' + skeleton(kind) + '</div>'; }
   function failed(e) {
-    return '<div class="scr" style="align-items:center;justify-content:center;gap:12px;text-align:center"><span style="font-size:17px;font-weight:600">'
-      + esc(errText(e)) + '</span><button type="button" data-reload style="height:44px;padding:0 18px;border-radius:14px;border:0;background:#1170C0;color:#fff;font-size:16px;font-weight:600">Try again</button></div>';
+    return '<div class="scr" style="align-items:center;justify-content:center;gap:12px;text-align:center">'
+      + '<span style="width:48px;height:48px;border-radius:50%;background:var(--tint);color:#1170C0;display:flex;align-items:center;justify-content:center">' + ic('redo', 22) + '</span>'
+      + '<span style="font-size:17px;font-weight:600">' + esc(errText(e)) + '</span><button type="button" data-reload style="height:48px;padding:0 22px;border-radius:14px;border:0;background:#1170C0;color:#fff;font-size:16px;font-weight:600">Try again</button></div>';
   }
   // The two kinds of dot used for My Fifty people (L6): solid = warm, half = going cold, dashed = open.
   var DOT = {
@@ -158,9 +181,9 @@
   // Paints a screen: shows a spinner only if loading is slow, then the HTML.
   // Only the newest screen asked for may paint: a slow answer for a screen the rep already left is dropped.
   var paintSeq = 0;
-  function paint(promise, view, tab) {
+  function paint(promise, view, tab, sk) {
     var shown = false, mine = ++paintSeq;
-    var t = setTimeout(function () { if (mine !== paintSeq) return; shown = true; $app.innerHTML = loading() + (tab ? tabs(tab) : ''); }, 120);
+    var t = setTimeout(function () { if (mine !== paintSeq) return; shown = true; $app.innerHTML = loading(sk) + (tab ? tabs(tab) : ''); }, 120);
     return promise.then(function (data) {
       clearTimeout(t);
       if (mine !== paintSeq) return data;
@@ -207,35 +230,36 @@
       void now;
       var h = '<div class="scr">' + LOGO
         + '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 10px">'
-        + '<span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:#6B7486;letter-spacing:0.3px">' + L.longDate(date) + '</span>'
+        + '<span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.3px">' + L.longDate(date) + '</span>'
         + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">Today</span></span>'
         + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-bottom:4px">' + esc(ME.initials) + '</span></div>'
         + (d.week ? weekFocus(d.week) : '')
         // tiles
         + '<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:80px 80px;gap:10px;margin-bottom:14px">'
-        + '<div style="grid-row:1 / span 2;background:#FFFFFF;border-radius:22px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(0,0,0,0.04)">'
-        + '<span style="font-size:13px;font-weight:600;color:#6B7486">TODAY</span>'
+        + '<div style="grid-row:1 / span 2;background:#FFFFFF;border-radius:22px;padding:14px;display:flex;flex-direction:column;justify-content:space-between">'
+        + '<span style="font-size:13px;font-weight:600;color:var(--muted)">TODAY</span>'
         + '<svg width="92" height="92" viewBox="0 0 92 92" role="img" aria-label="done today"><defs><linearGradient id="gt" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4FA3EE"/><stop offset="1" stop-color="#1170C0"/></linearGradient></defs>'
         + '<circle cx="46" cy="46" r="38" fill="none" stroke="#EEF2F8" stroke-width="11"/>'
         + (done ? '<circle cx="46" cy="46" r="38" fill="none" stroke="url(#gt)" stroke-width="11" stroke-linecap="round" stroke-dasharray="' + L.ringDash(38, done, goal) + '" transform="rotate(-90 46 46)"/>' : '')
         + '<text x="46" y="49" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#062064">' + done + '/' + goal + '</text>'
-        + '<text x="46" y="64" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="11" font-weight="500" fill="#6B7486">done</text></svg>'
+        + '<text x="46" y="64" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="13" font-weight="500" fill="#5A6373">done</text></svg>'
         + '<span style="font-size:15px;font-weight:600;line-height:1.2">' + L.dayLeftText(done, goal) + '</span></div>'
-        + '<div style="background:linear-gradient(135deg,#FFD86B,#F5B21F);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#3D2A00">'
-        + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600">STREAK ' + FLAME + '</span>'
+        // Gold means a win: at 0 days the tile is white with a gold flame (UI polish 2026-10-23).
+        + '<div style="background:' + (day.streak ? 'linear-gradient(135deg,#FFD86B,#F5B21F);color:#3D2A00' : '#FFFFFF;color:#062064;--flame:#F5B21F') + ';border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between">'
+        + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600' + (day.streak ? '' : ';color:var(--muted)') + '">STREAK ' + FLAME + '</span>'
         + '<span style="display:flex;align-items:baseline;gap:4px"><span style="font-size:30px;font-weight:700;letter-spacing:-0.8px">' + day.streak + '</span>'
         + '<span style="font-size:13px;font-weight:600">' + (day.streak === 1 ? 'day' : 'days') + '</span></span></div>'
-        + '<a href="/people" data-nav style="background:linear-gradient(135deg,#1A80D6,#1170C0);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">'
+        + '<a href="/people" data-nav style="background:linear-gradient(135deg,#1373C3,#0F63AA);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">'
         + '<span style="display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>MY FIFTY</span><span>' + fifty.count + '</span></span>'
         + '<span style="display:flex;justify-content:space-between">' + dots + '</span>'
         + '<span style="font-size:13px;font-weight:600">' + toNext + ' more to reach ' + fifty.next + '</span></a></div>';
       if (next) {
         h += sectionLabel('SUGGESTED NEXT', '')
-          + '<section style="background:#FFFFFF;border-radius:22px;padding:14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-bottom:14px">'
+          + '<section style="background:#FFFFFF;border-radius:22px;padding:14px;margin-bottom:14px">'
           + '<a href="/person/' + next.id + '" data-nav style="display:flex;align-items:center;gap:12px">'
           + '<span style="width:44px;height:44px;border-radius:12px;background:#EEF2F8;display:flex;align-items:center;justify-content:center;flex:none;color:#062064">' + ic(next.action === 'visit' ? 'pin' : 'phone', 16) + '</span>'
-          + '<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:20px;font-weight:600;letter-spacing:-0.3px">' + esc(next.name) + '</span>'
-          + '<span style="font-size:14px;color:#6B7486">' + [next.clinic ? nb(next.clinic) : '', esc(next.detail)].filter(Boolean).join(' · ') + '</span></span></a>'
+          + '<span style="display:flex;flex-direction:column;gap:2px;min-width:0"><span style="font-size:20px;font-weight:600;letter-spacing:-0.3px">' + esc(next.name) + '</span>'
+          + '<span style="font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + [next.clinic ? nb(next.clinic) : '', esc(next.detail)].filter(Boolean).join(' · ') + '</span></span></a>'
           + '<div style="display:grid;grid-template-columns:1fr 1fr 1.1fr;gap:8px;margin-top:12px">'
           + '<button type="button" data-log="' + next.id + '" data-kind="' + (next.action === 'visit' ? 'visit' : 'call') + '" style="height:48px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:6px;font-size:17px;font-weight:600">' + ic('check', 18, 2.6) + 'Log</button>'
           + '<button type="button" data-call="' + next.id + '" style="height:48px;width:100%;border-radius:14px;border:0;background:#EEF2F8;color:#062064;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:5px">' + ic('phone', 16) + 'Call</button>'
@@ -243,37 +267,36 @@
           + '</div></section>';
       } else {
         h += sectionLabel('SUGGESTED NEXT', '')
-          + '<section style="background:#FFFFFF;border-radius:22px;padding:18px 14px;box-shadow:0 1px 2px rgba(0,0,0,0.04);margin-bottom:14px;font-size:16px;font-weight:600">Nothing on your list right now.'
-          + '<span style="display:block;font-size:14px;font-weight:400;color:#6B7486;margin-top:4px">New leads, follow-ups and people going cold show up here.</span></section>';
+          + empty('today', 'Nothing on your list right now.', 'New leads, follow-ups and people going cold show up here.', 'border-radius:22px;margin-bottom:14px');
       }
       if (then.length) {
-        h += sectionLabel('THEN', 'Tap one to do it first') + '<section style="background:#FFFFFF;border-radius:16px">';
+        h += sectionLabel('THEN', 'Tap one to do it first') + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:14px">';
         then.forEach(function (x, i) {
           h += '<button type="button" data-first="' + x.id + '" style="width:100%;border:0;' + (i ? 'border-top:0.5px solid #E3E6EC;' : '') + 'background:transparent;color:#062064;display:flex;align-items:center;gap:12px;height:54px;padding:0 14px;text-align:left">'
             + '<span style="width:32px;height:32px;border-radius:9px;background:#EEF2F8;display:flex;align-items:center;justify-content:center;flex:none">' + ic(x.action === 'visit' ? 'pin' : 'phone', 16) + '</span>'
             + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(x.name) + '</span>'
-            + '<span style="font-size:13px;color:#6B7486;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(x.clinic) + '</span></span>'
-            + '<span style="font-size:15px;color:#6B7486">' + (x.action === 'visit' ? 'Visit' : 'Call') + '</span></button>';
+            + '<span style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(x.clinic) + '</span></span>'
+            + '<span style="font-size:15px;color:var(--muted)">' + (x.action === 'visit' ? 'Visit' : 'Call') + '</span></button>';
         });
         h += '</section>';
       }
       if (d.week) h += weekList('THIS WEEK’S VISITS', d.week.visits, 'visit') + weekList('THIS WEEK’S CALLS', d.week.calls, 'call');
       h += pushPrompt() + '</div>';
       return h;
-    }, 'today');
+    }, 'today', 'today');
   }
 
   // ---- The week (Compass): set in the weekly 1-on-1, shown on Today once it is saved ----------------------------------
   // The focus on top with one "Confirm my week" tap; then the agreed visits (each ends Done or Missed) and calls.
   function weekFocus(w) {
     return '<section style="background:linear-gradient(135deg,#0A2A7A,#1170C0);border-radius:22px;padding:14px 16px;margin-bottom:14px;color:#FFFFFF;display:flex;flex-direction:column;gap:6px">'
-      + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;letter-spacing:0.3px;opacity:0.85"><span>THIS WEEK’S FOCUS</span>'
+      + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;letter-spacing:0.3px;font-weight:500"><span>THIS WEEK’S FOCUS</span>'
       + (w.confirmed ? '<span style="display:flex;align-items:center;gap:4px;letter-spacing:0">' + ic('check', 14, 2.8) + 'Confirmed</span>' : '') + '</span>'
       + '<span style="font-size:22px;font-weight:700;letter-spacing:-0.4px">' + esc(w.focus ? w.focus.name : 'Your week') + '</span>'
-      + (w.focus && w.focus.line ? '<span style="font-size:15px;font-weight:500;opacity:0.92">' + esc(w.focus.line) + '</span>' : '')
-      + (w.confirmed ? '<span style="font-size:13px;opacity:0.8">' + esc(w.counts) + '</span>'
+      + (w.focus && w.focus.line ? '<span style="font-size:15px;font-weight:500">' + esc(w.focus.line) + '</span>' : '')
+      + (w.confirmed ? '<span style="font-size:13px;font-weight:500">' + esc(w.counts) + '</span>'
         : '<button type="button" data-confirm-week style="margin-top:6px;height:52px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">'
-          + '<span style="font-size:17px;font-weight:600">Confirm my week</span><span style="font-size:13px;color:#6B7486">' + esc(w.counts) + '</span></button>')
+          + '<span style="font-size:17px;font-weight:600">Confirm my week</span><span style="font-size:13px;color:var(--muted)">' + esc(w.counts) + '</span></button>')
       + '</section>';
   }
   function weekList(title, rows, kind) {
@@ -283,24 +306,25 @@
     rows.forEach(function (r, i) {
       var done = r.state === 'done', missed = r.state === 'missed';
       h += '<div style="' + (i ? 'border-top:0.5px solid #E3E6EC;' : '') + 'padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
-        + '<a href="/person/' + r.contactId + '" data-nav style="display:flex;align-items:center;gap:12px">'
-        + '<span style="width:32px;height:32px;border-radius:9px;background:' + (done ? '#1170C0;color:#FFFFFF' : '#EEF2F8;color:#062064') + ';display:flex;align-items:center;justify-content:center;flex:none">'
-        + ic(done ? 'check' : kind === 'visit' ? 'pin' : 'phone', 16, done ? 2.8 : 2.2) + '</span>'
-        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600' + (missed ? ';color:#6B7486' : '') + '">' + esc(r.name) + '</span>'
-        + '<span style="font-size:13px;color:#6B7486;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(r.clinic) + '</span></span>'
-        + (done ? '<span style="font-size:14px;font-weight:600;color:#1170C0;flex:none">Done' + (r.when ? ' · ' + esc(r.when) : '') + '</span>'
-          : missed ? '<span style="font-size:14px;font-weight:600;color:#6B7486;flex:none">Missed</span>' : CHEV) + '</a>'
+        + '<a href="/person/' + r.contactId + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:44px">'
+        // Status reads as status (UI polish): Done is a green tile and green words, not the blue of an action.
+        + '<span style="width:32px;height:32px;border-radius:9px;background:' + (done ? '#E6F4EA;color:#1E7B3C' : '#EEF2F8;color:#062064') + ';display:flex;align-items:center;justify-content:center;flex:none">'
+        + ic(done ? 'check' : kind === 'visit' ? 'pin' : 'phone', 16) + '</span>'
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600' + (missed ? ';color:var(--muted)' : '') + '">' + esc(r.name) + '</span>'
+        + '<span style="font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(r.clinic) + '</span></span>'
+        + (done ? '<span style="font-size:14px;font-weight:600;color:#1E7B3C;flex:none">Done' + (r.when ? ' · ' + esc(r.when) : '') + '</span>'
+          : missed ? '<span style="font-size:14px;font-weight:600;color:var(--muted);flex:none;display:flex;align-items:center;gap:3px">' + ic('x', 14) + 'Missed</span>' : CHEV) + '</a>'
         + (r.purpose && !done && !missed ? '<span style="display:flex;align-items:flex-start;gap:6px;background:#EAF3FC;color:#0A3F7A;border-radius:10px;padding:7px 10px;font-size:14px;line-height:1.3">'
           + '<span style="display:flex;flex:none;margin-top:1px">' + ic('note', 14, 2) + '</span><span>' + esc(r.purpose) + '</span></span>' : '');
       if (!done && !missed) {
         h += '<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px">'
-          + '<button type="button" data-log="' + r.contactId + '" data-kind="' + kind + '" style="height:42px;border-radius:12px;border:0;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:600">' + ic('check', 16, 2.6) + 'Log</button>'
+          + '<button type="button" data-log="' + r.contactId + '" data-kind="' + kind + '" style="height:48px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:600">' + ic('check', 16, 2.6) + 'Log</button>'
           + (kind === 'visit'
-            ? '<button type="button" data-missed="' + r.id + '" style="height:42px;border-radius:12px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('x', 15, 2.4) + 'Missed</button>'
-            : '<button type="button" data-call="' + r.contactId + '" style="height:42px;border-radius:12px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('phone', 15) + 'Call</button>')
+            ? '<button type="button" data-missed="' + r.id + '" style="height:48px;border-radius:14px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('x', 15, 2.4) + 'Missed</button>'
+            : '<button type="button" data-call="' + r.contactId + '" style="height:48px;border-radius:14px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('phone', 15) + 'Call</button>')
           + '</div>';
       } else if (missed) {
-        h += '<button type="button" data-unmissed="' + r.id + '" style="align-self:flex-start;height:32px;padding:0 12px;border-radius:10px;border:0;background:#EEF2F8;color:#1170C0;font-size:14px;font-weight:600">Undo</button>';
+        h += '<button type="button" data-unmissed="' + r.id + '" class="btn-pill sm pill-soft" style="align-self:flex-start;color:#1170C0;margin:-4px 0 -4px -4px">Undo</button>';
       }
       h += '</div>';
     });
@@ -340,18 +364,17 @@
 
   // ---- L6 People ---------------------------------------------------------------------------------------
   var peopleView = 'fifty', peopleFilter = 'cold';
-  var SEG_ON = 'background:#FFFFFF;color:#062064;box-shadow:0 1px 3px rgba(0,0,0,0.12)', SEG_OFF = 'color:#6B7486';
   function screenPeople() {
     return paint(read('people'), function (d) {
       var h = '<div class="scr">'
         + '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 14px">'
         + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">People</span>'
-        + '<button type="button" data-add-person style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#1170C0;color:#FFFFFF;font-size:15px;font-weight:600;display:flex;align-items:center;gap:4px;margin-bottom:6px">' + ic('plus', 15, 2.6) + 'Add person</button></div>'
-        + searchBox('people-search', 'Find a person', 42, 12)
+        + '<button type="button" data-add-person class="btn-pill lg pill-blue" style="margin-bottom:1px;margin-right:-2px">' + ic('plus', 15) + 'Add person</button></div>'
+        + searchBox('people-search', 'Find a person', 44, 12)
         + '<div data-search-results></div><div data-people-body>'
-        + '<div style="display:grid;grid-auto-flow:column;grid-auto-columns:1fr;background:#E4E8EF;border-radius:12px;padding:3px;gap:3px;margin-bottom:14px">'
+        + '<div class="seg" style="margin-bottom:14px">'
         + [['fifty', 'My Fifty'], ['cand', 'Candidates'], ['leads', 'Leads']].map(function (t) {
-          return '<button type="button" data-pview="' + t[0] + '" style="height:36px;border-radius:9px;border:0;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;' + (peopleView === t[0] ? SEG_ON : SEG_OFF + ';background:transparent') + '">' + t[1] + '</button>';
+          return '<button type="button" data-pview="' + t[0] + '"' + (peopleView === t[0] ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + t[1] + '</button>';
         }).join('') + '</div>';
       if (peopleView === 'fifty') h += fiftyView(d.fifty);
       else if (peopleView === 'cand') h += candidatesView(d.fifty.count, d.candidates);
@@ -360,7 +383,7 @@
     }, 'people');
   }
   function searchBox(name, placeholder, height, mb) {
-    return '<label style="height:' + height + 'px;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;gap:8px;padding:0 12px;color:#6B7486;font-size:16px;margin-bottom:' + mb + 'px;flex:none">'
+    return '<label class="field" style="height:' + height + 'px;border-radius:12px;background:#FFFFFF;display:flex;align-items:center;gap:8px;padding:0 12px;color:var(--muted);font-size:16px;margin-bottom:' + mb + 'px;flex:none">'
       + ic('search', 17) + '<input class="bare" type="search" data-search="' + name + '" placeholder="' + esc(placeholder) + '" autocomplete="off" style="flex:1;min-width:0;font-size:16px;height:100%"></label>';
   }
   function fiftyView(f) {
@@ -371,52 +394,52 @@
           : '<span style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;border:1.5px dashed rgba(255,255,255,0.4)"></span>';
     }
     var h = '<div style="display:flex;flex-direction:column">'
-      + '<section style="background:linear-gradient(135deg,#1A80D6,#1170C0);color:#FFFFFF;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px">'
-      + '<span style="display:flex;justify-content:space-between;font-size:15px;font-weight:600"><span>' + f.count + ' in My Fifty</span><span style="opacity:0.85">' + f.open + ' open spots</span></span>'
+      + '<section style="background:linear-gradient(135deg,#1373C3,#0F63AA);color:#FFFFFF;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px">'
+      + '<span style="display:flex;justify-content:space-between;font-size:15px;font-weight:600"><span>' + f.count + ' in My Fifty</span><span style="font-weight:500">' + f.open + ' open spots</span></span>'
       + '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:6px">' + dots + '</div></section>'
       + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'
       + [['warm', f.warmCount, 'Warm'], ['cold', f.coldCount, 'Going cold'], ['open', f.open, 'Open']].map(function (x) {
         return '<button type="button" data-pfilter="' + x[0] + '" style="height:62px;border-radius:14px;border:0;padding:0 12px;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:2px;color:#062064;background:#FFFFFF' + (peopleFilter === x[0] ? ';box-shadow:inset 0 0 0 2px #1170C0' : '') + '">'
           + '<span style="display:flex;align-items:center;gap:6px;font-size:20px;font-weight:700">' + DOT[x[0]] + x[1] + '</span>'
-          + '<span style="font-size:12px;font-weight:600;color:#6B7486">' + x[2] + '</span></button>';
+          + '<span style="font-size:13px;font-weight:600;color:var(--muted)">' + x[2] + '</span></button>';
       }).join('') + '</div>';
     var rows = peopleFilter === 'warm' ? f.warm : peopleFilter === 'cold' ? f.cold : null;
     if (rows) {
       h += rows.length ? '<section style="background:#FFFFFF;border-radius:16px">' + rows.map(function (r, i) {
         return '<a href="/person/' + r.id + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
           + DOT[peopleFilter] + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(r.name) + '</span>'
-          + '<span style="font-size:13px;color:#6B7486">' + nb(r.sub) + '</span></span>' + CHEV + '</a>';
+          + '<span class="row-sub">' + nb(r.sub) + '</span></span>' + CHEV + '</a>';
       }).join('') + '</section>'
-        : '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486">' + (peopleFilter === 'cold' ? 'Nobody is going cold.' : 'Nobody here yet.') + '</section>';
+        : empty('people', peopleFilter === 'cold' ? 'Nobody is going cold.' : 'Nobody here yet.');
     } else {
       h += '<section style="background:#FFFFFF;border-radius:16px"><button type="button" data-pview="cand" style="width:100%;border:0;background:transparent;color:#062064;text-align:left;display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px">'
         + DOT.open + '<span style="flex:1 1 auto;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:600">' + f.open + ' open spots</span>'
-        + '<span style="font-size:13px;color:#6B7486">Turn candidates into My Fifty</span></span>' + CHEV + '</button></section>';
+        + '<span style="font-size:13px;color:var(--muted)">Turn candidates into My Fifty</span></span>' + CHEV + '</button></section>';
     }
     return h + '</div>';
   }
   function candidatesView(now, cands) {
     var faces = cands.slice(0, 4).map(function (c) {
-      return '<span style="width:34px;height:34px;border-radius:50%;border:2px dashed rgba(255,255,255,0.85);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;margin-left:5px;background:rgba(255,255,255,0.12)">' + esc(c.initials) + '</span>';
+      return '<span style="width:34px;height:34px;border-radius:50%;border:2px dashed rgba(255,255,255,0.85);box-sizing:border-box;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;margin-left:5px;background:rgba(6,32,100,0.12)">' + esc(c.initials) + '</span>';
     }).join('');
     var h = '<div style="display:flex;flex-direction:column;gap:12px">'
-      + '<div style="background:linear-gradient(135deg,#1A80D6,#1170C0);color:#FFFFFF;border-radius:20px;padding:18px;display:flex;align-items:center;justify-content:space-between">'
-      + '<span style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1">' + now + '</span><span style="font-size:12px;opacity:0.85">now</span></span>'
-      + '<span style="display:flex">' + faces + '</span><span style="font-size:22px;opacity:0.85">→</span>'
+      + '<div style="background:linear-gradient(135deg,#1373C3,#0F63AA);color:#FFFFFF;border-radius:22px;padding:18px;display:flex;align-items:center;justify-content:space-between">'
+      + '<span style="display:flex;flex-direction:column;align-items:center;gap:2px"><span style="font-size:34px;font-weight:700;letter-spacing:-1px;line-height:1">' + now + '</span><span style="font-size:13px;font-weight:500">now</span></span>'
+      + '<span style="display:flex">' + faces + '</span><span style="display:flex">' + ic('arrow', 20) + '</span>'
       + '<span style="display:flex;flex-direction:column;align-items:center;gap:4px"><span style="width:58px;height:58px;border-radius:50%;background:#FFFFFF;color:#1170C0;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;letter-spacing:-0.5px">' + (now + cands.length) + '</span>'
-      + '<span style="font-size:12px;opacity:0.85">one order each</span></span></div>';
-    if (!cands.length) return h + '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486">No candidates yet. Samples make a lead a candidate.</section></div>';
+      + '<span style="font-size:13px;font-weight:500">one order each</span></span></div>';
+    if (!cands.length) return h + empty('gift', 'No candidates yet. Samples make a lead a candidate.') + '</div>';
     var R = 2 * Math.PI * 20;
     h += '<section style="background:#FFFFFF;border-radius:16px">' + cands.map(function (c, i) {
       // Yousef 2026-10-20: no "Ask now"; every candidate shows how long since their samples arrived.
       var pill = L.candidatePill(c.days);
       return '<a href="/person/' + c.id + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
         + '<span style="position:relative;width:44px;height:44px;flex:none"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="position:absolute;inset:0">'
-        + '<circle cx="22" cy="22" r="20" fill="none" stroke="#E2E6ED" stroke-width="3.5"/>'
+        + '<circle cx="22" cy="22" r="20" fill="none" stroke="#E3E6EC" stroke-width="3.5"/>'
         + (c.ring ? '<circle cx="22" cy="22" r="20" fill="none" stroke="#1170C0" stroke-width="3.5" stroke-linecap="round" stroke-dasharray="' + (R * c.ring).toFixed(1) + ' ' + R.toFixed(1) + '" transform="rotate(-90 22 22)"/>' : '')
         + '</svg><span style="position:absolute;inset:6px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700">' + esc(c.initials) + '</span></span>'
-        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(c.name) + '</span><span style="font-size:13px;color:#6B7486">' + nb(c.clinic) + '</span></span>'
-        + '<span style="height:26px;padding:0 10px;border-radius:13px;font-size:13px;font-weight:700;display:flex;align-items:center;background:#EEF2F8;color:#6B7486;white-space:nowrap">' + pill + '</span></a>';
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(c.name) + '</span><span class="row-sub">' + nb(c.clinic) + '</span></span>'
+        + '<span class="pill quiet">' + pill + '</span></a>';
     }).join('') + '</section>';
     return h + '</div>';
   }
@@ -425,9 +448,9 @@
       + '<section style="background:#FFFFFF;border-radius:16px">' + groups.map(function (g, i) {
         var dim = g.key === 'cold';
         return '<a href="/people/leads/' + g.key + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:56px;padding:0 14px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
-          + '<span style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none;' + (dim ? 'border:1.5px solid #C4C7CE;color:#6B7486;box-sizing:border-box' : 'background:#1170C0;color:#FFFFFF') + '">' + (i + 1) + '</span>'
+          + '<span style="width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex:none;' + (dim ? 'border:1.5px solid #C4C7CE;color:var(--muted);box-sizing:border-box' : 'background:#1170C0;color:#FFFFFF') + '">' + (i + 1) + '</span>'
           + '<span style="flex:1 1 auto;font-size:16px;font-weight:600">' + esc(g.label) + '</span>'
-          + (g.fresh ? '<span style="height:24px;padding:0 9px;border-radius:12px;background:#1170C0;color:#FFFFFF;font-size:12px;font-weight:700;display:flex;align-items:center">' + g.fresh + ' new</span>' : '')
+          + (g.fresh ? '<span class="pill new">' + g.fresh + ' new</span>' : '')
           + '<span style="font-size:17px;font-weight:700;min-width:26px;text-align:right">' + g.count + '</span>' + CHEV + '</a>';
       }).join('') + '</section></div>';
   }
@@ -461,8 +484,8 @@
         return '<a href="/person/' + p.id + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
           + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">' + esc(p.initials) + '</span>'
           + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(p.name) + '</span>'
-          + '<span style="font-size:13px;color:#6B7486">' + [p.clinic ? nb(p.clinic) : '', STAGE[p.stage]].filter(Boolean).join(' · ') + '</span></span>' + CHEV + '</a>';
-      }).join('') + '</section>' : '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486;margin-bottom:12px">Nobody in your book matches.</section>';
+          + '<span class="row-sub">' + [p.clinic ? nb(p.clinic) : '', STAGE[p.stage]].filter(Boolean).join(' · ') + '</span></span>' + CHEV + '</a>';
+      }).join('') + '</section>' : empty('search', 'Nobody in your book matches.', '', 'margin-bottom:12px');
     }).catch(function (err) { toast(errText(err)); });
   }
 
@@ -471,16 +494,16 @@
     return paint(read('leads', { group: group }), function (d) {
       var h = '<div class="scr">' + backLink('/people', 'People')
         + '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 4px"><span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">' + esc(d.title) + '</span></div>'
-        + '<span style="flex:none;font-size:14px;color:#6B7486;padding:0 4px 8px">' + d.leads.length + (d.leads.length === 1 ? ' lead' : ' leads') + ' · newest first</span>';
-      if (!d.leads.length) return h + '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486">No leads here right now.</section></div>';
+        + '<span style="flex:none;font-size:14px;color:var(--muted);padding:0 4px 8px">' + d.leads.length + (d.leads.length === 1 ? ' lead' : ' leads') + ' · newest first</span>';
+      if (!d.leads.length) return h + empty('people', 'No leads here right now.') + '</div>';
       h += '<section style="background:#FFFFFF;border-radius:16px">' + d.leads.map(function (l, i) {
         return '<a href="/person/' + l.id + '" data-nav style="display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
           + '<span style="width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none;' + (l.isNew ? 'background:#1170C0;color:#FFFFFF' : 'background:#EEF2F8;color:#062064') + '">' + esc(l.initials) + '</span>'
           + '<span style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:16px;font-weight:600">' + esc(l.name) + '</span>'
-          + '<span style="font-size:13px;color:#6B7486;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(l.sub) + '</span></span>'
-          + '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none"><span style="font-size:12px;color:#6B7486">' + esc(l.age) + '</span>'
-          + (l.isNew ? '<span style="height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:700;display:flex;align-items:center;background:#1170C0;color:#FFFFFF">New</span>'
-            : l.last ? '<span style="height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:700;display:flex;align-items:center;background:#EEF2F8;color:#062064">' + esc(l.last) + '</span>' : '')
+          + '<span class="row-sub">' + nb(l.sub) + '</span></span>'
+          + '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none"><span style="font-size:13px;color:var(--muted)">' + esc(l.age) + '</span>'
+          + (l.isNew ? '<span class="pill new">New</span>'
+            : l.last ? '<span class="pill neutral">' + esc(l.last) + '</span>' : '')
           + '</span></a>';
       }).join('') + '</section>';
       return h + '</div>';
@@ -504,20 +527,20 @@
           : '<span style="width:13px;height:13px;border-radius:50%;border:1.5px dashed #062064;box-sizing:border-box"></span>';
       var h = '<div class="scr">' + backLink('/people', 'People')
         + '<section style="background:#FFFFFF;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:6px;margin-bottom:10px">'
-        + '<span style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:#6B7486">' + dot + esc(p.label) + '</span>'
+        + '<span style="display:flex;align-items:center;gap:7px;font-size:13px;font-weight:600;color:var(--muted)">' + dot + esc(p.label) + '</span>'
         + '<span style="font-size:28px;font-weight:700;letter-spacing:-0.6px">' + esc(p.name) + '</span>'
-        + (p.clinic ? '<span style="font-size:15px;color:#6B7486">' + nb(p.clinic) + '</span>' : '') + '</section>';
+        + (p.clinic ? '<span style="font-size:15px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">' + nb(p.clinic) + '</span>' : '') + '</section>';
       if (p.totalBought) {
         h += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
-          + '<div style="background:linear-gradient(135deg,#1A80D6,#1170C0);border-radius:20px;padding:14px;color:#FFFFFF"><span style="display:block;font-size:26px;font-weight:700;letter-spacing:-0.6px">' + esc(p.totalBought) + '</span><span style="font-size:13px;font-weight:600;opacity:0.85">Total bought</span></div>'
-          + '<div style="background:#FFFFFF;border-radius:20px;padding:14px"><span style="display:block;font-size:26px;font-weight:700;letter-spacing:-0.6px">' + esc(p.lastOrder ? p.lastOrder.total : '$0') + '</span><span style="font-size:13px;font-weight:600;color:#6B7486">Last order' + (p.lastOrder ? ' · ' + esc(p.lastOrder.date) : '') + '</span></div></div>';
+          + '<div style="background:linear-gradient(135deg,#1373C3,#0F63AA);border-radius:22px;padding:14px;color:#FFFFFF"><span style="display:block;font-size:26px;font-weight:700;letter-spacing:-0.6px">' + esc(p.totalBought) + '</span><span style="font-size:13px;font-weight:500">Total bought</span></div>'
+          + '<div style="background:#FFFFFF;border-radius:22px;padding:14px"><span style="display:block;font-size:26px;font-weight:700;letter-spacing:-0.6px">' + esc(p.lastOrder ? p.lastOrder.total : '$0') + '</span><span style="font-size:13px;font-weight:600;color:var(--muted)">Last order' + (p.lastOrder ? ' · ' + esc(p.lastOrder.date) : '') + '</span></div></div>';
       }
       if (p.status) {
         var href = p.status.kind === 'onboarding' ? '/person/' + p.id + '/onboarding' : '/orders/' + p.status.id;
-        h += '<a href="' + href + '" data-nav style="background:#FFFFFF;border-radius:18px;min-height:64px;padding:0 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">'
+        h += '<a href="' + href + '" data-nav style="background:#FFFFFF;border-radius:16px;min-height:64px;padding:0 14px;margin-bottom:10px;display:flex;align-items:center;gap:12px">'
           + '<span style="width:40px;height:40px;border-radius:12px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;flex:none">' + ic(STATUS_ICON[p.status.kind], 20, 2) + '</span>'
-          + '<span style="flex:1 1 auto;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:700">' + esc(p.status.label) + '</span><span style="font-size:13px;color:#6B7486">' + esc(p.status.sub) + '</span></span>'
-          + '<span style="color:#9AA1AD;display:flex">' + ic('chev', 16, 2.4) + '</span></a>';
+          + '<span style="flex:1 1 auto;display:flex;flex-direction:column"><span style="font-size:16px;font-weight:700">' + esc(p.status.label) + '</span><span style="font-size:13px;color:var(--muted)">' + esc(p.status.sub) + '</span></span>'
+          + CHEV + '</a>';
       }
       function btn(attr, icon, label) {
         return '<button type="button" ' + attr + ' style="height:68px;border-radius:16px;border:0;background:#FFFFFF;color:#062064;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic(icon, 21) + label + '</button>';
@@ -525,20 +548,20 @@
       h += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
         + btn('data-quo="call"', 'phone', 'Call') + btn('data-log="' + p.id + '" data-kind="visit"', 'pin', 'Visit')
         + btn('data-quo="text"', 'text', 'Text') + btn('data-email', 'mail', 'Email') + '</div>';
-      function row(attr, label, value, first) {
+      function row(attr, label, value, first, none) {
         return '<button type="button" ' + attr + ' style="width:100%;border:0;background:transparent;color:#062064;text-align:left;display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:52px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #E3E6EC') + '">'
-          + '<span style="font-size:15px;color:#6B7486">' + label + '</span><span style="font-size:15px;font-weight:600;text-align:right">' + esc(value) + '</span></button>';
+          + '<span style="font-size:15px;color:var(--muted)">' + label + '</span><span style="font-size:15px;text-align:right;' + (none ? 'font-weight:500;color:var(--muted)' : 'font-weight:600') + '">' + esc(value) + '</span></button>';
       }
       h += '<section style="background:#FFFFFF;border-radius:16px">'
-        + row('data-followup', 'Next follow-up', p.followUp ? p.followUp.label : 'None', true)
-        + row('data-uses="fillers"', 'Filler they use', p.fillers.length ? names(FILLERS, p.fillers) : 'None yet')
-        + row('data-uses="prp"', 'PRP/PRF they use', p.prp.length ? names(PRPS, p.prp) : 'None yet')
+        + row('data-followup', 'Next follow-up', p.followUp ? p.followUp.label : 'None', true, !p.followUp)
+        + row('data-uses="fillers"', 'Filler they use', p.fillers.length ? names(FILLERS, p.fillers) : 'None yet', false, !p.fillers.length)
+        + row('data-uses="prp"', 'PRP/PRF they use', p.prp.length ? names(PRPS, p.prp) : 'None yet', false, !p.prp.length)
         + '</section><input type="date" data-followup-input min="' + ymd() + '" value="' + (p.followUp ? p.followUp.date : '') + '" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">'
         + '<a href="/person/' + p.id + '/history" data-nav style="margin-top:10px;background:#FFFFFF;border-radius:16px;min-height:60px;padding:0 14px;display:flex;align-items:center;gap:12px">'
         + '<span style="width:36px;height:36px;border-radius:10px;background:#EAF3FC;color:#1170C0;display:flex;align-items:center;justify-content:center;flex:none">' + ic('clock', 18) + '</span>'
-        + '<span style="flex:1 1 auto;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">History</span><span style="font-size:13px;color:#6B7486">' + esc(p.last) + '</span></span>' + CHEV + '</a>';
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column"><span style="font-size:15px;font-weight:600">History</span><span style="font-size:13px;color:var(--muted)">' + esc(p.last) + '</span></span>' + CHEV + '</a>';
       return h + '</div>';
-    }, 'people');
+    }, 'people', 'card');
   }
   $app.addEventListener('click', function (e) {
     if (!current) return;
@@ -579,10 +602,10 @@
     function draw() {
       $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet">' + '<span class="grab"></span>'
         + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">' + (which === 'fillers' ? 'Filler they use' : 'PRP/PRF they use') + '</span>'
-        + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600">Cancel</button></div>'
+        + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px -4px 0">Cancel</button></div>'
         + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + list.map(function (x) {
           var on = picked.indexOf(x[0]) >= 0;
-          return '<button type="button" data-pick="' + x[0] + '" style="height:40px;padding:0 14px;border-radius:20px;border:0;font-size:15px;font-weight:600;' + (on ? 'background:#1170C0;color:#FFFFFF' : 'background:#EEF2F8;color:#062064') + '">' + esc(x[1]) + '</button>';
+          return '<button type="button" data-pick="' + x[0] + '" style="height:44px;padding:0 16px;border-radius:22px;border:0;font-size:15px;font-weight:600;' + (on ? 'background:#1170C0;color:#FFFFFF' : 'background:#EEF2F8;color:#062064') + '"' + (on ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + esc(x[1]) + '</button>';
         }).join('') + '</div>'
         + '<button type="button" data-save style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Save</button></div>';
     }
@@ -658,51 +681,52 @@
       var canSave = st.note.trim().length > 1 && !st.busy && st.rec === null;
       var noteBox;
       if (st.typing || st.note) {
-        noteBox = '<div style="background:#EEF2F8;border-radius:16px;padding:12px;box-shadow:inset 0 0 0 1.5px #C4C7CE">'
+        noteBox = '<div class="field" style="background:#EEF2F8;border-radius:16px;padding:12px;box-shadow:inset 0 0 0 1.5px #C4C7CE">'
           + '<textarea class="note" data-note placeholder="What happened? Then a line starting Next: for the next step">' + esc(st.note) + '</textarea>'
-          + (BOOT.voice ? '<div style="display:flex;justify-content:flex-end"><button type="button" data-mic style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#FFFFFF;color:#062064;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px">' + ic('mic', 15) + 'Talk instead</button></div>' : '')
+          + (BOOT.voice ? '<div style="display:flex;justify-content:flex-end"><button type="button" data-mic class="btn-pill sm pill-white" style="margin:-4px -4px -4px 0">' + ic('mic', 15) + 'Talk instead</button></div>' : '')
           + '</div>';
       } else {
         var recording = st.rec !== null && st.rec !== 'working';
         noteBox = '<div style="background:#EEF2F8;border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;box-shadow:inset 0 0 0 1.5px #C4C7CE">'
           + '<div style="display:flex;align-items:center;gap:12px">'
-          + '<button type="button" data-mic aria-label="Say the follow-up note" class="' + (recording ? 'rec' : '') + '" style="width:48px;height:48px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:' + (recording ? '#D64545' : '#1170C0') + ';color:#FFFFFF;border:0">'
+          + '<button type="button" data-mic aria-label="Say the follow-up note" class="' + (recording ? 'rec' : '') + '" style="width:48px;height:48px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:' + (recording ? '#D64545;color:#FFFFFF' : BOOT.voice ? '#1170C0;color:#FFFFFF' : '#EAF3FC;color:#1170C0') + ';border:0">'
           + (st.rec === 'working' ? '<span class="spin" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span>' : recording ? '<span style="width:16px;height:16px;border-radius:3px;background:#fff"></span>' : ic('mic', 22)) + '</button>'
           // Owner 2026-10-23: no "Say what happened and the next step" line; the bold line shows only while recording.
           + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:2px">'
           + (st.rec === 'working' || recording ? '<span style="font-size:15px;font-weight:600">' + (st.rec === 'working' ? 'Writing it up…' : 'Listening… tap to stop') + '</span>' : '')
-          + '<span style="font-size:14px;color:#6B7486">' + (st.rec === 'working' ? 'One moment' : recording ? 'Talk normally' : BOOT.voice ? 'Tap the mic and talk' : 'Tap Type to write it') + '</span></span>'
-          + '<button type="button" data-type style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#FFFFFF;color:#062064;font-size:13px;font-weight:600;flex:none">Type</button>'
+          + '<span style="font-size:14px;color:var(--muted)">' + (st.rec === 'working' ? 'One moment' : recording ? 'Talk normally' : BOOT.voice ? 'Tap the mic and talk' : 'Tap Type to write it') + '</span></span>'
+          + (BOOT.voice ? '<button type="button" data-type class="btn-pill sm pill-white" style="margin:-4px -4px -4px 0">Type</button>'
+            : '<button type="button" data-type style="height:44px;padding:0 18px;border-radius:14px;border:0;background:#FFFFFF;color:#1170C0;box-shadow:inset 0 0 0 1.5px #1170C0;font-size:15px;font-weight:600;flex:none">Type</button>')
           + '</div></div>';
       }
       function fbtn(key, top, sub) {
         var on = st.follow === key;
         // As in L3: "Pick a date" is always outlined in blue, and filled once a date is picked.
-        var style = on ? ON : key === 'pick' ? 'background:#E7F1FA;color:#1170C0;box-shadow:inset 0 0 0 2px #1170C0' : OFF;
+        var style = on ? ON : key === 'pick' ? 'background:#EAF3FC;color:#0B5FA5;box-shadow:inset 0 0 0 2px #1170C0' : OFF;
         return '<button type="button" data-follow="' + key + '" style="height:54px;border-radius:12px;border:0;display:flex;flex-direction:column;align-items:center;justify-content:center;' + style + '">'
-          + '<span style="font-size:14px;font-weight:600">' + top + '</span><span style="font-size:11px;opacity:0.75">' + sub + '</span></button>';
+          + '<span style="font-size:14px;font-weight:600">' + top + '</span><span style="font-size:13px;font-weight:500">' + sub + '</span></button>';
       }
       $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet">'
         + '<span class="grab"></span>'
         + '<div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="display:flex;flex-direction:column;gap:2px">'
-        + '<span style="font-size:15px;color:#6B7486">' + esc(p.name) + (p.clinic ? ' · ' + nb(p.clinic) : '') + '</span>'
+        + '<span style="font-size:15px;color:var(--muted)">' + esc(p.name) + (p.clinic ? ' · ' + esc(p.clinic) : '') + '</span>'
         + '<span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Did you reach them?</span></span>'
-        + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600;display:flex;align-items:center;flex:none">Cancel</button></div>'
+        + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px 0 0">Cancel</button></div>'
         + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">'
         + [['call', 'phone', 'Call'], ['visit', 'pin', 'Visit'], ['text', 'text', 'Text']].map(function (k) {
           return '<button type="button" data-kind="' + k[0] + '" style="' + KIND_BTN + (st.kind === k[0] ? ON : OFF) + '">' + ic(k[1], 19) + k[2] + '</button>';
         }).join('') + '</div>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
-        + '<button type="button" data-reached="1" style="height:58px;border-radius:14px;border:0;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;' + (st.reached ? ON : OFF) + '">' + (st.reached ? '✓ ' : '') + 'Reached them</button>'
-        + '<button type="button" data-reached="0" style="height:58px;border-radius:14px;border:0;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;' + (!st.reached ? ON : OFF) + '">' + (!st.reached ? '✓ ' : '') + 'No reply</button></div>'
+        + '<button type="button" data-reached="1" style="height:58px;border-radius:14px;border:0;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;' + (st.reached ? ON : OFF) + '">' + (st.reached ? ic('check', 18) : '') + 'Reached them</button>'
+        + '<button type="button" data-reached="0" style="height:58px;border-radius:14px;border:0;font-size:17px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;' + (!st.reached ? ON : OFF) + '">' + (!st.reached ? ic('check', 18) : '') + 'No reply</button></div>'
         + '<div style="display:flex;flex-direction:column;gap:8px"><span style="font-size:17px;font-weight:600">Next follow-up</span>'
         + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">' + fbtn('eod', 'EOD', 'Today') + fbtn('tomorrow', 'Tomorrow', shortDate(tomorrow))
         + fbtn('pick', 'Pick a date', st.date ? shortDate(st.date) : 'Choose') + '</div>'
         + '<input type="date" data-date min="' + ymd() + '" value="' + st.date + '" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px"></div>'
         + '<div style="display:flex;flex-direction:column;gap:8px"><span style="display:flex;justify-content:space-between;align-items:baseline">'
-        + '<span style="font-size:17px;font-weight:600">What happened and the next step</span><span style="font-size:13px;font-weight:600;color:#6B7486">Required</span></span>' + noteBox + '</div>'
-        + '<button type="button" data-save' + (canSave ? '' : ' disabled') + ' style="height:52px;border-radius:14px;border:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600;'
-        + (canSave ? 'background:#1170C0;color:#FFFFFF' : 'background:#E3E6EC;color:#A3A9B6') + '">' + (st.busy ? 'Saving…' : 'Save') + '</button></div>';
+        + '<span style="font-size:17px;font-weight:600">What happened and the next step</span><span style="font-size:13px;font-weight:600;color:var(--muted)">Required</span></span>' + noteBox + '</div>'
+        + '<button type="button" data-save' + (canSave ? '' : ' disabled aria-disabled="true"') + ' style="height:54px;border-radius:14px;border:0;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;'
+        + (canSave ? 'background:#1170C0;color:#FFFFFF' : OFFBTN) + '">' + (st.busy ? 'Saving…' : 'Save') + '</button></div>';
       if (st.typing) { var ta = $sheet.querySelector('[data-note]'); if (ta && document.activeElement !== ta && st.focus) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); st.focus = false; } }
     }
     draw();
@@ -739,7 +763,8 @@
     }
     sheetHandler = function (e, type) {
       if (type === 'input') { var ta = e.target.closest('[data-note]'); if (ta) { st.note = ta.value; var sv = $sheet.querySelector('[data-save]'); var ok = st.note.trim().length > 1;
-        sv.disabled = !ok; sv.style.background = ok ? '#1170C0' : '#E3E6EC'; sv.style.color = ok ? '#FFFFFF' : '#A3A9B6'; } return; }
+        sv.disabled = !ok; if (ok) sv.removeAttribute('aria-disabled'); else sv.setAttribute('aria-disabled', 'true');
+        sv.style.background = ok ? '#1170C0' : '#EAF3FC'; sv.style.color = ok ? '#FFFFFF' : '#5A6373'; } return; }
       if (type === 'change') { var d = e.target.closest('[data-date]'); if (d && d.value) { st.follow = 'pick'; st.date = d.value; draw(); } return; }
       var b;
       if ((b = e.target.closest('[data-kind]'))) { st.kind = b.getAttribute('data-kind'); draw(); return; }
@@ -776,11 +801,11 @@
       + (day.done ? '<circle cx="90" cy="90" r="70" fill="none" stroke="url(#w)" stroke-width="16" stroke-linecap="round" stroke-dasharray="' + L.ringDash(70, day.done, day.goal) + '" transform="rotate(-90 90 90)"/>' : '')
       + '<text x="90" y="100" text-anchor="middle" font-family="Inter, -apple-system, sans-serif" font-size="40" font-weight="700" fill="#fff">' + day.done + '/' + day.goal + '</text></svg></div>'
       + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;margin-top:24px">Nice work!</span>'
-      + '<span style="font-size:17px;color:#E3EEFB;line-height:1.45;margin-top:10px">' + esc(line) + '</span>'
+      + '<span style="font-size:17px;color:#FFFFFF;line-height:1.45;margin-top:10px">' + esc(line) + '</span>'
       + '<div style="margin-top:auto;width:100%;padding:0 20px calc(var(--safe-bottom) + 40px);box-sizing:border-box;display:flex;flex-direction:column;gap:10px">'
-      + (r.next ? '<button type="button" data-next="' + r.next.id + '" style="height:56px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600">Next: ' + esc(r.next.name) + '</button>'
-        : '<button type="button" data-done style="height:56px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;font-size:17px;font-weight:600">Back to Today</button>')
-      + '<button type="button" data-undo style="border:0;background:transparent;font-size:16px;font-weight:600;color:#E3EEFB;text-decoration:underline;padding:6px">Undo</button>'
+      + (r.next ? '<button type="button" data-next="' + r.next.id + '" style="height:54px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600">Next: ' + esc(r.next.name) + '</button>'
+        : '<button type="button" data-done style="height:54px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;font-size:17px;font-weight:600">Back to Today</button>')
+      + '<button type="button" data-undo style="border:0;background:transparent;font-size:16px;font-weight:600;color:#FFFFFF;text-decoration:underline;min-height:44px;padding:0 16px;align-self:center">Undo</button>'
       + '</div></div></div>';
     sheetHandler = function (e) {
       var b = e.target.closest('[data-next]');
@@ -806,11 +831,11 @@
     var toNext = j.next - j.count;
     $sheet.innerHTML = '<div class="moment"><div class="inner">'
       + '<img src="/logo-white.png" alt="Renellence" style="height:18px;width:auto;margin-top:6px">'
-      + '<span style="margin-top:28px;font-size:13px;font-weight:700;letter-spacing:1.2px;color:#FFC94A">NEW IN MY FIFTY</span>'
+      + '<span style="margin-top:28px;font-size:15px;font-weight:700;letter-spacing:1.2px;color:#FFFFFF;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#FFC94A;flex:none"></span>NEW IN MY FIFTY</span>'
       + '<span style="font-size:32px;font-weight:700;letter-spacing:-0.8px;line-height:1.15;margin-top:10px">' + esc(j.name) + '<br>joined your Fifty!</span>'
       + '<div style="width:100%;margin-top:28px"><div style="display:grid;grid-template-columns:repeat(10,1fr);gap:9px">' + dots + '</div></div>'
-      + '<span style="font-size:52px;font-weight:700;letter-spacing:-1.5px;margin-top:26px;line-height:1">' + j.count + '<span style="font-size:22px;color:#E3EEFB;font-weight:600"> of ' + j.goal + '</span></span>'
-      + '<span style="font-size:17px;color:#E3EEFB;margin-top:8px">' + toNext + ' more to your next milestone: ' + j.next + '</span>'
+      + '<span style="font-size:52px;font-weight:700;letter-spacing:-1.5px;margin-top:26px;line-height:1">' + j.count + '<span style="font-size:22px;color:#FFFFFF;font-weight:600"> of ' + j.goal + '</span></span>'
+      + '<span style="font-size:17px;color:#FFFFFF;margin-top:8px">' + toNext + ' more to your next milestone: ' + j.next + '</span>'
       + '<div style="margin-top:auto;width:100%;padding-bottom:calc(var(--safe-bottom) + 40px)">'
       + '<button type="button" data-keep style="width:100%;height:56px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;font-size:17px;font-weight:600">Keep going</button></div></div></div>';
     sheetHandler = function (e) { if (e.target.closest('[data-keep]')) { closeSheet(); act('seen_fifty').catch(function () {}); } };
@@ -822,31 +847,31 @@
   function openAddPerson() {
     var st = { role: null, warm: true, busy: false };
     var IN = 'flex:1 1 auto;min-width:0;height:50px;border:0;background:transparent;padding:0 14px;font-size:17px;color:#062064;outline:none';
-    var LBL = 'font-size:13px;font-weight:700;color:#6B7486;letter-spacing:0.4px;padding:0 4px';
+    var LBL = 'font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.3px;padding:0 4px';
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet tall" style="gap:10px">'
       + '<span class="grab"></span>'
       + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Add a person</span>'
-      + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600;display:flex;align-items:center">Cancel</button></div>'
+      + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px -4px 0">Cancel</button></div>'
       + '<span style="' + LBL + '">NAME</span>'
-      + '<div style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><div style="display:flex">'
-      + '<input type="text" name="firstName" placeholder="First name" aria-label="First name" autocomplete="off" style="' + IN + '"><span style="width:0.5px;background:#DDE2EA;margin:10px 0"></span>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><div style="display:flex">'
+      + '<input type="text" name="firstName" placeholder="First name" aria-label="First name" autocomplete="off" style="' + IN + '"><span style="width:0.5px;background:#D6DCE6;margin:10px 0"></span>'
       + '<input type="text" name="lastName" placeholder="Last name" aria-label="Last name" autocomplete="off" style="' + IN + '"></div></div>'
       + '<span style="' + LBL + '">ROLE</span><div data-roles style="display:flex;flex-wrap:wrap;gap:8px"></div>'
       + '<span style="' + LBL + '">CLINIC</span>'
-      + '<div style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><input type="text" name="clinic" placeholder="Clinic name" aria-label="Clinic name" autocomplete="off" style="' + IN + '"></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><input type="text" name="clinic" placeholder="Clinic name" aria-label="Clinic name" autocomplete="off" style="' + IN + '"></div>'
       + '<span style="' + LBL + '">CONTACT</span>'
-      + '<div style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><input type="tel" name="phone" placeholder="Phone" aria-label="Phone" autocomplete="off" style="' + IN + '">'
-      + '<span style="display:block;height:0.5px;background:#DDE2EA;margin-left:14px"></span><input type="email" name="email" placeholder="Email" aria-label="Email" autocomplete="off" style="' + IN + '"></div>'
-      + '<span style="' + LBL + '">DO THEY KNOW YOU OR RENELLENCE?</span><div data-warm style="display:grid;grid-template-columns:1fr 1fr;background:#E3E6EC;border-radius:12px;padding:3px"></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column"><input type="tel" name="phone" placeholder="Phone" aria-label="Phone" autocomplete="off" style="' + IN + '">'
+      + '<span style="display:block;height:0.5px;background:#D6DCE6;margin-left:14px"></span><input type="email" name="email" placeholder="Email" aria-label="Email" autocomplete="off" style="' + IN + '"></div>'
+      + '<span style="' + LBL + '">DO THEY KNOW YOU OR RENELLENCE?</span><div data-warm class="seg"></div>'
       + '<button type="button" data-save style="margin-top:auto;height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600;flex:none">Save person</button></div>';
     function chips() {
       $sheet.querySelector('[data-roles]').innerHTML = ROLES.map(function (r) {
         var on = st.role === r[0];
-        return '<button type="button" data-role="' + r[0] + '" style="height:40px;padding:0 14px;border-radius:20px;border:0;font-size:15px;font-weight:600;' + (on ? 'background:#1170C0;color:#FFFFFF' : 'background:#EEF2F8;color:#062064') + '">' + r[1] + '</button>';
+        return '<button type="button" data-role="' + r[0] + '" style="height:44px;padding:0 16px;border-radius:22px;border:0;font-size:15px;font-weight:600;' + (on ? 'background:#1170C0;color:#FFFFFF' : 'background:#EEF2F8;color:#062064') + '"' + (on ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + r[1] + '</button>';
       }).join('');
       $sheet.querySelector('[data-warm]').innerHTML = [[true, 'Yes · warm lead'], [false, 'No · cold lead']].map(function (x) {
         var on = st.warm === x[0];
-        return '<button type="button" data-w="' + (x[0] ? 1 : 0) + '" style="height:40px;border-radius:9px;border:0;font-size:15px;font-weight:600;' + (on ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + x[1] + '</button>';
+        return '<button type="button" data-w="' + (x[0] ? 1 : 0) + '"' + (on ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + x[1] + '</button>';
       }).join('');
     }
     chips();
@@ -879,8 +904,8 @@
       box.innerHTML = '<div style="background:#FFF1D6;color:#8A5A00;border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;font-size:15px;line-height:1.35">'
         + '<span>' + esc(errText(err)) + ' Clinics can share an email, so you can still save this person.</span>'
         + '<span style="display:flex;gap:8px;flex-wrap:wrap">'
-        + (err.message === 'email_yours' && err.detail ? '<button type="button" data-open-dupe="' + esc(err.detail) + '" style="height:36px;padding:0 14px;border-radius:18px;border:0;background:#FFFFFF;color:#062064;font-size:14px;font-weight:600">Open them</button>' : '')
-        + '<button type="button" data-save-anyway style="height:36px;padding:0 14px;border-radius:18px;border:0;background:#8A5A00;color:#FFFFFF;font-size:14px;font-weight:600">Save anyway</button></span></div>';
+        + (err.message === 'email_yours' && err.detail ? '<button type="button" data-open-dupe="' + esc(err.detail) + '" style="height:44px;padding:0 16px;border-radius:22px;border:0;background:#FFFFFF;color:#062064;font-size:14px;font-weight:600">Open them</button>' : '')
+        + '<button type="button" data-save-anyway style="height:44px;padding:0 16px;border-radius:22px;border:0;background:#8A5A00;color:#FFFFFF;font-size:14px;font-weight:600">Save anyway</button></span></div>';
     }
   }
 
@@ -890,7 +915,7 @@
     if (BOOT.gmail !== 'connected') {
       $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
         + '<span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Connect Gmail</span>'
-        + '<span style="font-size:16px;color:#6B7486;line-height:1.4">Emails go from your own Renellence Gmail. Sign in once more with Google and allow Gmail.</span>'
+        + '<span style="font-size:16px;color:var(--muted);line-height:1.4">Emails go from your own Renellence Gmail. Sign in once more with Google and allow Gmail.</span>'
         + '<button type="button" data-connect style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Connect Gmail</button>'
         + '<button type="button" data-close style="height:48px;border-radius:14px;border:0;background:#EEF2F8;color:#062064;font-size:16px;font-weight:600">Not now</button></div>';
       sheetHandler = function (e) { if (e.target.closest('[data-connect]')) signIn(location.pathname); };
@@ -898,14 +923,14 @@
     }
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet tall" style="gap:12px"><span class="grab"></span>'
       + '<div style="display:flex;justify-content:space-between;align-items:flex-start"><span style="display:flex;flex-direction:column;gap:2px">'
-      + '<span style="font-size:15px;color:#6B7486">' + esc(p.name) + (p.clinic ? ' · ' + nb(p.clinic) : '') + '</span>'
+      + '<span style="font-size:15px;color:var(--muted)">' + esc(p.name) + (p.clinic ? ' · ' + esc(p.clinic) : '') + '</span>'
       + '<span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Email</span></span>'
-      + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600;flex:none">Cancel</button></div>'
-      + '<div style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column">'
-      + '<div style="display:flex;align-items:center;min-height:50px;padding:0 14px;gap:10px"><span style="width:62px;font-size:15px;color:#6B7486">To</span><span style="font-size:16px;font-weight:600">' + esc(p.email) + '</span></div>'
-      + '<span style="display:block;height:0.5px;background:#DDE2EA;margin-left:14px"></span>'
-      + '<label style="display:flex;align-items:center;min-height:50px;padding:0 14px;gap:10px"><span style="width:62px;font-size:15px;color:#6B7486">Subject</span><input class="bare" name="subject" style="flex:1;min-width:0;font-size:16px;font-weight:600;height:48px"></label></div>'
-      + '<div style="background:#EEF2F8;border-radius:14px;padding:12px 14px;flex:1;display:flex"><textarea class="note" name="text" placeholder="Message" style="flex:1;min-height:180px"></textarea></div>'
+      + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px 0 0">Cancel</button></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px;display:flex;flex-direction:column">'
+      + '<div style="display:flex;align-items:center;min-height:50px;padding:0 14px;gap:10px"><span style="width:62px;font-size:15px;color:var(--muted);flex:none">To</span><span style="font-size:16px;font-weight:600;min-width:0;overflow-wrap:anywhere">' + esc(p.email) + '</span></div>'
+      + '<span style="display:block;height:0.5px;background:#D6DCE6;margin-left:14px"></span>'
+      + '<label style="display:flex;align-items:center;min-height:50px;padding:0 14px;gap:10px"><span style="width:62px;font-size:15px;color:var(--muted)">Subject</span><input class="bare" name="subject" style="flex:1;min-width:0;font-size:16px;font-weight:600;height:48px"></label></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px;padding:12px 14px;flex:1;display:flex"><textarea class="note" name="text" placeholder="Message" style="flex:1;min-height:180px"></textarea></div>'
       + '<button type="button" data-send style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600;flex:none">Send from Gmail</button></div>';
     sheetHandler = function (e, type) {
       if (type) return;
@@ -922,12 +947,12 @@
 
   // ---- L14 History and notes ----------------------------------------------------------------------------------
   var historyTab = 'all';
-  var TONE = { amber: 'background:#FFF1D6;color:#8A5A00', green: 'background:#E6F4EA;color:#1E7B3C', blue: 'background:#EAF3FC;color:#1170C0', grey: 'background:#EEF2F8;color:#6B7486' };
+  var TONE = { amber: 'background:#FFF1D6;color:#8A5A00', green: 'background:#E6F4EA;color:#1E7B3C', blue: 'background:#EAF3FC;color:#0B5FA5', grey: 'background:#EEF2F8;color:var(--muted)' };
   // A long note or email shows three lines with "More"; "Less" folds it again (RD12, Yousef 2026-10-23).
   function historyBody(text) {
     var long = L.longText(text);
     return '<span data-body' + (long ? ' class="clamp3"' : '') + ' style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(text) + '</span>'
-      + (long ? '<button type="button" data-hmore style="align-self:flex-start;border:0;background:transparent;font-size:14px;font-weight:600;color:#1170C0;padding:2px 0">More</button>' : '');
+      + (long ? '<button type="button" data-hmore class="hit" style="align-self:flex-start;border:0;background:transparent;font-size:14px;font-weight:600;color:#1170C0;padding:0 8px 0 0">More</button>' : '');
   }
   function screenHistory(id) {
     return paint(read('history', { id: id }), function (d) {
@@ -936,45 +961,45 @@
       });
       var h = '<div class="scr">' + backLink('/person/' + d.id, d.name)
         + '<div style="display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 14px"><span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">History</span></div>'
-        + '<div style="flex:none;display:grid;grid-template-columns:repeat(3,1fr);background:#E3E6EC;border-radius:10px;padding:2px;margin-bottom:6px">'
+        + '<div class="seg" style="margin-bottom:6px">'
         + [['all', 'All'], ['notes', 'Notes'], ['orders', 'Orders']].map(function (t) {
-          return '<button type="button" data-htab="' + t[0] + '" style="height:32px;border:0;border-radius:8px;font-size:14px;font-weight:600;' + (historyTab === t[0] ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + t[1] + '</button>';
+          return '<button type="button" data-htab="' + t[0] + '"' + (historyTab === t[0] ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + t[1] + '</button>';
         }).join('') + '</div><div style="padding-bottom:12px">';
       var month = '';
       var thisYear = ymd().slice(0, 4);
       entries.forEach(function (e, i) {
         var m = e.month + (e.year !== thisYear ? ' ' + e.year : '');
-        if (m !== month) { month = m; h += '<span style="display:block;font-size:13px;font-weight:700;color:#6B7486;letter-spacing:0.4px;padding:8px 2px">' + esc(m.toUpperCase()) + '</span>'; }
+        if (m !== month) { month = m; h += '<span style="display:block;font-size:13px;font-weight:600;color:var(--muted);letter-spacing:0.3px;padding:8px 2px">' + esc(m.toUpperCase()) + '</span>'; }
         var last = i === entries.length - 1;
-        var line = '<span style="flex:1 1 auto;width:2px;background:' + (last ? 'transparent' : '#DDE2EA') + '"></span>';
+        var line = '<span style="flex:1 1 auto;width:2px;background:' + (last ? 'transparent' : '#D6DCE6') + '"></span>';
         var badge, card;
         if (e.type === 'touch') {
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#EAF3FC;color:#1170C0">' + ic({ call: 'phone', meeting: 'pin', text: 'text', email: 'mail', note: 'pen' }[e.kind] || 'pen', 16) + '</span>';
           card = '<div style="flex:1 1 auto;min-width:0;background:#FFFFFF;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:3px">'
-            + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
+            + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:var(--muted);white-space:nowrap">' + esc(e.when) + '</span></span>'
             + (e.body ? historyBody(L.stripNext(e.body)) : '')
             + (e.next ? '<span style="font-size:15px;line-height:1.35"><b>Next:</b> ' + esc(e.next) + '</span>' : '')
-            + '<span style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span>'
-            + (e.editable ? '<button type="button" data-edit="' + e.id + '" data-text="' + esc(e.body) + '" style="border:0;background:transparent;font-size:13px;font-weight:600;color:#1170C0;padding:2px 0 2px 8px">Edit</button>' : '') + '</span></div>';
+            + '<span style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:13px;color:var(--muted)">' + esc(e.by) + '</span>'
+            + (e.editable ? '<button type="button" data-edit="' + e.id + '" data-text="' + esc(e.body) + '" class="hit" style="justify-content:flex-end;border:0;background:transparent;font-size:13px;font-weight:600;color:#1170C0;padding:0 0 0 8px">Edit</button>' : '') + '</span></div>';
         } else if (e.type === 'note') {
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#FFF6DC;color:#5C4300">' + ic('pinned', 16) + '</span>';
           card = '<div style="flex:1 1 auto;min-width:0;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:3px;background:#FFFBEF">'
-            + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
-            + historyBody(e.body) + '<span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span></div>';
+            + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:var(--muted);white-space:nowrap">' + esc(e.when) + '</span></span>'
+            + historyBody(e.body) + '<span style="font-size:13px;color:var(--muted)">' + esc(e.by) + '</span></div>';
         } else if (e.type === 'order' || e.type === 'samples') {
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#1170C0;color:#FFFFFF">' + ic(e.type === 'order' ? 'box' : 'gift', 16) + '</span>';
           card = '<a href="/orders/' + e.id + '" data-nav style="flex:1 1 auto;min-width:0;background:#FFFFFF;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px;box-shadow:inset 3px 0 0 #1170C0">'
-            + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:17px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
+            + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:17px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:var(--muted);white-space:nowrap">' + esc(e.when) + '</span></span>'
             + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span style="font-size:14px;color:#3F4A5A">' + esc(e.body) + '</span>'
-            + '<span style="height:22px;padding:0 9px;border-radius:11px;font-size:12px;font-weight:700;display:flex;align-items:center;white-space:nowrap;flex:none;' + (TONE[e.tone] || TONE.grey) + '">' + esc(e.status) + '</span></span></a>';
+            + '<span class="pill" style="' + (TONE[e.tone] || TONE.grey) + '">' + esc(e.status) + '</span></span></a>';
         } else {
-          badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#EEF2F8;color:#6B7486">' + ic('flag', 16) + '</span>';
+          badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#EEF2F8;color:var(--muted)">' + ic('flag', 16) + '</span>';
           card = '<span style="flex:1 1 auto;display:flex;justify-content:space-between;align-items:center;min-height:34px;margin-bottom:10px;font-size:14px;font-weight:600;color:#3F4A5A">' + esc(e.title)
-            + '<span style="font-size:13px;font-weight:500;color:#6B7486">' + esc(e.when) + '</span></span>';
+            + '<span style="font-size:13px;font-weight:500;color:var(--muted)">' + esc(e.when) + '</span></span>';
         }
         h += '<div style="display:flex;gap:10px"><span style="width:34px;flex:none;display:flex;flex-direction:column;align-items:center">' + badge + line + '</span>' + card + '</div>';
       });
-      if (!entries.length) h += '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486">Nothing here yet.</section>';
+      if (!entries.length) h += empty('clock', 'Nothing here yet.');
       return h + '</div></div>';
     }, 'people');
   }
@@ -988,9 +1013,9 @@
       var id = b.getAttribute('data-edit'), text = b.getAttribute('data-text');
       $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
         + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Edit note</span>'
-        + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600">Cancel</button></div>'
-        + '<div style="background:#EEF2F8;border-radius:16px;padding:12px;box-shadow:inset 0 0 0 1.5px #C4C7CE"><textarea class="note" data-note style="min-height:140px">' + esc(text) + '</textarea></div>'
-        + '<button type="button" data-save style="height:52px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:16px;font-weight:600">Save</button></div>';
+        + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px -4px 0">Cancel</button></div>'
+        + '<div class="field" style="background:#EEF2F8;border-radius:16px;padding:12px;box-shadow:inset 0 0 0 1.5px #C4C7CE"><textarea class="note" data-note style="min-height:140px">' + esc(text) + '</textarea></div>'
+        + '<button type="button" data-save style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Save</button></div>';
       sheetHandler = function (ev, type) {
         if (type || !ev.target.closest('[data-save]')) return;
         act('edit_note', { interactionId: id, body: $sheet.querySelector('[data-note]').value }).then(function () { closeSheet(); render(); }, function (err) { toast(errText(err)); });
@@ -1002,11 +1027,11 @@
   function steps(list) {
     return '<section style="background:#FFFFFF;border-radius:22px;padding:20px 18px;margin-bottom:12px">' + list.map(function (s, i) {
       var last = i === list.length - 1;
-      var dot = s.done ? '<span style="width:28px;height:28px;border-radius:50%;background:#1170C0;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>'
-        : s.current ? '<span style="width:28px;height:28px;border-radius:50%;background:#FFFFFF;box-shadow:inset 0 0 0 3px #1170C0,0 0 0 6px rgba(17,112,192,0.15);display:flex;align-items:center;justify-content:center"><span style="width:9px;height:9px;border-radius:50%;background:#1170C0"></span></span>'
+      var dot = s.done ? '<span style="width:28px;height:28px;border-radius:50%;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center">' + ic('check', 14) + '</span>'
+        : s.current ? '<span class="halo" style="width:28px;height:28px;border-radius:50%;background:#FFFFFF;box-shadow:inset 0 0 0 3px #1170C0,0 0 0 6px rgba(17,112,192,0.15);display:flex;align-items:center;justify-content:center"><span style="width:9px;height:9px;border-radius:50%;background:#1170C0"></span></span>'
           : '<span style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2px #D6DCE6"></span>';
       var lineColor = s.done && list[i + 1] && (list[i + 1].done || list[i + 1].current) ? '#1170C0' : '#D6DCE6';
-      var color = s.done ? '#062064' : s.current ? '#1170C0' : '#9AA1AD', sub = s.done ? '#6B7486' : s.current ? '#1170C0' : '#9AA1AD';
+      var color = s.done ? '#062064' : s.current ? '#1170C0' : 'var(--muted)', sub = s.done ? 'var(--muted)' : s.current ? '#1170C0' : 'var(--muted)';
       return '<div style="display:flex;gap:14px"><span style="display:flex;flex-direction:column;align-items:center;width:28px;flex:none">' + dot
         + (last ? '' : '<span style="flex:1 1 auto;width:3px;background:' + lineColor + ';min-height:30px"></span>') + '</span>'
         + '<span style="display:flex;flex-direction:column;padding:3px 0 ' + (last ? '0' : '18px') + '"><span style="font-size:17px;font-weight:700;color:' + color + '">' + esc(s.label) + '</span>'
@@ -1017,23 +1042,23 @@
     return '<button type="button" ' + attr + ' style="height:54px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">' + esc(label) + '</button>';
   }
   function doneRow(label, value, ok) {
-    return '<div style="margin-top:14px;background:#FFFFFF;border-radius:18px;min-height:52px;padding:0 14px;display:flex;align-items:center;gap:10px">'
-      + (ok ? '<span style="width:22px;height:22px;border-radius:50%;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center">' + ic('check', 13, 3) + '</span>'
+    return '<div style="margin-top:14px;background:#FFFFFF;border-radius:16px;min-height:52px;padding:0 14px;display:flex;align-items:center;gap:10px">'
+      + (ok ? '<span style="width:22px;height:22px;border-radius:50%;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center">' + ic('check', 13) + '</span>'
         : '<span style="width:22px;height:22px;border-radius:50%;box-shadow:inset 0 0 0 2px #D6DCE6"></span>')
-      + '<span style="font-size:15px;font-weight:600;flex:1 1 auto">' + esc(label) + '</span><span style="font-size:14px;color:#6B7486">' + esc(value) + '</span></div>';
+      + '<span style="font-size:15px;font-weight:600;flex:1 1 auto">' + esc(label) + '</span><span style="font-size:14px;color:var(--muted)">' + esc(value) + '</span></div>';
   }
   function screenOrderStatus(id) {
     return paint(read('order', { id: id }), function (o) {
       var h = '<div class="scr">' + backLink('/person/' + o.contactId, o.name)
-        + bigTitle(o.sample ? 'Samples' : 'Order', '<span style="font-size:17px;font-weight:600;color:#6B7486;padding-bottom:6px">' + esc(o.total) + '</span>')
+        + bigTitle(o.sample ? 'Samples' : 'Order', '<span style="font-size:17px;font-weight:600;color:var(--muted);padding-bottom:6px">' + esc(o.total) + '</span>')
         + steps(o.steps);
       if (o.action === 'resend_pay_link') h += bigButton('data-nudge="resend_pay_link" data-order="' + o.id + '"', 'Resend pay link');
       if (o.action === 'remind_md') h += bigButton('data-nudge="remind_md" data-order="' + o.id + '"', 'Remind MD to sign');
       if (o.onboarding) h += doneRow(o.onboarding.label, o.onboarding.value, o.onboarding.done);
       if (o.lines.length) {
-        h += '<section style="margin-top:14px;background:#FFFFFF;border-radius:18px;padding:4px 0">' + o.lines.map(function (l, i) {
+        h += '<section style="margin-top:14px;background:#FFFFFF;border-radius:16px;padding:4px 0">' + o.lines.map(function (l, i) {
           return '<div style="display:flex;justify-content:space-between;align-items:center;min-height:46px;padding:0 14px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '"><span style="font-size:15px">' + esc(l.name) + '</span>'
-            + '<span style="height:20px;padding:0 8px;border-radius:10px;background:#EAF3FC;color:#1170C0;font-size:12px;font-weight:700;display:inline-flex;align-items:center">' + l.qty + ' · Free</span></div>';
+            + '<span class="pill info">' + l.qty + ' · Free</span></div>';
         }).join('') + '</section>';
       }
       return h + '</div>';
@@ -1042,7 +1067,7 @@
   function screenOnboarding(id) {
     return paint(read('onboarding', { id: id }), function (o) {
       var h = '<div class="scr">' + backLink('/person/' + o.id, o.name) + bigTitle('Onboarding', '');
-      if (o.none) return h + '<section style="background:#FFFFFF;border-radius:16px;padding:16px 14px;font-size:15px;color:#6B7486">No onboarding form yet.</section></div>';
+      if (o.none) return h + empty('pen', 'No onboarding form yet.') + '</div>';
       h += steps(o.steps);
       if (o.action === 'remind_md') h += bigButton('data-nudge="remind_md" data-onboarding="' + o.onboardingId + '"', 'Remind MD to sign');
       return h + doneRow('Card on file', o.card, o.cardDone) + '</div>';
@@ -1070,15 +1095,15 @@
         + '<span style="flex:none;font-size:17px;font-weight:600;padding:0 4px 8px">Who is it for?</span>'
         + searchBox('ready', 'Find a person', 44, 10)
         + '<section data-ready style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + readyRows(readyPeople) + '</section>'
-        + '<span style="flex:none;font-size:13px;color:#6B7486;padding:0 4px 10px">Only people who are ready to order show here.</span></div>';
+        + '<span style="flex:none;font-size:13px;color:var(--muted);padding:0 4px 10px">Only people who are ready to order show here.</span></div>';
     }, 'order');
   }
   function readyRows(list) {
-    if (!list.length) return '<div style="padding:16px 14px;font-size:15px;color:#6B7486">Nobody is ready to order yet.</div>';
+    if (!list.length) return '<div class="empty"><span class="ico">' + ic('box', 18) + '</span><span class="t">Nobody is ready to order yet.</span></div>';
     return list.map(function (p, i) {
       return '<a href="/order/' + p.id + '" data-nav style="width:100%;' + (i ? 'border-top:0.5px solid #E3E6EC;' : '') + 'display:flex;align-items:center;gap:12px;min-height:60px;padding:0 14px;color:#062064">'
         + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">' + esc(p.initials) + '</span>'
-        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(p.name) + '</span><span style="font-size:13px;color:#6B7486">' + nb(p.clinic) + '</span></span>' + CHEV + '</a>';
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(p.name) + '</span><span class="row-sub">' + nb(p.clinic) + '</span></span>' + CHEV + '</a>';
     }).join('');
   }
   function filterReady(q) {
@@ -1094,9 +1119,6 @@
     if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, cat: 'saypha', qty: {}, free: {}, price: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '', mdName: '', mdEmail: '' };
     return draft;
   }
-  var PLUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>';
-  var MINUS = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/></svg>';
-  var NEXT = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
   function fmtPrice(v) { return v % 1 ? v.toFixed(2) : String(v); }
   // The paid quantity is a native list (the phone shows its own scroll wheel): 0-100, then "More than 100…",
   // which turns the box into a number field (Yousef 2026-10-22). The free quantity stays − / +.
@@ -1130,28 +1152,31 @@
   }
   function productRow(p, i, dft) {
     var q = dft.qty[p.sku] || 0, f = dft.free[p.sku] || 0, pr = L.priceOf(p, dft), isFree = !p.freeOnly && !(pr > 0);
-    var row = '<div style="display:flex;align-items:center;gap:10px;min-height:72px;padding:10px 12px 10px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
-      + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:15px;font-weight:600' + (p.unavailable ? ';color:#9AA1AD' : '') + '">' + esc(p.name) + '</span>';
-    if (!p.unavailable && !p.freeOnly) {
-      row += '<span style="display:flex;gap:6px;align-items:center;margin-top:6px;white-space:nowrap">';
-      if (isFree) row += '<span style="height:18px;padding:0 7px;border-radius:9px;background:#EAF3FC;color:#1170C0;font-size:11px;font-weight:700;display:flex;align-items:center">Free sample</span>';
-      else if (!f) row += '<button type="button" data-addfree="' + esc(p.sku) + '" style="height:32px;padding:0 12px;border-radius:16px;border:1.5px solid #1170C0;background:transparent;color:#1170C0;font-size:14px;font-weight:700">+ Free</button>';
-      else row += '<span style="height:36px;border-radius:18px;background:#EAF3FC;color:#1170C0;display:flex;align-items:center;gap:2px;padding:0 4px;font-size:14px;font-weight:700">'
-        + '<button type="button" data-freeless="' + esc(p.sku) + '" aria-label="Fewer free" style="width:30px;height:30px;border:0;border-radius:50%;background:#FFFFFF;color:#1170C0;font-size:18px;font-weight:700;line-height:1;padding:0">−</button>'
-        + '<span style="padding:0 8px">' + f + ' free</span>'
-        + '<button type="button" data-freemore="' + esc(p.sku) + '" aria-label="More free" style="width:30px;height:30px;border:0;border-radius:50%;background:#FFFFFF;color:#1170C0;font-size:18px;font-weight:700;line-height:1;padding:0">+</button></span>';
-      row += '</span>';
+    var priced = !p.unavailable && !p.freeOnly;
+    // Line 1: the name (full width) and the price box on the right.
+    var row = '<div style="display:flex;flex-direction:column;gap:8px;padding:12px 12px 12px 14px;box-sizing:border-box' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
+      + '<div style="display:flex;align-items:center;gap:10px;min-height:44px"><span style="flex:1 1 auto;min-width:0;font-size:15px;font-weight:600' + (p.unavailable ? ';color:var(--muted)' : '') + '">' + esc(p.name) + '</span>';
+    if (priced) {
+      row += '<label style="width:76px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:1px;font-size:14px;font-weight:600;flex:none;' + (isFree ? 'background:#EAF3FC;color:#0B5FA5' : 'background:#EEF2F8;color:#062064') + '">$'
+        + '<input type="text" inputmode="decimal" data-price="' + esc(p.sku) + '" value="' + fmtPrice(pr) + '" aria-label="Price" style="width:44px;border:0;background:transparent;font:inherit;font-size:16px;color:inherit;text-align:left;outline:none;padding:0"></label>';
     }
-    row += '</span>';
-    if (!p.unavailable && !p.freeOnly) {
-      row += '<label style="width:70px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;gap:1px;font-size:14px;font-weight:600;flex:none;' + (isFree ? 'background:#EAF3FC;color:#1170C0' : 'background:#EEF2F8;color:#062064') + '">$'
-        + '<input type="text" inputmode="decimal" data-price="' + esc(p.sku) + '" value="' + fmtPrice(pr) + '" aria-label="Price" style="width:40px;border:0;background:transparent;font:inherit;font-size:16px;color:inherit;text-align:left;outline:none;padding:0"></label>';
+    if (p.unavailable) return row + '<span style="font-size:13px;font-weight:600;color:var(--muted)">Unavailable</span></div></div>';
+    row += '</div>';
+    // Line 2: "+ Free" or the free stepper on the left, − qty + on the right.
+    row += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="display:flex;align-items:center;min-width:0">';
+    if (priced) {
+      if (isFree) row += '<span class="pill info">Free sample</span>';
+      else if (!f) row += '<button type="button" data-addfree="' + esc(p.sku) + '" class="btn-pill sm pill-outline" style="margin-left:-4px;font-weight:700">' + ic('plus', 14) + 'Free</button>';
+      // the free stepper: 36px white buttons drawn inside 44px tap areas (transparent border) on a 44px tint pill
+      else row += '<span style="height:44px;border-radius:22px;background:#EAF3FC;color:#0B5FA5;display:flex;align-items:center;padding:0;font-size:14px;font-weight:700;white-space:nowrap">'
+        + '<button type="button" data-freeless="' + esc(p.sku) + '" aria-label="Fewer free" style="width:44px;height:44px;border:4px solid transparent;background-clip:padding-box;border-radius:50%;background-color:#FFFFFF;color:#1170C0;display:flex;align-items:center;justify-content:center;padding:0">' + ic('minus', 15) + '</button>'
+        + '<span style="padding:0 4px">' + f + ' free</span>'
+        + '<button type="button" data-freemore="' + esc(p.sku) + '" aria-label="More free" style="width:44px;height:44px;border:4px solid transparent;background-clip:padding-box;border-radius:50%;background-color:#FFFFFF;color:#1170C0;display:flex;align-items:center;justify-content:center;padding:0">' + ic('plus', 15) + '</button></span>';
     }
-    if (p.unavailable) return row + '<span style="font-size:13px;font-weight:600;color:#9AA1AD">Unavailable</span></div>';
-    return row + '<span style="display:flex;align-items:center;gap:6px;flex:none">'
-      + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="Less" style="width:40px;height:40px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center">' + MINUS + '</button>'
+    return row + '</span><span style="display:flex;align-items:center;gap:6px;flex:none">'
+      + '<button type="button" data-less="' + esc(p.sku) + '" aria-label="One less ' + esc(p.name) + '" style="width:44px;height:44px;border-radius:50%;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center">' + ic('minus', 16) + '</button>'
       + qtyPicker(p, q)
-      + '<button type="button" data-more="' + esc(p.sku) + '" aria-label="More" style="width:40px;height:40px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;background:#1170C0;color:#FFFFFF">' + PLUS + '</button></span></div>';
+      + '<button type="button" data-more="' + esc(p.sku) + '" aria-label="One more ' + esc(p.name) + '" style="width:44px;height:44px;border-radius:50%;border:0;display:flex;align-items:center;justify-content:center;background:#1170C0;color:#FFFFFF">' + ic('plus', 16) + '</button></span></div></div>';
   }
   function screenProducts(contactId) {
     var dft = draftFor(contactId);
@@ -1163,18 +1188,18 @@
         + '<div style="flex:none;display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 10px"><span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">New order</span></div>'
         + '<div style="flex:none;background:#FFFFFF;border-radius:16px;min-height:56px;padding:0 14px;display:flex;align-items:center;gap:12px;margin-bottom:8px">'
         + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;flex:none">' + esc(d.person.initials) + '</span>'
-        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(d.person.name) + '</span><span style="font-size:13px;color:#6B7486">' + nb(d.person.clinic) + '</span></span>'
-        + '<a href="/order" data-nav style="font-size:15px;font-weight:600;color:#1170C0;padding:8px 0 8px 8px">Change</a></div>'
-        + '<div style="flex:none;display:flex;gap:6px;overflow-x:auto;margin:0 -16px 10px;padding:0 16px;scrollbar-width:none">'
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600">' + esc(d.person.name) + '</span><span class="row-sub">' + nb(d.person.clinic) + '</span></span>'
+        + '<a href="/order" data-nav style="font-size:15px;font-weight:600;color:#1170C0;min-height:44px;display:flex;align-items:center;padding:0 0 0 8px">Change</a></div>'
+        + '<div class="chips" style="flex:none;display:flex;gap:2px;overflow-x:auto;margin:0 -16px 6px;padding:0 16px;scrollbar-width:none">'
         + d.cats.map(function (c) {
-          return '<button type="button" data-cat="' + c.key + '" style="height:32px;padding:0 12px;border-radius:16px;border:0;font-size:13px;font-weight:600;white-space:nowrap;flex:none;' + (dft.cat === c.key ? 'background:#062064;color:#FFFFFF' : 'background:#FFFFFF;color:#062064') + '">' + esc(c.label) + '</button>';
+          return '<button type="button" data-cat="' + c.key + '" class="btn-pill sm" style="margin-left:-4px;font-size:13px;' + (dft.cat === c.key ? 'background-color:#062064;color:#FFFFFF' : 'background-color:#FFFFFF;color:#062064') + '"' + (dft.cat === c.key ? ' aria-pressed="true"' : ' aria-pressed="false"') + '>' + esc(c.label) + '</button>';
         }).join('') + '</div>'
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + list.map(function (p, i) { return productRow(p, i, dft); }).join('') + '</section>'
         + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 4px;margin-top:auto;z-index:5">'
-        + (sum.empty ? '<span style="height:56px;border-radius:16px;background:#E3E6EC;color:#A3A9B6;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:600">Review</span>'
-          : '<a href="/order/' + contactId + '/review" data-nav style="height:56px;border-radius:16px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px">'
-            + '<span style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:700">' + esc(sum.line) + '</span><span style="font-size:12px;opacity:0.85">' + esc(sum.sub) + '</span></span>'
-            + '<span style="font-size:17px;font-weight:600;display:flex;align-items:center;gap:4px">Review' + NEXT + '</span></a>')
+        + (sum.empty ? '<span aria-disabled="true" style="height:54px;border-radius:14px;' + OFFBTN + ';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Review</span>'
+          : '<a href="/order/' + contactId + '/review" data-nav class="reviewbar" style="height:54px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px">'
+            + '<span style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:700">' + esc(sum.line) + '</span><span style="font-size:13px;font-weight:500">' + esc(sum.sub) + '</span></span>'
+            + '<span style="font-size:17px;font-weight:600;display:flex;align-items:center;gap:4px">Review' + ic('chev', 16) + '</span></a>')
         + '</div></div>';
     }, 'order');
   }
@@ -1225,54 +1250,54 @@
       var who = d.person;
       function infoRow(label, value, first) {
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #E3E6EC') + '">'
-          + '<span style="font-size:15px;color:#6B7486;flex:none">' + label + '</span><span style="font-size:15px;font-weight:600;text-align:right">' + value + '</span></div>';
+          + '<span style="font-size:15px;color:var(--muted);flex:none">' + label + '</span><span style="font-size:15px;font-weight:600;text-align:right;min-width:0;overflow-wrap:anywhere">' + value + '</span></div>';
       }
       var billingSame = L.billingSame(who);
       // No shipping address: Send waits, with a way to add one here (RD11, Yousef 2026-10-23).
       var noShip = dft.noShip = !(who.shipping.street && who.shipping.city);
-      var FREE = '<span style="height:20px;padding:0 8px;border-radius:10px;background:#EAF3FC;color:#1170C0;font-size:12px;font-weight:700;display:inline-flex;align-items:center">Free</span>';
+      var FREE = '<span class="pill info">Free</span>';
       var h = '<div class="scr">' + backLink('/order/' + contactId, 'Edit order')
-        + '<span style="font-size:30px;font-weight:700;letter-spacing:-0.7px;padding:0 4px 8px">Review</span>'
+        + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px;padding:0 4px 8px">Review</span>'
         + smallLabel((who.name + (who.clinic ? ' · ' + who.clinic : '')).toUpperCase())
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">'
         + infoRow('Email', esc(who.email || 'None'), true) + infoRow('Ship to', noShip ? '<span style="color:#B3261E">No address yet</span>' : esc(who.shipping.line))
         + infoRow('Billing', billingSame ? 'Same as shipping' : esc(who.billing.line)) + (who.secondaryEmail ? infoRow('Invoice email', esc(who.secondaryEmail)) : '') + '</section>'
-        + (noShip ? '<button type="button" data-ship-address style="display:block;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px 10px">+ Add a shipping address</button>' : '')
-        + (who.secondaryEmail ? '' : '<button type="button" data-invoice-email style="display:block;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px 10px">+ Add an invoice email</button>')
-        + smallLabel('ITEMS', '<a href="/order/' + contactId + '" data-nav style="font-size:14px;font-weight:600;color:#1170C0">Edit</a>')
+        + (noShip ? '<button type="button" data-ship-address style="display:flex;align-items:center;gap:4px;min-height:44px;margin:-8px 0 -2px;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px">' + ic('plus', 14) + 'Add a shipping address</button>' : '')
+        + (who.secondaryEmail ? '' : '<button type="button" data-invoice-email style="display:flex;align-items:center;gap:4px;min-height:44px;margin:-8px 0 -2px;border:0;background:transparent;text-align:left;font-size:14px;font-weight:600;color:#1170C0;padding:0 4px">' + ic('plus', 14) + 'Add an invoice email</button>')
+        + smallLabel('ITEMS', '<a href="/order/' + contactId + '" data-nav class="hit" style="justify-content:flex-end;font-size:14px;font-weight:600;color:#1170C0;padding:0 0 0 12px">Edit</a>')
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + lines.map(function (l, i) {
-          return infoRow(esc(l.p.fullName) + ' · ' + l.qty, l.free ? FREE : moneyCents(l.qty * l.price), !i).replace('font-size:15px;color:#6B7486;flex:none', 'font-size:15px;color:#6B7486;flex:0 1 auto');
+          return infoRow(esc(l.p.fullName) + ' · ' + l.qty, l.free ? FREE : moneyCents(l.qty * l.price), !i).replace('font-size:15px;color:var(--muted);flex:none', 'font-size:15px;color:var(--muted);flex:0 1 auto');
         }).join('')
           + (samples ? '' : '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:48px;padding:0 14px;border-top:0.5px solid #E3E6EC"><b style="color:#062064;font-size:15px">Total</b><b style="font-size:17px">' + moneyCents(total) + '</b></div>')
           + '</section>';
       if (samples) {
         h += smallLabel('MEDICAL DIRECTOR')
           + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:4px">'
-          + '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px"><span style="width:52px;font-size:15px;color:#6B7486">Name</span>'
+          + '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-radius:16px 16px 0 0"><span style="width:52px;font-size:15px;color:var(--muted)">Name</span>'
           + '<input type="text" data-md="mdName" value="' + esc(dft.mdName) + '" placeholder="Dr. name" style="flex:1 1 auto;min-width:0;border:0;background:transparent;font-size:15px;font-weight:600;color:#062064;outline:none"></label>'
-          + '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-top:0.5px solid #E3E6EC"><span style="width:52px;font-size:15px;color:#6B7486">Email</span>'
+          + '<label style="display:flex;align-items:center;gap:10px;min-height:48px;padding:0 14px;border-top:0.5px solid #E3E6EC;border-radius:0 0 16px 16px"><span style="width:52px;font-size:15px;color:var(--muted)">Email</span>'
           + '<input type="email" data-md="mdEmail" value="' + esc(dft.mdEmail) + '" placeholder="md@clinic.ca" style="flex:1 1 auto;min-width:0;border:0;background:transparent;font-size:15px;font-weight:600;color:#062064;outline:none"></label></section>'
-          + '<span style="display:block;font-size:13px;color:#6B7486;padding:0 4px 12px">Signs after approval. Ships once signed.</span>';
+          + '<span style="display:block;font-size:13px;color:var(--muted);padding:0 4px 12px">Signs after approval. Ships once signed.</span>';
       } else {
         h += smallLabel('PAYMENT')
-          + '<div style="display:grid;grid-template-columns:1fr 1fr;background:#E3E6EC;border-radius:10px;padding:2px;margin-bottom:6px">'
+          + '<div class="seg" style="margin-bottom:6px">'
           + [['card_on_file', 'Card on file'], ['wire', 'Wire']].map(function (x) {
-            return '<button type="button" data-pay="' + x[0] + '" style="height:36px;border:0;border-radius:8px;font-size:14px;font-weight:600;' + (dft.payment === x[0] ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + x[1] + '</button>';
+            return '<button type="button" data-pay="' + x[0] + '"' + (dft.payment === x[0] ? ' class="on" aria-pressed="true"' : ' aria-pressed="false"') + '>' + x[1] + '</button>';
           }).join('') + '</div>'
-          + '<span style="display:block;font-size:13px;color:#6B7486;padding:0 4px 12px">' + (dft.payment === 'wire' ? 'They pay by wire (e-transfer counts as wire) within their payment terms, usually net 30. It counts as ordered now and as paid once the money is marked received.'
+          + '<span style="display:block;font-size:13px;color:var(--muted);padding:0 4px 12px">' + (dft.payment === 'wire' ? 'They pay by wire (e-transfer counts as wire) within their payment terms, usually net 30. It counts as ordered now and as paid once the money is marked received.'
             : d.card.saved ? esc(d.card.text) + ' · charged once approved. No card or declined? They get a pay link.' : 'No card on file. They get a pay link once approved.') + '</span>';
       }
       function noteRow(key, label, first) {
         var val = dft[key];
         return '<div style="' + (first ? '' : 'border-top:0.5px solid #E3E6EC') + '">'
           + '<button type="button" data-notebtn="' + key + '" style="width:100%;min-height:48px;padding:0 14px;border:0;background:transparent;display:flex;align-items:center;justify-content:space-between;font-size:15px;font-weight:600;color:#062064">' + label
-          + '<span style="color:#1170C0;font-size:20px;font-weight:500">' + (val || dft['open_' + key] ? '−' : '+') + '</span></button>'
-          + (val || dft['open_' + key] ? '<div style="padding:0 14px 12px"><textarea data-notefield="' + key + '" class="note" style="min-height:64px;background:#EEF2F8;border-radius:12px;padding:10px 12px;font-size:15px">' + esc(val) + '</textarea></div>' : '') + '</div>';
+          + '<span style="color:#1170C0;display:flex">' + ic(val || dft['open_' + key] ? 'minus' : 'plus', 18) + '</span></button>'
+          + (val || dft['open_' + key] ? '<div style="padding:0 14px 12px"><textarea data-notefield="' + key + '" class="note" style="min-height:64px;background:#EEF2F8;border-radius:12px;padding:10px 12px;font-size:16px">' + esc(val) + '</textarea></div>' : '') + '</div>';
       }
       h += smallLabel('NOTES') + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:12px">' + noteRow('approvalNote', 'Note for approval', true) + noteRow('shippingNote', 'Shipping note') + '</section>'
         // Pinned above the tabs like the mockup (L10 / L15), so Send is always in reach without scrolling.
         + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 10px;margin-top:auto;z-index:5">' + (noShip ? '<span style="display:block;font-size:14px;font-weight:600;color:#B3261E;text-align:center;padding:0 4px 8px">Add a shipping address to send this order.</span>' : '')
-        + '<button type="button" data-send-order' + (noShip ? ' aria-disabled="true"' : '') + ' style="height:56px;border-radius:14px;background:' + (noShip ? '#A9C6E3' : '#1170C0') + ';color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
+        + '<button type="button" data-send-order' + (noShip ? ' aria-disabled="true"' : '') + ' style="height:54px;border-radius:14px;' + (noShip ? OFFBTN : 'background:#1170C0;color:#FFFFFF') + ';display:flex;align-items:center;justify-content:center;gap:7px;font-size:17px;font-weight:600;border:0;width:100%">Send for approval</button></div>';
       return h + '</div>';
     }, 'order');
   }
@@ -1312,13 +1337,13 @@
   function shippingSheet(contactId) {
     var s = (draft && draft.products && draft.products.person && draft.products.person.shipping) || {};
     var field = function (k, label, ph, first) {
-      return '<label style="display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #D6DCE6') + '"><span style="width:72px;font-size:15px;color:#6B7486;flex:none">' + label + '</span>'
+      return '<label style="display:flex;align-items:center;gap:10px;min-height:50px;padding:0 14px' + (first ? '' : ';border-top:0.5px solid #D6DCE6') + '"><span style="width:72px;font-size:15px;color:var(--muted);flex:none">' + label + '</span>'
         + '<input type="text" data-addr="' + k + '" value="' + esc(s[k] || '') + '" placeholder="' + ph + '" style="flex:1 1 auto;min-width:0;border:0;background:transparent;font-size:17px;color:#062064;outline:none"></label>';
     };
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
       + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Shipping address</span>'
-      + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600">Cancel</button></div>'
-      + '<div style="background:#EEF2F8;border-radius:14px">' + field('street', 'Street', '12 Main St', true) + field('city', 'City', 'Toronto') + field('province', 'Province', 'ON') + field('postal', 'Postal', 'M5V 1A1') + '</div>'
+      + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px -4px 0">Cancel</button></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px">' + field('street', 'Street', '12 Main St', true) + field('city', 'City', 'Toronto') + field('province', 'Province', 'ON') + field('postal', 'Postal', 'M5V 1A1') + '</div>'
       + '<button type="button" data-save style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Save</button></div>';
     setTimeout(function () { var i = $sheet.querySelector('[data-addr="street"]'); if (i) i.focus(); }, 60);
     sheetHandler = function (e, type) {
@@ -1331,8 +1356,8 @@
   function invoiceEmailSheet(contactId) {
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet"><span class="grab"></span>'
       + '<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:26px;font-weight:700;letter-spacing:-0.5px">Invoice email</span>'
-      + '<button type="button" data-close style="height:34px;padding:0 14px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:15px;font-weight:600">Cancel</button></div>'
-      + '<div style="background:#EEF2F8;border-radius:14px"><input type="email" data-inv placeholder="accounts@clinic.ca" style="width:100%;height:50px;border:0;background:transparent;padding:0 14px;font-size:17px;outline:none"></div>'
+      + '<button type="button" data-close class="btn-pill pill-soft" style="margin:-4px -4px -4px 0">Cancel</button></div>'
+      + '<div class="field" style="background:#EEF2F8;border-radius:14px"><input type="email" data-inv placeholder="accounts@clinic.ca" style="width:100%;height:50px;border:0;background:transparent;padding:0 14px;font-size:17px;outline:none"></div>'
       + '<button type="button" data-save style="height:54px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Save</button></div>';
     setTimeout(function () { var i = $sheet.querySelector('[data-inv]'); if (i) i.focus(); }, 60);
     sheetHandler = function (e, type) {
@@ -1351,13 +1376,13 @@
   function boardSection(r) {
     rewardsData = r;
     var race = rewardsBoard === 'race' && r.race, b = race ? r.race : r.trip;
-    var h = '<section data-board style="background:#FFFFFF;border-radius:20px;padding:12px 16px 14px;margin-bottom:10px;touch-action:pan-y">'
-      + '<div style="display:grid;grid-template-columns:1fr 1fr;background:#E3E6EC;border-radius:10px;padding:2px">'
+    var h = '<section data-board style="background:#FFFFFF;border-radius:16px;padding:12px 16px 14px;margin-bottom:10px;touch-action:pan-y">'
+      + '<div class="seg">'
       + [['trip', r.trip.name], ['race', r.race ? r.race.name : '']].map(function (t) {
         var on = (race ? 'race' : 'trip') === t[0];
-        return '<button type="button" data-board-tab="' + t[0] + '" aria-pressed="' + on + '" style="height:34px;border:0;border-radius:8px;font-size:14px;font-weight:600;' + (on ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + esc(t[1]) + '</button>';
+        return '<button type="button" data-board-tab="' + t[0] + '" aria-pressed="' + on + '"' + (on ? ' class="on"' : '') + '>' + esc(t[1]) + '</button>';
       }).join('') + '</div>'
-      + '<span style="display:block;font-size:13px;font-weight:500;color:#6B7486;margin-top:10px">' + esc(b.sub) + '</span>'
+      + '<span style="display:block;font-size:13px;font-weight:500;color:var(--muted);margin-top:10px">' + esc(b.sub) + '</span>'
       + '<span style="display:block;font-size:14px;color:#1170C0;font-weight:600;margin:2px 0 6px">' + esc(b.line) + '</span>';
     if (!race) {
       return h + b.rows.map(function (x, i) {
@@ -1372,8 +1397,8 @@
         + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:6px;min-width:0">'
         + '<span style="display:flex;align-items:center;gap:8px">'
         + '<span style="flex:1 1 auto;font-size:16px;' + (x.you ? 'font-weight:700;color:#1170C0' : 'font-weight:500') + '">' + esc(x.name) + '</span>'
-        + (x.done ? '<span style="display:flex;align-items:center;gap:3px;flex:none;height:22px;padding:0 8px;border-radius:11px;background:#FFF1C7;color:#3D2A00;font-size:12px;font-weight:700">' + ic('check', 12, 3) + 'Reached ' + b.goal + '</span>' : '')
-        + '<span style="flex:none;font-size:16px;font-weight:700">' + x.n + '<span style="font-size:13px;font-weight:600;color:#6B7486">/' + b.goal + '</span></span></span>'
+        + (x.done ? '<span class="pill win">' + ic('check', 13) + 'Reached ' + b.goal + '</span>' : '')
+        + '<span style="flex:none;font-size:16px;font-weight:700">' + x.n + '<span style="font-size:13px;font-weight:600;color:var(--muted)">/' + b.goal + '</span></span></span>'
         + '<span role="progressbar" aria-valuemin="0" aria-valuemax="' + b.goal + '" aria-valuenow="' + x.n + '" style="display:block;height:6px;border-radius:3px;background:#EEF2F8;overflow:hidden">'
         + '<span style="display:block;height:100%;width:' + pct + '%;border-radius:3px;background:' + (x.done ? 'linear-gradient(90deg,#FFD86B,#F5B21F)' : 'linear-gradient(90deg,#4FA3EE,#1170C0)') + '"></span></span></span></div>';
     }).join('') + '</section>';
@@ -1408,19 +1433,19 @@
         + '<span style="display:block;font-size:44px;font-weight:700;letter-spacing:-1.5px;line-height:1.1">' + esc(r.extra) + '</span>'
         + '<span style="font-size:14px;font-weight:600">From Renellence, on top of your regular pay</span></section>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
-        + '<div style="background:linear-gradient(135deg,#1A80D6,#1170C0);border-radius:18px;padding:10px 14px;color:#FFFFFF"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.syringes + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;opacity:0.85">saypha syringes · this month</span></div>'
-        + '<div style="background:#FFFFFF;border-radius:18px;padding:10px 14px"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.exprecell + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;color:#6B7486">Exprecell boxes · this month</span></div></div>'
+        + '<div style="background:#FFFFFF;border-radius:16px;padding:10px 14px"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.syringes + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;color:var(--muted)">saypha syringes · this month</span></div>'
+        + '<div style="background:#FFFFFF;border-radius:16px;padding:10px 14px"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.exprecell + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;color:var(--muted)">Exprecell boxes · this month</span></div></div>'
         + boardSection(r)
-        + '<section style="background:#FFFFFF;border-radius:20px;padding:14px 16px"><span style="font-size:17px;font-weight:700">' + esc(r.booster.name) + '</span>'
+        + '<section style="background:#FFFFFF;border-radius:16px;padding:14px 16px"><span style="font-size:17px;font-weight:700">' + esc(r.booster.name) + '</span>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;margin-top:8px">'
-        + '<span><span style="display:block;font-size:22px;font-weight:700">' + esc(r.booster.onNew) + '</span><span style="font-size:13px;color:#6B7486">' + esc(r.booster.newText) + '</span></span>'
-        + '<span><span style="display:block;font-size:22px;font-weight:700">' + esc(r.booster.onReorders) + '</span><span style="font-size:13px;color:#6B7486">' + esc(r.booster.reorderText) + '</span></span></div></section>';
+        + '<span><span style="display:block;font-size:22px;font-weight:700">' + esc(r.booster.onNew) + '</span><span style="font-size:13px;color:var(--muted)">' + esc(r.booster.newText) + '</span></span>'
+        + '<span><span style="display:block;font-size:22px;font-weight:700">' + esc(r.booster.onReorders) + '</span><span style="font-size:13px;color:var(--muted)">' + esc(r.booster.reorderText) + '</span></span></div></section>';
       return h + '</div>';
     }, 'rewards');
   }
 
   // ---- L1 Reminders: turning on phone notifications -----------------------------------------------------------
-  // Web push needs the person to say yes once, from a tap. On iPhone it only works once My Fifty is on the Home Screen.
+  // Web push needs the person to say yes once, from a tap. On iPhone it only works once Pulse is on the Home Screen.
   function pushState() {
     var standalone = window.matchMedia('(display-mode: standalone)').matches || navigator.standalone;
     var ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
@@ -1436,12 +1461,12 @@
   function pushPrompt() {
     var s = pushState();
     if (s === 'on' || s === 'unavailable' || s === 'denied' || localStorageGet('mf-push-hide') === ymd()) return '';
-    var text = s === 'install' ? 'Add My Fifty to your Home Screen (Share → Add to Home Screen) to get reminders.' : 'Get your morning list and new leads on your phone.';
+    var text = s === 'install' ? 'Add Pulse to your Home Screen (Share → Add to Home Screen) to get reminders.' : 'Get your morning list and new leads on your phone.';
     return '<section style="margin-top:14px;background:#FFFFFF;border-radius:16px;display:flex;align-items:center;gap:12px;padding:12px 14px">'
       + '<span style="width:32px;height:32px;border-radius:9px;background:#EEF2F8;display:flex;align-items:center;justify-content:center;flex:none">' + ic('bell', 16) + '</span>'
-      + '<span style="flex:1 1 auto;font-size:14px;color:#6B7486;line-height:1.3">' + text + '</span>'
-      + (s === 'ask' ? '<button type="button" data-push-on style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#1170C0;color:#FFFFFF;font-size:13px;font-weight:600;flex:none">Turn on</button>'
-        : '<button type="button" data-push-hide style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#EEF2F8;color:#062064;font-size:13px;font-weight:600;flex:none">OK</button>')
+      + '<span style="flex:1 1 auto;font-size:14px;color:var(--muted);line-height:1.3">' + text + '</span>'
+      + (s === 'ask' ? '<button type="button" data-push-on class="btn-pill sm pill-blue" style="margin:-4px -4px -4px 0">Turn on</button>'
+        : '<button type="button" data-push-hide class="btn-pill sm pill-soft" style="margin:-4px -4px -4px 0">OK</button>')
       + '</section>';
   }
   $app.addEventListener('click', function (e) {
@@ -1475,10 +1500,10 @@
     message = message || signInMessage;
     $app.innerHTML = '<div class="scr full" style="justify-content:center;align-items:center;text-align:center;gap:18px">'
       + '<img src="/logo.png" alt="Renellence" style="height:22px;width:auto">'
-      + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">My Fifty</span>'
-      + (message ? '<span style="font-size:15px;color:#6B7486;max-width:300px;line-height:1.4">' + esc(message) + '</span>' : '')
+      + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">Pulse</span>'
+      + (message ? '<span style="font-size:15px;color:var(--muted);max-width:300px;line-height:1.4">' + esc(message) + '</span>' : '')
       + '<button type="button" data-signin style="height:54px;width:100%;max-width:340px;border-radius:14px;border:0;background:#1170C0;color:#FFFFFF;font-size:17px;font-weight:600">Sign in with Google</button>'
-      + '<span style="font-size:13px;color:#6B7486">Use your @renellence.com account.</span></div>';
+      + '<span style="font-size:13px;color:var(--muted)">Use your @renellence.com account.</span></div>';
   }
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-signin]')) signIn(location.pathname); });
   // Head office signed in (Yousef 2026-10-23): a polite screen instead of a book. Sign out goes back to sign-in.
@@ -1487,7 +1512,7 @@
     $app.innerHTML = '<div class="scr full" style="justify-content:center;align-items:center;text-align:center;gap:18px">'
       + '<img src="/logo.png" alt="Renellence" style="height:22px;width:auto">'
       + '<span style="font-size:30px;font-weight:700;letter-spacing:-0.7px">Pulse is for reps</span>'
-      + '<span style="font-size:15px;color:#6B7486;max-width:300px;line-height:1.4">' + esc(errText({ message: 'reps_only' })) + '</span>'
+      + '<span style="font-size:15px;color:var(--muted);max-width:300px;line-height:1.4">' + esc(errText({ message: 'reps_only' })) + '</span>'
       + '<button type="button" data-repsout style="height:54px;width:100%;max-width:340px;border-radius:14px;border:0;background:#EEF2F8;color:#062064;font-size:17px;font-weight:600">Sign out</button></div>';
   }
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-repsout]')) { signInMessage = ''; sb.auth.signOut().catch(function () {}).then(function () { showSignIn(); }); } });
