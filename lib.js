@@ -91,6 +91,9 @@
   }
   // L10 Billing row: the same as shipping when there is no billing street or it matches.
   function billingSame(who) { return !who.billing.street || (who.billing.street === who.shipping.street && who.billing.city === who.shipping.city); }
+  // History (RD12, Yousef 2026-10-23): a note or email longer than about three lines on a phone shows its first lines
+  // with "More" / "Less".
+  function longText(text) { var t = String(text || ''); return t.length > 180 || t.split('\n').length > 3; }
   // A note without its "Next:" line (History shows that line on its own).
   function stripNext(body) { return String(body || '').replace(/(?:^|\n)\s*next(?: step)?\s*:[\s\S]*$/i, ''); }
   // A web-push key (base64url) as bytes.
@@ -106,7 +109,7 @@
     ERR: ERR, errText: errText, initials: initials, money: money, ringDash: ringDash, fiftyTile: fiftyTile, dayLeftText: dayLeftText, winLine: winLine,
     candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, draftSummary: draftSummary,
     QTY_LIST_MAX: QTY_LIST_MAX, QTY_MAX: QTY_MAX, qtyOptions: qtyOptions, parseQty: parseQty,
-    billingSame: billingSame, stripNext: stripNext, b64ToBytes: b64ToBytes };
+    billingSame: billingSame, stripNext: stripNext, longText: longText, b64ToBytes: b64ToBytes };
   if (typeof module !== 'undefined' && module.exports) module.exports = L;
   else root.MFLib = L;
 })(this);

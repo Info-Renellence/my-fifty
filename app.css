@@ -86,3 +86,5 @@ textarea.note { width: 100%; min-height: 96px; resize: none; border: 0; outline:
 .qtysel:focus-visible { box-shadow: 0 0 0 2px var(--blue); }
 .qtybox { background-image: none; padding: 0 4px; cursor: text; -moz-appearance: textfield; }
 .qtybox::-webkit-outer-spin-button, .qtybox::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+/* History: a long note or email shows three lines until "More" (RD12, 2026-10-23). */
+.clamp3 { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }

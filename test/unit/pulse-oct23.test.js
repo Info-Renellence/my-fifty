@@ -40,3 +40,16 @@ test('the morning notification reads "N days in a row", without "plan done", lik
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'api', 'cron.js'), 'utf8');
   assert.ok(!/plan done/i.test(src), 'no "plan done" anywhere in the cron, comments included');
 });
+
+// RD12 (owner 2026-10-23): long notes and emails in History show three lines with "More" / "Less".
+test('History folds a long note or email to three lines with More / Less', () => {
+  const L = require('../../lib');
+  assert.equal(L.longText('Short note'), false);
+  assert.equal(L.longText('one\ntwo\nthree'), false);
+  assert.equal(L.longText('one\ntwo\nthree\nfour'), true);
+  assert.equal(L.longText('x'.repeat(21000)), true);
+  const at = app.indexOf('function historyBody'); const fn = app.slice(at, app.indexOf('function screenHistory', at));
+  assert.match(fn, /clamp3/); assert.match(fn, /data-hmore/); assert.match(fn, />More</);
+  assert.match(app, /classList\.toggle\('clamp3'\)[^\n]*'Less' : 'More'/);
+  assert.match(fs.readFileSync(path.join(__dirname, '..', '..', 'app.css'), 'utf8'), /\.clamp3 \{[^}]*-webkit-line-clamp: 3/);
+});

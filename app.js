@@ -859,6 +859,12 @@
   // ---- L14 History and notes ----------------------------------------------------------------------------------
   var historyTab = 'all';
   var TONE = { amber: 'background:#FFF1D6;color:#8A5A00', green: 'background:#E6F4EA;color:#1E7B3C', blue: 'background:#EAF3FC;color:#1170C0', grey: 'background:#EEF2F8;color:#6B7486' };
+  // A long note or email shows three lines with "More"; "Less" folds it again (RD12, Yousef 2026-10-23).
+  function historyBody(text) {
+    var long = L.longText(text);
+    return '<span data-body' + (long ? ' class="clamp3"' : '') + ' style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(text) + '</span>'
+      + (long ? '<button type="button" data-hmore style="align-self:flex-start;border:0;background:transparent;font-size:14px;font-weight:600;color:#1170C0;padding:2px 0">More</button>' : '');
+  }
   function screenHistory(id) {
     return paint(read('history', { id: id }), function (d) {
       var entries = d.entries.filter(function (e) {
@@ -882,7 +888,7 @@
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#EAF3FC;color:#1170C0">' + ic({ call: 'phone', meeting: 'pin', text: 'text', email: 'mail', note: 'pen' }[e.kind] || 'pen', 16) + '</span>';
           card = '<div style="flex:1 1 auto;min-width:0;background:#FFFFFF;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:3px">'
             + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
-            + (e.body ? '<span data-body style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(L.stripNext(e.body)) + '</span>' : '')
+            + (e.body ? historyBody(L.stripNext(e.body)) : '')
             + (e.next ? '<span style="font-size:15px;line-height:1.35"><b>Next:</b> ' + esc(e.next) + '</span>' : '')
             + '<span style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span>'
             + (e.editable ? '<button type="button" data-edit="' + e.id + '" data-text="' + esc(e.body) + '" style="border:0;background:transparent;font-size:13px;font-weight:600;color:#1170C0;padding:2px 0 2px 8px">Edit</button>' : '') + '</span></div>';
@@ -890,7 +896,7 @@
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#FFF6DC;color:#5C4300">' + ic('pinned', 16) + '</span>';
           card = '<div style="flex:1 1 auto;min-width:0;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:3px;background:#FFFBEF">'
             + '<span style="display:flex;justify-content:space-between;gap:8px"><span style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span style="font-size:13px;color:#6B7486;white-space:nowrap">' + esc(e.when) + '</span></span>'
-            + '<span style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(e.body) + '</span><span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span></div>';
+            + historyBody(e.body) + '<span style="font-size:12px;color:#6B7486">' + esc(e.by) + '</span></div>';
         } else if (e.type === 'order' || e.type === 'samples') {
           badge = '<span style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;background:#1170C0;color:#FFFFFF">' + ic(e.type === 'order' ? 'box' : 'gift', 16) + '</span>';
           card = '<a href="/orders/' + e.id + '" data-nav style="flex:1 1 auto;min-width:0;background:#FFFFFF;border-radius:16px;padding:12px 14px;margin-bottom:10px;display:flex;flex-direction:column;gap:6px;box-shadow:inset 3px 0 0 #1170C0">'
@@ -911,6 +917,8 @@
   $app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-htab]');
     if (b) { historyTab = b.getAttribute('data-htab'); render(); return; }
+    b = e.target.closest('[data-hmore]');
+    if (b) { var body = b.previousElementSibling; var open = body.classList.toggle('clamp3') === false; b.textContent = open ? 'Less' : 'More'; return; }
     b = e.target.closest('[data-edit]');
     if (b) {
       var id = b.getAttribute('data-edit'), text = b.getAttribute('data-text');

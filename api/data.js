@@ -396,7 +396,7 @@ async function historyOf(sql, me, p) {
     const next = i.next_step && i.next_step !== 'Follow up' ? i.next_step : written ? written[1].trim() : '';
     out.push({ type: 'touch', kind, at: i.occurred_at, id: i.id, editable: mine && i.kind !== 'email',
       title: [(KIND_WORD[kind] || 'Note') + (inbound ? ' from ' + who : ''), outcomeWord(i)].filter(Boolean).join(' · '),
-      body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 400) : (i.body || ''),
+      body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 4000) : (i.body || ''),
       next, by: who });
   }
   // Rejected and cancelled orders are left out of everything else (they never count), but History shows them, so
