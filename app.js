@@ -249,7 +249,7 @@
         + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600' + (day.streak ? '' : ';color:var(--muted)') + '">STREAK ' + FLAME + '</span>'
         + '<span style="display:flex;align-items:baseline;gap:4px"><span style="font-size:30px;font-weight:700;letter-spacing:-0.8px">' + day.streak + '</span>'
         + '<span style="font-size:13px;font-weight:600">' + (day.streak === 1 ? 'day' : 'days') + '</span></span></div>'
-        + '<a href="/people" data-nav style="background:linear-gradient(135deg,#1373C3,#0F63AA);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">'
+        + '<a href="/people" data-nav' + (fiftyUp(fifty.count) ? ' class="fifty-up"' : '') + ' style="background:linear-gradient(135deg,#1373C3,#0F63AA);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">'
         + '<span style="display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>MY FIFTY</span><span>' + fifty.count + '</span></span>'
         + '<span style="display:flex;justify-content:space-between">' + dots + '</span>'
         + '<span style="font-size:13px;font-weight:600">' + toNext + ' more to reach ' + fifty.next + '</span></a></div>';
@@ -286,12 +286,30 @@
     }, 'today', 'today');
   }
 
+  // ---- Celebrations (UI polish batch 2): only a new My Fifty account and a weekly focus hit; small, gold, once ----------
+  // A new My Fifty account: the count this phone last saw (localStorage); the tile glows when it went up since.
+  function fiftyUp(count) {
+    var prev = parseInt(localStorageGet('pulse-fifty-seen'), 10);
+    localStorageSet('pulse-fifty-seen', String(count));
+    return !isNaN(prev) && count > prev;
+  }
+  // The weekly focus hit: every visit and call agreed in the 1-on-1 is Done (data Today already has); shown once per week.
+  function weekHit(w) {
+    var rows = (w.visits || []).concat(w.calls || []);
+    if (!w.confirmed || !rows.length || rows.some(function (r) { return r.state !== 'done'; })) return false;
+    if (localStorageGet('pulse-week-hit') === String(w.id)) return false;
+    localStorageSet('pulse-week-hit', String(w.id));
+    return true;
+  }
+  var weekJustConfirmed = false;
+
   // ---- The week (Compass): set in the weekly 1-on-1, shown on Today once it is saved ----------------------------------
   // The focus on top with one "Confirm my week" tap; then the agreed visits (each ends Done or Missed) and calls.
   function weekFocus(w) {
-    return '<section style="background:linear-gradient(135deg,#0A2A7A,#1170C0);border-radius:22px;padding:14px 16px;margin-bottom:14px;color:#FFFFFF;display:flex;flex-direction:column;gap:6px">'
+    var pop = weekJustConfirmed; weekJustConfirmed = false;
+    return '<section' + (weekHit(w) ? ' class="focus-hit"' : '') + ' style="background:linear-gradient(135deg,#0A2A7A,#1170C0);border-radius:22px;padding:14px 16px;margin-bottom:14px;color:#FFFFFF;display:flex;flex-direction:column;gap:6px">'
       + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;letter-spacing:0.3px;font-weight:500"><span>THIS WEEK’S FOCUS</span>'
-      + (w.confirmed ? '<span style="display:flex;align-items:center;gap:4px;letter-spacing:0">' + ic('check', 14, 2.8) + 'Confirmed</span>' : '') + '</span>'
+      + (w.confirmed ? '<span' + (pop ? ' class="pop"' : '') + ' style="display:flex;align-items:center;gap:4px;letter-spacing:0">' + ic('check', 14, 2.8) + 'Confirmed</span>' : '') + '</span>'
       + '<span style="font-size:22px;font-weight:700;letter-spacing:-0.4px">' + esc(w.focus ? w.focus.name : 'Your week') + '</span>'
       + (w.focus && w.focus.line ? '<span style="font-size:15px;font-weight:500">' + esc(w.focus.line) + '</span>' : '')
       + (w.confirmed ? '<span style="font-size:13px;font-weight:500">' + esc(w.counts) + '</span>'
@@ -334,7 +352,7 @@
     var b = e.target.closest('[data-confirm-week]');
     if (b) {
       b.disabled = true;
-      act('confirm_week').then(function () { toast('Week confirmed'); screenToday(); }, function (err) { b.disabled = false; toast(errText(err)); });
+      act('confirm_week').then(function () { weekJustConfirmed = true; toast('Week confirmed'); screenToday(); }, function (err) { b.disabled = false; toast(errText(err)); });
       return;
     }
     b = e.target.closest('[data-missed],[data-unmissed]');
@@ -394,7 +412,7 @@
           : '<span style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;border:1.5px dashed rgba(255,255,255,0.4)"></span>';
     }
     var h = '<div style="display:flex;flex-direction:column">'
-      + '<section style="background:linear-gradient(135deg,#1373C3,#0F63AA);color:#FFFFFF;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px">'
+      + '<section' + (fiftyUp(f.count) ? ' class="fifty-up"' : '') + ' style="background:linear-gradient(135deg,#1373C3,#0F63AA);color:#FFFFFF;border-radius:22px;padding:16px;display:flex;flex-direction:column;gap:12px;margin-bottom:12px">'
       + '<span style="display:flex;justify-content:space-between;font-size:15px;font-weight:600"><span>' + f.count + ' in My Fifty</span><span style="font-weight:500">' + f.open + ' open spots</span></span>'
       + '<div style="display:grid;grid-template-columns:repeat(10,1fr);gap:6px">' + dots + '</div></section>'
       + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px">'
@@ -661,7 +679,7 @@
     var s = drag.s, fast = drag.dy > 40 && drag.dy / Math.max(1, Date.now() - drag.t) > 0.6;
     s.classList.remove('dragging');
     s.classList.add('closing');
-    if (drag.dy > 90 || fast) { s.style.transform = 'translate(-50%, 100%)'; setTimeout(closeSheet, 180); }
+    if (drag.dy > 90 || fast) { s.style.transform = 'translate(-50%, 100%)'; setTimeout(closeSheet, 150); }
     else { s.style.transform = ''; setTimeout(function () { s.classList.remove('closing'); }, 200); }
     drag = null;
   });
@@ -793,7 +811,7 @@
   function winMoment(r) {
     var day = r.day;
     var line = L.winLine(r.name, r.followUp, day.done, day.goal);
-    $sheet.innerHTML = '<div class="moment"><div class="inner">'
+    $sheet.innerHTML = '<div class="moment win"><div class="inner">'
       + '<img src="/logo-white.png" alt="Renellence" style="height:18px;width:auto;margin-top:6px">'
       + '<div style="margin-top:56px"><svg width="180" height="180" viewBox="0 0 180 180" role="img" aria-label="' + day.done + ' of ' + day.goal + '">'
       + '<defs><linearGradient id="w" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D7E8FA"/></linearGradient></defs>'
@@ -825,14 +843,15 @@
     var dots = '';
     for (var i = 0; i < j.goal; i++) {
       dots += i < j.count - 1 ? '<span style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;background:#FFFFFF"></span>'
-        : i === j.count - 1 ? '<span style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;background:#FFC94A;box-shadow:0 0 0 4px rgba(255,201,74,0.3)"></span>'
+        : i === j.count - 1 ? '<span class="newdot" style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;background:#FFC94A"></span>'
           : '<span style="display:block;aspect-ratio:1 / 1;border-radius:50%;box-sizing:border-box;border:1.5px dashed rgba(255,255,255,0.4)"></span>';
     }
     var toNext = j.next - j.count;
-    $sheet.innerHTML = '<div class="moment"><div class="inner">'
+    localStorageSet('pulse-fifty-seen', String(j.count));   // this moment is the celebration; the tile behind it stays still
+    $sheet.innerHTML = '<div class="moment joined"><div class="inner">'
       + '<img src="/logo-white.png" alt="Renellence" style="height:18px;width:auto;margin-top:6px">'
       + '<span style="margin-top:28px;font-size:15px;font-weight:700;letter-spacing:1.2px;color:#FFFFFF;display:flex;align-items:center;gap:8px"><span style="width:10px;height:10px;border-radius:50%;background:#FFC94A;flex:none"></span>NEW IN MY FIFTY</span>'
-      + '<span style="font-size:32px;font-weight:700;letter-spacing:-0.8px;line-height:1.15;margin-top:10px">' + esc(j.name) + '<br>joined your Fifty!</span>'
+      + '<span class="headline" style="font-size:32px;font-weight:700;letter-spacing:-0.8px;line-height:1.15;margin-top:10px">' + esc(j.name) + '<br>joined your Fifty!</span>'
       + '<div style="width:100%;margin-top:28px"><div style="display:grid;grid-template-columns:repeat(10,1fr);gap:9px">' + dots + '</div></div>'
       + '<span style="font-size:52px;font-weight:700;letter-spacing:-1.5px;margin-top:26px;line-height:1">' + j.count + '<span style="font-size:22px;color:#FFFFFF;font-weight:600"> of ' + j.goal + '</span></span>'
       + '<span style="font-size:17px;color:#FFFFFF;margin-top:8px">' + toNext + ' more to your next milestone: ' + j.next + '</span>'
@@ -1028,7 +1047,7 @@
     return '<section style="background:#FFFFFF;border-radius:22px;padding:20px 18px;margin-bottom:12px">' + list.map(function (s, i) {
       var last = i === list.length - 1;
       var dot = s.done ? '<span style="width:28px;height:28px;border-radius:50%;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center">' + ic('check', 14) + '</span>'
-        : s.current ? '<span class="halo" style="width:28px;height:28px;border-radius:50%;background:#FFFFFF;box-shadow:inset 0 0 0 3px #1170C0,0 0 0 6px rgba(17,112,192,0.15);display:flex;align-items:center;justify-content:center"><span style="width:9px;height:9px;border-radius:50%;background:#1170C0"></span></span>'
+        : s.current ? '<span class="halo" style="width:28px;height:28px;border-radius:50%;background:#FFFFFF;box-shadow:inset 0 0 0 3px #1170C0;display:flex;align-items:center;justify-content:center"><span style="width:9px;height:9px;border-radius:50%;background:#1170C0"></span></span>'
           : '<span style="width:28px;height:28px;border-radius:50%;box-shadow:inset 0 0 0 2px #D6DCE6"></span>';
       var lineColor = s.done && list[i + 1] && (list[i + 1].done || list[i + 1].current) ? '#1170C0' : '#D6DCE6';
       var color = s.done ? '#062064' : s.current ? '#1170C0' : 'var(--muted)', sub = s.done ? 'var(--muted)' : s.current ? '#1170C0' : 'var(--muted)';
@@ -1183,6 +1202,7 @@
     return paint(read('products', { id: contactId }), function (d) {
       dft.products = d;
       var sum = L.draftSummary(d.products, dft);
+      var barIn = dft.wasEmpty === true && !sum.empty; dft.wasEmpty = sum.empty;
       var list = d.products.filter(function (p) { return p.cat === dft.cat; });
       return '<div class="scr" style="gap:0">'
         + '<div style="flex:none;display:flex;justify-content:space-between;align-items:flex-end;padding:0 4px 10px"><span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">New order</span></div>'
@@ -1197,7 +1217,7 @@
         + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:10px">' + list.map(function (p, i) { return productRow(p, i, dft); }).join('') + '</section>'
         + '<div style="position:sticky;bottom:calc(var(--safe-bottom) + 72px);background:#F2F3F7;padding:8px 0 4px;margin-top:auto;z-index:5">'
         + (sum.empty ? '<span aria-disabled="true" style="height:54px;border-radius:14px;' + OFFBTN + ';display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:600">Review</span>'
-          : '<a href="/order/' + contactId + '/review" data-nav class="reviewbar" style="height:54px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px">'
+          : '<a href="/order/' + contactId + '/review" data-nav class="reviewbar' + (barIn ? ' fadein' : '') + '" style="height:54px;border-radius:14px;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:space-between;padding:0 18px">'
             + '<span style="display:flex;flex-direction:column"><span style="font-size:15px;font-weight:700">' + esc(sum.line) + '</span><span style="font-size:13px;font-weight:500">' + esc(sum.sub) + '</span></span>'
             + '<span style="font-size:17px;font-weight:600;display:flex;align-items:center;gap:4px">Review' + ic('chev', 16) + '</span></a>')
         + '</div></div>';
@@ -1373,10 +1393,10 @@
   function rankDot(x) {
     return '<span style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:700;' + (x.rank === 1 ? 'background:#FFC94A;color:#3D2A00' : 'background:#EEF2F8') + '">' + x.rank + '</span>';
   }
-  function boardSection(r) {
+  function boardSection(r, how) {
     rewardsData = r;
     var race = rewardsBoard === 'race' && r.race, b = race ? r.race : r.trip;
-    var h = '<section data-board style="background:#FFFFFF;border-radius:16px;padding:12px 16px 14px;margin-bottom:10px;touch-action:pan-y">'
+    var h = '<section data-board' + (how === 'switch' ? ' class="fadein"' : '') + ' style="background:#FFFFFF;border-radius:16px;padding:12px 16px 14px;margin-bottom:10px;touch-action:pan-y">'
       + '<div class="seg">'
       + [['trip', r.trip.name], ['race', r.race ? r.race.name : '']].map(function (t) {
         var on = (race ? 'race' : 'trip') === t[0];
@@ -1400,14 +1420,14 @@
         + (x.done ? '<span class="pill win">' + ic('check', 13) + 'Reached ' + b.goal + '</span>' : '')
         + '<span style="flex:none;font-size:16px;font-weight:700">' + x.n + '<span style="font-size:13px;font-weight:600;color:var(--muted)">/' + b.goal + '</span></span></span>'
         + '<span role="progressbar" aria-valuemin="0" aria-valuemax="' + b.goal + '" aria-valuenow="' + x.n + '" style="display:block;height:6px;border-radius:3px;background:#EEF2F8;overflow:hidden">'
-        + '<span style="display:block;height:100%;width:' + pct + '%;border-radius:3px;background:' + (x.done ? 'linear-gradient(90deg,#FFD86B,#F5B21F)' : 'linear-gradient(90deg,#4FA3EE,#1170C0)') + '"></span></span></span></div>';
+        + '<span class="bar' + (how === 'switch' ? '' : ' grow') + '" style="transform:scaleX(' + (pct / 100) + ');background:' + (x.done ? 'linear-gradient(90deg,#FFD86B,#F5B21F)' : 'linear-gradient(90deg,#4FA3EE,#1170C0)') + '"></span></span></span></div>';
     }).join('') + '</section>';
   }
   function showBoard(which) {
     var el = $app.querySelector('[data-board]');
     if (!el || !rewardsData || which === rewardsBoard) return;
     rewardsBoard = which;
-    el.outerHTML = boardSection(rewardsData);
+    el.outerHTML = boardSection(rewardsData, 'switch');
   }
   $app.addEventListener('click', function (e) {
     var t = e.target.closest('[data-board-tab]');

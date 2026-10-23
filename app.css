@@ -28,6 +28,13 @@
   --ring: 0 0 0 2px #1170c0;
   /* type */
   --fs-meta: 13px;           /* the floor: labels, sub-lines, pills, tab labels */
+  /* motion (UI polish batch 2): transform and opacity only */
+  --motion-fast: 150ms;      /* press, chips, small confirmations, crossfades */
+  --motion-standard: 250ms;  /* sheets, toasts, content arriving */
+  --motion-celebrate: 600ms; /* only: a new My Fifty account, a weekly focus hit */
+  --ease-in: cubic-bezier(.4, 0, 1, 1);      /* exit */
+  --ease-out: cubic-bezier(0, 0, .2, 1);     /* enter */
+  --ease-in-out: cubic-bezier(.4, 0, .2, 1); /* move */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --font: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;   /* Inter, like the mockup (Yousef 2026-10-21) */
@@ -62,24 +69,24 @@ svg { flex: none; }
 
 /* Sheets (L3 Log it, L13 Add a person) slide up over a dimmed screen */
 #sheet:empty { display: none; }
-.dim { position: fixed; inset: 0; background: rgba(40, 52, 75, 0.62); z-index: 40; animation: fade .18s ease; }
+.dim { position: fixed; inset: 0; background: rgba(40, 52, 75, 0.62); z-index: 40; animation: fade var(--motion-fast) var(--ease-out); }
 .sheet { position: fixed; left: 50%; transform: translateX(-50%); bottom: 0; width: 100%; max-width: 430px; z-index: 41; max-height: calc(100dvh - var(--safe-top) - 24px);
   overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; touch-action: pan-y;
   background: #fff; border-radius: 30px 30px 0 0; padding: 10px 18px calc(var(--safe-bottom) + 24px);
-  display: flex; flex-direction: column; gap: 16px; animation: up .22s ease; }
+  display: flex; flex-direction: column; gap: 16px; animation: up var(--motion-standard) var(--ease-out); }
 /* Rows keep their height so a tall sheet scrolls instead of squashing (L13 Add a person could not be scrolled). */
 .sheet > * { flex-shrink: 0; }
 .sheet.tall { top: calc(var(--safe-top) + 24px); }
 .sheet.dragging { animation: none; transition: none; }
-.sheet.closing { transition: transform .18s ease; }
+.sheet.closing { transition: transform var(--motion-fast) var(--ease-in); }
 .grab { align-self: center; width: 38px; height: 5px; border-radius: 3px; background: #d0d5de; flex: none; }
-@keyframes up { from { transform: translate(-50%, 40px); opacity: .4; } to { transform: translate(-50%, 0); opacity: 1; } }
+@keyframes up { from { transform: translate(-50%, 16px); opacity: 0; } to { transform: translate(-50%, 0); opacity: 1; } }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* Full-screen moments (L4, L5) */
 .moment { position: fixed; inset: 0; z-index: 50; background: radial-gradient(110% 80% at 50% 20%, #1676c6 0%, #1170c0 50%, #0b4f9c 100%);   /* centre #1676c6: white text 4.7:1 (was #3596ea, 3.1:1) */
   color: #fff; display: flex; flex-direction: column; align-items: center; text-align: center;
-  padding: calc(var(--safe-top) + 14px) 24px 0; animation: fade .2s ease; }
+  padding: calc(var(--safe-top) + 14px) 24px 0; animation: fade var(--motion-fast) var(--ease-out); }
 .moment .inner { width: 100%; max-width: 430px; flex: 1; display: flex; flex-direction: column; align-items: center; }
 
 /* Inputs keep the mockup's look (no browser chrome) */
@@ -89,8 +96,9 @@ textarea.note { width: 100%; min-height: 96px; resize: none; border: 0; outline:
 
 #toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--safe-bottom) + 92px); z-index: 60; max-width: 360px; width: calc(100% - 32px);
   background: var(--navy); color: #fff; border-radius: 14px; padding: 12px 16px; font-size: 15px; font-weight: 500; text-align: center;
-  opacity: 0; pointer-events: none; transition: opacity .2s; }
-#toast.on { opacity: 1; }
+  opacity: 0; pointer-events: none; transform: translate(-50%, 8px);
+  transition: opacity var(--motion-fast) var(--ease-in), transform var(--motion-fast) var(--ease-in); }
+#toast.on { opacity: 1; transform: translate(-50%, 0); transition: opacity var(--motion-standard) var(--ease-out), transform var(--motion-standard) var(--ease-out); }
 
 .spin { width: 22px; height: 22px; border-radius: 50%; border: 3px solid rgba(17, 112, 192, .2); border-top-color: var(--blue); animation: rot .8s linear infinite; }
 @keyframes rot { to { transform: rotate(360deg); } }
@@ -163,3 +171,52 @@ button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { opaci
 .sk.line { height: 14px; border-radius: 7px; }
 /* Category chips scroll sideways: fade the right edge so the cut-off chip reads as "more" */
 .chips { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+
+/* ---- motion (UI polish batch 2, 2026-10-23). Transform and opacity only; never blocks a tap or delays data.
+   No page transitions, no reorder animations, nothing on Today that slows a rep down. ------------------------- */
+/* Feedback: a press shrinks a little */
+button, a[href] { transition: transform var(--motion-fast) var(--ease-out), opacity var(--motion-fast) var(--ease-out); }
+button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { transform: scale(.97); }
+.tabs a:active, .seg > button:active { transform: none; }
+/* Orientation: skeleton blocks breathe while the screen loads */
+.sk { animation: skpulse 1.2s var(--ease-in-out) infinite alternate; }
+@keyframes skpulse { from { opacity: 1; } to { opacity: .6; } }
+/* Feedback: the win moment's content settles in (no delay before its buttons work) */
+.moment.win .inner { animation: settle var(--motion-standard) var(--ease-out); }
+@keyframes settle { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+/* Delight (celebration): a new My Fifty account. The headline rises, then the new gold dot arrives and glows. */
+.moment.joined .headline { animation: rise var(--motion-standard) var(--ease-out); }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+.newdot { position: relative; animation: dotin var(--motion-celebrate) var(--ease-out); }
+.newdot::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 4px rgba(255, 201, 74, .3); animation: fade var(--motion-celebrate) var(--ease-out); }
+@keyframes dotin { from { transform: scale(.96); opacity: 0; } to { transform: none; opacity: 1; } }
+/* Delight (celebration): the My Fifty tile or card when this phone sees the count go up */
+.fifty-up { position: relative; }
+.fifty-up::after { content: ''; position: absolute; inset: -3px; border-radius: 25px; pointer-events: none; opacity: 0;
+  box-shadow: 0 0 0 3px #f5b21f, 0 0 18px rgba(245, 178, 31, .55); animation: glow var(--motion-celebrate) var(--ease-out); }
+@keyframes glow { 0% { opacity: 0; } 35% { opacity: 1; } 100% { opacity: 0; } }
+/* Delight (celebration): the weekly focus hit, a gold sweep across the focus card, once */
+.focus-hit { position: relative; overflow: hidden; }
+.focus-hit::after { content: ''; position: absolute; inset: 0; pointer-events: none; opacity: 0; border-radius: inherit;
+  background: linear-gradient(110deg, transparent 15%, rgba(255, 216, 107, .55) 50%, transparent 85%); animation: glow var(--motion-celebrate) var(--ease-in-out); }
+/* Feedback: "Confirmed" appears after Confirm my week */
+.pop { animation: pop var(--motion-fast) var(--ease-out); }
+@keyframes pop { from { opacity: 0; transform: scale(.96); } to { opacity: 1; transform: none; } }
+/* Orientation: Rewards boards crossfade; progress bars grow from the left on first paint */
+.fadein { animation: fade var(--motion-fast) var(--ease-out); }
+.bar { display: block; height: 100%; width: 100%; transform-origin: left center; }
+.bar.grow { animation: grow var(--motion-standard) var(--ease-out); }
+@keyframes grow { from { transform: scaleX(0); } }
+/* Attention: the current step's halo fades in once */
+.halo { position: relative; }
+.halo::after { content: ''; position: absolute; inset: 0; border-radius: 50%; box-shadow: 0 0 0 6px rgba(17, 112, 192, .15); animation: fade var(--motion-standard) var(--ease-out); }
+
+/* Reduced motion: everything ends at its final state at once; the spinner keeps a gentle opacity pulse. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+  button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { transform: none; }
+  .spin { animation: rmspin 1.2s ease-in-out infinite alternate !important; animation-duration: 1.2s !important; animation-iteration-count: infinite !important; border-color: rgba(17, 112, 192, .5); }
+  .rec { animation: none !important; box-shadow: 0 0 0 6px rgba(214, 69, 69, .18); }
+  .fifty-up::after, .focus-hit::after { display: none; }
+}
+@keyframes rmspin { from { opacity: 1; } to { opacity: .4; } }
