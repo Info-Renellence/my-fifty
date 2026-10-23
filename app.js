@@ -668,8 +668,9 @@
           + '<div style="display:flex;align-items:center;gap:12px">'
           + '<button type="button" data-mic aria-label="Say the follow-up note" class="' + (recording ? 'rec' : '') + '" style="width:48px;height:48px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:' + (recording ? '#D64545' : '#1170C0') + ';color:#FFFFFF;border:0">'
           + (st.rec === 'working' ? '<span class="spin" style="border-color:rgba(255,255,255,.3);border-top-color:#fff"></span>' : recording ? '<span style="width:16px;height:16px;border-radius:3px;background:#fff"></span>' : ic('mic', 22)) + '</button>'
-          + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:2px"><span style="font-size:15px;font-weight:600">'
-          + (st.rec === 'working' ? 'Writing it up…' : recording ? 'Listening… tap to stop' : 'Say what happened and the next step') + '</span>'
+          // Owner 2026-10-23: no "Say what happened and the next step" line; the bold line shows only while recording.
+          + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:2px">'
+          + (st.rec === 'working' || recording ? '<span style="font-size:15px;font-weight:600">' + (st.rec === 'working' ? 'Writing it up…' : 'Listening… tap to stop') + '</span>' : '')
           + '<span style="font-size:14px;color:#6B7486">' + (st.rec === 'working' ? 'One moment' : recording ? 'Talk normally' : BOOT.voice ? 'Tap the mic and talk' : 'Tap Type to write it') + '</span></span>'
           + '<button type="button" data-type style="height:34px;padding:0 12px;border-radius:17px;border:0;background:#FFFFFF;color:#062064;font-size:13px;font-weight:600;flex:none">Type</button>'
           + '</div></div>';
