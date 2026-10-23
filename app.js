@@ -221,7 +221,7 @@
         + '<div style="background:linear-gradient(135deg,#FFD86B,#F5B21F);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#3D2A00">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600">STREAK ' + FLAME + '</span>'
         + '<span style="display:flex;align-items:baseline;gap:4px"><span style="font-size:30px;font-weight:700;letter-spacing:-0.8px">' + day.streak + '</span>'
-        + '<span style="font-size:13px;font-weight:600">' + (day.streak === 1 ? 'day' : 'days') + ' · plan done</span></span></div>'
+        + '<span style="font-size:13px;font-weight:600">' + (day.streak === 1 ? 'day' : 'days') + '</span></span></div>'
         + '<a href="/people" data-nav style="background:linear-gradient(135deg,#1A80D6,#1170C0);border-radius:22px;padding:12px 14px;display:flex;flex-direction:column;justify-content:space-between;color:#FFFFFF">'
         + '<span style="display:flex;justify-content:space-between;font-size:13px;font-weight:600"><span>MY FIFTY</span><span>' + fifty.count + '</span></span>'
         + '<span style="display:flex;justify-content:space-between">' + dots + '</span>'
