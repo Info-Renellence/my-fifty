@@ -23,3 +23,19 @@ Database: Supabase v1 holding a fresh copy of v2's real data (see the conductor'
 - 19:52 · fixes · RD6 044419d, RD2 6af06a5 committed, test first failing then passing (test/unit/testrun-realdata.test.js)
 - 19:55 · data · 18 real people have no first name: "No phone number for  yet." (RD8) · fixed d03e28a
 - 19:57 · data · 48 of 93 real event leads have no event linked (no "Met at…"), 0 social leads linked to an ad; My Fifty does not read forecasts (Edge only) · noted
+- 20:07 · gate · gate.sh + smoke on d03e28a under the lock · same failures as the baseline by name (10 known, 3 wire = RD1, 2 smoke demo-history); nothing new · pushed 044419d, 6af06a5, d03e28a
+- 20:20 · design · screens re-checked on 4 real books after restarting the servers · no page wider than the phone; delivered orders show every step done
+- 20:22 · random input · 300 random reads (bad ids, built-in names, 5000-char values, emoji, SQL text) on a real rep book · 125 x 200, 175 x 400, no 5xx
+- 20:23 · load · 20 parallel Today on the biggest rep book: 5.0 s all 200; 10 parallel Today as admin (every book): 9.1 s all 200
+- 20:25 · data · one real contact has an email address in its phone field (Call would open Quo with it) · RD9 data note
+- 20:28 · writes · fake cold lead (demo-test-rd-, @demo.invalid) added in Sam's book: shows in Sam's Cold leads only · ok
+- 20:28 · writes · adding someone with a real customer's email / phone from another book · 409 email_someones / already_someones, no name or id given · ok
+- 20:28 · access · Lucas and head office try log, follow-up, uses, order, email, invoice on Sam's fake person · all 404, nothing written · ok
+- 20:28 · day goal · reached call +1 (1 -> 2), undo back to 1; no-answer call not counted; Feb 30 follow-up 400; 5000-char note ok · ok
+- 20:28 · admin · admin sets a follow-up on Sam's fake person · 200 (rule E) · ok
+- 20:30 · design · real screens next to the mockup "Edge – Final Mockup (1)" (L2 Today, L6 People, L7 card, L19, L20, #12, L11) · layout, wording and colours match
+- 20:31 · going cold · independent SQL count per rep (last non-sample order or reached in-person/video visit over 30 days) · identical; the 55 meetings with no mode would change only 1 person (Brittany's book) · RD4 downgraded to low
+- 20:33 · merged · fake person merged into the fake lead (demo-test-rd-merged) · hidden from People, search and the card (404) · ok
+- 20:33 · merged · "Add person" with the merged-away person's email · warning offered to open the merged-away person, whose card is "not found" (RD10) · fixed b53ccc6
+- 20:35 · times · imported calls, meetings, orders and tasks at exactly midnight UTC (would show on the wrong Toronto day) · none · ok
+- 20:36 · orders · ready-to-order people with no shipping address: 1 of 138; with no email: 6 · RD11 (owner: should Send wait for an address?)
