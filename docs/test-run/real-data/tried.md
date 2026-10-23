@@ -45,3 +45,11 @@ Database: Supabase v1 holding a fresh copy of v2's real data (see the conductor'
 - 20:46 · today · fake Meta lead (demo-test-rd-meta) added to Lucas's real book · first on Today as "new Meta lead · 0m ago" · ok
 - 20:46 · data · 4 real social leads have no owner: no rep sees them in My Fifty · RD5 note
 - 20:47 · shared · book/lists/time/http identical in my-fifty and renellence-edge no-hubspot (header and require paths only) · ok
+- 20:58 · admin · second admin's screens with longer waits (every book on v1) · ok; admin Today on the real rows = 31 items (every rep's going-cold and candidates), Fifty tile 59 of 50 · question for the owner (rule E on Today)
+- 21:02 · leads · "Added by" on warm / cold leads: none on real people (the migration logged their creation with no actor) · expected; shows for people added from now on
+- 21:05 · random writes · 300 random act calls aimed at the fake person / random ids (no add_person, no user-setting writes) · 280 x 400, 15 x 404, 3 x 409, 1 x 200, 1 x 503 = "voice not set up" (no Gemini key; the app hides the mic then) · no crash
+- 21:08 · access · the 7 real clinics shared by two owners: each owner searching the clinic name sees only their own people (14 searches) · ok
+- 21:06 · orders · a real wire order placed Oct 21 (status paid, no approval time) shows Approved done, Payment "Wire · received", Preparing to ship waiting · ok after RD6
+- 21:07 · orders · missing times by month: every shipped/delivered order from March to September has no shipped/delivered time; October 12 of 41 still missing · RD7 is not only the migration
+- 21:09 · onboarding · L20 for 14 real waiting onboardings across the 5 rep books: steps, 'Waiting · N days' on the MD step and Remind MD offered only after the first signature; people with an older waiting and a newer signed onboarding show the signed one · ok
+- 21:10 · read pass · both admins (every book on v1: 1,409 people) every read screen for every person · 0 errors
