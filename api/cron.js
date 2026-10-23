@@ -8,10 +8,11 @@
 //   2. the morning summary (L1 "6 days in a row · 7 on today's list"; the streak in days only,
 //      like the Today streak tile, Yousef 2026-10-23), once a business day,
 //      on the first tick from 7:30 AM Toronto.
-//   3. orders n8n did not accept when they were placed are sent again (resendOrders, once-only key; F22).
+//   3. orders n8n did not accept when they were placed are sent again (resendOrders, once-only key; F22). With the
+//      order_dispatch switch on (api/_dispatch.js, 2026-10-23) queued orders are retried with counted tries instead.
 //   4. the Gmail pull (api/_gmail.js), with what is left of the time.
 const crypto = require('crypto');
-const { db } = require('./_db');
+const { db, asUser } = require('./_db');
 const { send, query, route, fail } = require('./_http');
 const B = require('./_book');
 const T = require('./_time');
@@ -31,7 +32,7 @@ module.exports = route(async (req, res) => {
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
   const sql = db();
-  const out = { leads: await newLeads(sql), morning: await morning(sql), orders: await resendOrders(sql) };
+  const out = { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) };
   out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
@@ -85,7 +86,18 @@ async function morning(sql) {
 // sends them again, with the same once-only key (api/_n8n.js), until n8n accepts one (then change_logs 'send' is
 // written and it is never sent again). Only orders placed in My Fifty, still waiting on approval, from the last 7
 // days; never fictional (demo / test-run) ones. Nothing happens while n8n is not connected.
-async function resendOrders(sql) {
+// Order dispatch (risk #4, 2026-10-23): with settings order_dispatch.pulse or .edge on, queued orders (Pulse's and
+// Edge's) are retried by api/_dispatch.js: tries counted, the error kept, failed + a task for info@ after max_attempts.
+// The old resend still runs for orders the dispatcher never queued (placed while the switch was off).
+async function sendOrders(sql) {
+  const D = require('./_dispatch');
+  const cfg = await D.anyOn(sql);
+  if (!cfg) return resendOrders(sql);
+  const dispatch = await D.retry(sql, (fn) => asUser(null, fn), { cfg, source: 'my_fifty' });
+  return Object.assign({ dispatch }, { old: await resendOrders(sql, true) });
+}
+
+async function resendOrders(sql, notQueued) {
   if (!String(process.env.N8N_MYFIFTY_URL || '').trim()) return { skipped: 'n8n_not_connected' };
   const waiting = await sql`
     select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id left join users u on u.id = o.rep_id
@@ -93,6 +105,7 @@ async function resendOrders(sql) {
        and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
        and not exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'send')
+       ${notQueued ? sql`and o.dispatch_status is null` : sql``}
      order by o.submitted_at limit 20`;
   let sent = 0;
   for (const o of waiting) {
@@ -170,4 +183,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, morningTitle, wires, resendOrders };
+module.exports._ = { authorised, newLeads, morning, morningTitle, wires, resendOrders, sendOrders };

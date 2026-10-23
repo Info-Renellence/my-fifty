@@ -205,3 +205,20 @@ this one line has been run on v1 as postgres (Supabase SQL editor): `alter type 
 exists 'compass';`. On v2 it runs inside the one transaction. My Fifty: `test/db/testrun-rls.test.js` lists the five
 new tables. The demo wipes (`db/wipe-demo.sql`, Edge's `db/wipe-edge-test.sql`) don't clear Compass rows yet; add them
 when Compass writes demo rows.
+
+## 17. Order dispatch tracking (`renellence-edge/db/v2-011-order-dispatch.sql`), 2026-10-23, PROPOSED, NOT APPLIED
+
+Data map risk #4 (owner 2026-10-23, "make those fixes"): nothing tracked whether n8n took an order, nor retried it with a
+limit, nor told anyone. **Waiting for the owner's yes.** Dry run on v1 2026-10-23 (rolled back, all checks passed: no
+table count changed except settings +1 and its change_logs row, existing orders rows untouched). Apply with
+`node renellence-ops/ops/fixes/apply-v2-011.js v2 --dry`, then without `--dry`.
+
+| # | Change | Why |
+|---|---|---|
+| 70 | New enum `orders_dispatch_status` (queued · sent · failed) | The hand-off to n8n |
+| 71 | New columns on `orders`: `dispatch_status`, `dispatch_attempts` (default 0), `dispatch_last_attempt_at`, `dispatch_error_message`, `dispatched_at`; check attempts ≥ 0; partial index on queued orders | Pulse / Edge "Send for approval", Pulse's timer retry, the daily reconciliation's "stuck" list. Invoiced / charged already live in `orders.status`, `invoiced_at`, `payments` |
+| 72 | New `settings` row `order_dispatch`: `pulse` false, `edge` false (the switch), max_attempts 5, retry_after_minutes 15, stuck thresholds, alert_email info@ | Off by default; nothing changes until the owner turns it on |
+
+Code (behind the switch): shared `my-fifty/api/_dispatch.js` = `renellence-edge/api/_edge/dispatch.js`. n8n side:
+`renellence-ops/ops/n8n/order-dispatch-proposal.md` (proposal only). When applied, add the five columns to the SOP
+(Section 10, `orders`) and the dictionary artifacts.

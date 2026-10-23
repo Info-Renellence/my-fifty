@@ -336,6 +336,10 @@ const OPS = {
     const [ship] = await sql`select coalesce(shipping_street, '') <> '' and coalesce(shipping_city, '') <> '' as ok from contacts where id = ${c.id}`;
     if (!ship.ok) throw fail(409, 'no_shipping_address');
     const terms = method === 'wire' ? await require('./_wire').termsFor(sql, c.id) : null;
+    // Order dispatch (risk #4, 2026-10-23): with settings order_dispatch.pulse on, the order is saved as queued and
+    // handed to n8n through api/_dispatch.js (tracked tries, retry, alert). Off (the default): as before.
+    const D = require('./_dispatch');
+    const dispatch = await D.enabled(sql, 'pulse');
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;
       if (md) {
@@ -364,8 +368,13 @@ const OPS = {
         await tx`insert into payments (order_id, kind, method, amount, currency, status, provider, is_test)
                  values (${o.id}, 'charge', 'wire', ${total}, 'CAD', 'pending', 'wire', false)`;
       }
+      if (dispatch) await D.queue(tx, o.id);
       return o.id;
     });
+    if (dispatch) {
+      const r = await D.attempt((fn) => asUser(me.id, fn), orderId, { from: 'pulse', source: 'my_fifty', actorId: me.id, cfg: dispatch });
+      return { ok: true, orderId, sentToN8n: !!r.sent, reason: r.sent ? undefined : r.error, queued: !r.sent && !r.failed };
+    }
     const sent = await require('./_n8n').call('order', { orderId });
     // Accepted by n8n: recorded so the timer never sends it again. Not accepted: the timer tries again (F22).
     if (sent.queued) await asUser(me.id, (tx) => tx`
