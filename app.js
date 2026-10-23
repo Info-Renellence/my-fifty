@@ -1417,6 +1417,16 @@
       + '<span style="font-size:13px;color:#6B7486">Use your @renellence.com account.</span></div>';
   }
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-signin]')) signIn(location.pathname); });
+  // Head office signed in (Yousef 2026-10-23): a polite screen instead of a book. Sign out goes back to sign-in.
+  function showRepsOnly() {
+    closeSheet();
+    $app.innerHTML = '<div class="scr full" style="justify-content:center;align-items:center;text-align:center;gap:18px">'
+      + '<img src="/logo.png" alt="Renellence" style="height:22px;width:auto">'
+      + '<span style="font-size:30px;font-weight:700;letter-spacing:-0.7px">Pulse is for reps</span>'
+      + '<span style="font-size:15px;color:#6B7486;max-width:300px;line-height:1.4">' + esc(errText({ message: 'reps_only' })) + '</span>'
+      + '<button type="button" data-repsout style="height:54px;width:100%;max-width:340px;border-radius:14px;border:0;background:#EEF2F8;color:#062064;font-size:17px;font-weight:600">Sign out</button></div>';
+  }
+  $app.addEventListener('click', function (e) { if (e.target.closest('[data-repsout]')) { signInMessage = ''; sb.auth.signOut().catch(function () {}).then(function () { showSignIn(); }); } });
 
   function start() {
     fetch('/api/data?op=config').then(function (r) { return r.json(); }).then(function (cfg) {
@@ -1445,6 +1455,7 @@
       });
     }).catch(function (e) {
       if (e && e.message === 'signed_out') return;
+      if (e && e.message === 'reps_only') return showRepsOnly();
       if (e && (e.message === 'not_set_up' || e.message === 'not_renellence')) { signInMessage = errText(e); sb.auth.signOut().catch(function () {}); return showSignIn(); }
       $app.innerHTML = failed(e);
     });

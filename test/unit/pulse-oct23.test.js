@@ -65,3 +65,29 @@ test('Review holds Send without a shipping address and offers to add one', () =>
   assert.match(app, /if \(draft\.noShip\) \{ toast\(errText\(\{ message: 'no_shipping_address' \}\)\); shippingSheet\(draft\.contactId\); return; \}/);
   assert.match(app, /act\('shipping_address', \{ contactId: contactId, street: v\('street'\), city: v\('city'\)/);
 });
+
+// Head office (owner 2026-10-23): the app shows "Pulse is for reps" with Sign out, not the sign-in error.
+test('a head office sign-in shows the polite "Pulse is for reps" screen', () => {
+  const L = require('../../lib');
+  assert.match(L.errText({ message: 'reps_only' }), /Pulse is the reps’ app/);
+  assert.match(app, /if \(e && e\.message === 'reps_only'\) return showRepsOnly\(\);/);
+  const at = app.indexOf('function showRepsOnly'); const fn = app.slice(at, app.indexOf('\n  }', at));
+  assert.match(fn, /Pulse is for reps/); assert.match(fn, /data-repsout/); assert.match(fn, />Sign out</);
+});
+
+// Head office doesn't use Pulse (owner 2026-10-23): signedIn answers 403 reps_only for users.kind = 'head_office'; admins
+// and reps sign in as before. (A fake database: the test copy refuses reads of users to the test login.)
+test('head office gets reps_only; admins and reps still sign in', async () => {
+  const D = require('../../api/_db');
+  const Au = require('../../api/_auth');
+  const realFetch = global.fetch;
+  try {
+    for (const [kind, want] of [['head_office', 'reps_only'], ['admin', 'admin'], ['rep', 'rep']]) {
+      const authId = 'a-' + kind;
+      D.setDb(async () => [{ id: 'u-' + kind, email: kind + '@renellence.com', full_name: 'Unit ' + kind, kind, is_active: true, preferences: {}, auth_user_id: authId }]);
+      global.fetch = async () => ({ ok: true, json: async () => ({ id: authId, email: kind + '@renellence.com' }) });
+      const got = await Au.signedIn({ headers: { authorization: 'Bearer ho-' + kind + Math.random() } }).then((me) => me.kind, (e) => e.status + ' ' + e.message);
+      assert.equal(got, want === 'reps_only' ? '403 reps_only' : want, kind);
+    }
+  } finally { global.fetch = realFetch; D.setDb(null); }
+});

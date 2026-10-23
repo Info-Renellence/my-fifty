@@ -28,7 +28,7 @@
     voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
     gmail_not_connected: 'Connect Gmail first.', gmail_reconnect: 'Gmail needs to be connected again.', reminded_recently: 'Already reminded in the last hour.', resent_recently: 'Pay link already resent in the last hour.',
     subject_and_message_required: 'Add a subject and a message.', not_set_up: 'Your account isn’t set up in My Fifty yet. Ask an admin.',
-    not_renellence: 'Sign in with your @renellence.com Google account.', nothing_to_charge: 'Add at least one paid product.',
+    not_renellence: 'Sign in with your @renellence.com Google account.', reps_only: 'Pulse is the reps’ app. Head office works in Edge.', nothing_to_charge: 'Add at least one paid product.',
   };
   function errText(e) { return ERR[e && e.message] || 'Something went wrong. Try again.'; }
 

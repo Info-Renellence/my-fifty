@@ -7,6 +7,8 @@
 //   - have an active row in v2's `users` table (matched by auth_user_id, or by email the first time,
 //     which then links auth_user_id).
 // Anyone else gets 403 not_set_up: being in the Google Workspace is not enough to see the book.
+// Head office (users.kind = 'head_office') doesn't use Pulse (Yousef 2026-10-23): 403 reps_only, and the app shows a polite
+// "Pulse is for reps" screen. Admins keep their access (they see the whole company).
 const { db } = require('./_db');
 
 const SUPABASE_URL = () => String(process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || '').replace(/\/$/, '');
@@ -48,6 +50,7 @@ async function signedIn(req) {
     if (row && row.is_active !== false && !row.auth_user_id) await sql`update users set auth_user_id = ${u.id} where id = ${row.id}`;
   }
   if (!row || row.is_active === false) throw fail(403, 'not_set_up');
+  if (row.kind === 'head_office') throw fail(403, 'reps_only');
   return { id: row.id, email: row.email, name: row.full_name || email, first: String(row.full_name || email).split(/\s+/)[0],
     initials: initials(row.full_name || email), kind: row.kind, preferences: row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences) ? row.preferences : {}, authUserId: u.id };
 }
