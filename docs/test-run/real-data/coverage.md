@@ -71,6 +71,7 @@ second admin (everyone).
 | Check | Status | Notes |
 |---|---|---|
 | Random input on reads (300) | ok | no 5xx |
+| A NUL character in a text (Log, Add person) | FIX RD18 (849653f, Edge 5ddc6de) | was 500, now 400 bad_input |
 | Random taps in the browser on a real book (2 seeds, writes blocked) | ok | no page errors |
 | Load: 20 parallel Today (rep), 10 parallel (admin, every book) | ok | 5 s / 9 s, all answered |
 | Shared copies (book, lists, time, http) identical in both repos | ok | apart from the header line and require paths |

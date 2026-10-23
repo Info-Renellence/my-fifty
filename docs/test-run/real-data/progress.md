@@ -3,7 +3,14 @@
 Lane B of the real-data run. Database: Supabase v1 with a fresh copy of v2's real data. Nothing connected to v2.
 No customer data here: counts and "a contact in X's book" only.
 
-## Latest (9:10 PM)
+## Latest (10:55 PM, run finished)
+- **The final report is `report.md`.** Decisions waiting on you are listed first: RD1 (high, wire "Mark as received" refused for
+  head office), RD7, RD3, RD5, RD4, RD13, and the admin-Today / head-office questions.
+- Fixes pushed (each gate-checked against the baseline by name; nothing new): 044419d (RD6), 6af06a5 (RD2), d03e28a (RD8),
+  b53ccc6 (RD10), 849653f + Edge 5ddc6de (RD18, shared http.js), 0e9d307 + Edge f710c9a (RD18 comment clean-up).
+- Final gate 10:40-10:49 PM on the final code: the baseline's failures only. Final read pass, rules and access: all clean.
+
+## Earlier (9:10 PM)
 - All 8 real books read end to end (every read screen, 0 errors); rules match independent database counts for every user.
 - Rep against rep: 560 reads of other books refused; every write by another rep or head office on a fake person refused.
 - Screens on 5 real books checked at phone size against the mockup; random taps (writes blocked) gave no page errors.
