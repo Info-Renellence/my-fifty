@@ -46,6 +46,7 @@ const encodeWord = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : '=?UTF-8?B?' + Buffer.
 
 // to: one address. Returns { id, threadId, messageId }.
 async function send(sql, me, { to, subject, text }) {
+  if (require('./_staging').blocked()) throw fail(409, 'staging_no_outward');   // staging never emails anyone (api/_staging.js)
   const c = await connection(sql, me.id);
   if (!c) throw fail(409, 'gmail_not_connected');
   const at = await accessToken(open(c.credentials_encrypted)).catch(async (e) => {

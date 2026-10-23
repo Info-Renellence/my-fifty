@@ -1,3 +1,4 @@
+require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.js)
 // "Mark as received" for a wire payment (the button in the overdue-wire email to info@, api/cron.js op=wires).
 //   GET  /api/wire?o=&u=&e=&s=   a small page: the order, and the day the money arrived (today unless changed)
 //   POST the same address          marks the wire payment succeeded, with paid_at = that day

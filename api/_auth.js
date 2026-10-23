@@ -51,6 +51,8 @@ async function signedIn(req) {
   }
   if (!row || row.is_active === false) throw fail(403, 'not_set_up');
   if (row.kind === 'head_office') throw fail(403, 'reps_only');
+  // Staging Pulse (STAGING=1, api/_staging.js): admins only, so no rep works in the test copy by mistake.
+  if (require('./_staging').on() && row.kind !== 'admin') throw fail(403, 'staging_admins_only');
   return { id: row.id, email: row.email, name: row.full_name || email, first: String(row.full_name || email).split(/\s+/)[0],
     initials: initials(row.full_name || email), kind: row.kind, preferences: row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences) ? row.preferences : {}, authUserId: u.id };
 }

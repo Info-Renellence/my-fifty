@@ -1,3 +1,4 @@
+require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.js)
 // The timer (GET /api/cron?op=tick). Called every 5 minutes by pg_cron in Supabase v2 (db/002-cron.sql), with
 // the key in the X-Cron-Key header (CRON_SECRET). Vercel's free plan only allows daily timers, and new-lead
 // pushes can't wait a day.
@@ -93,6 +94,9 @@ async function sendOrders(sql) {
   const D = require('./_dispatch');
   const cfg = await D.anyOn(sql);
   if (!cfg) return resendOrders(sql);
+  // Kill switch (settings flags.order_dispatch, api/_flags.js): off = no dispatch retries; queued orders wait (nothing is
+  // sent twice), and the old resend still covers orders the dispatcher never queued.
+  if (!(await require('./_flags').on(sql, 'order_dispatch'))) return { dispatch: 'off_by_flag', old: await resendOrders(sql, true) };
   const dispatch = await D.retry(sql, (fn) => asUser(null, fn), { cfg, source: 'my_fifty' });
   return Object.assign({ dispatch }, { old: await resendOrders(sql, true) });
 }

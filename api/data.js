@@ -1,3 +1,4 @@
+require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.js)
 // Everything My Fifty reads (GET /api/data?op=...). Read-only; writes are in api/act.js.
 //
 //   config      public settings the page needs before sign-in (Supabase URL + anon key, push key)
@@ -30,7 +31,9 @@ module.exports = route(async (req, res) => {
   const op = q.get('op') || '';
   if (op === 'config') {
     const push = require('./_push');
-    return send(res, 200, { supabaseUrl: SUPABASE_URL(), supabaseAnonKey: ANON(), vapidPublicKey: (push.vapid() || {}).publicKey || '' });
+    require('./_staging').refuseV2(SUPABASE_URL());   // staging signs in against v1 only
+    return send(res, 200, { supabaseUrl: SUPABASE_URL(), supabaseAnonKey: ANON(), vapidPublicKey: (push.vapid() || {}).publicKey || '',
+      staging: require('./_staging').on() });
   }
   const me = await signedIn(req);
   const sql = db();
@@ -47,6 +50,7 @@ const scope = (me, o) => Object.assign({}, o || {}, { everyone: isAdmin(me) });
 const OPS = {
   async boot(sql, me) {
     const cfg = await B.settings(sql);
+    const flags = await require('./_flags').all(sql);
     const { people } = await B.book(sql, me, scope(me, { cfg }));
     const fifty = people.filter((p) => p.stage === 'fifty');
     // "Joined your Fifty" (L5): the newest person whose first paid order came after the last one shown.
@@ -57,7 +61,9 @@ const OPS = {
     const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
     const gmail = await sql`select status from connections where user_id = ${me.id} and provider = 'gmail' order by updated_at desc limit 1`;
     return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, joined, firstVisit: !seenAt,
-      gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() };
+      gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() && flags.voice_notes,
+      // Feature switches (settings 'flags', api/_flags.js) the page may need; already-live features default on.
+      features: { weekView: flags.week_view, voiceNotes: flags.voice_notes, claudeSuggestions: flags.claude_suggestions } };
   },
 
   async today(sql, me) {
@@ -65,7 +71,9 @@ const OPS = {
     const [{ people }, day] = await Promise.all([B.book(sql, me, scope(me, { cfg })), B.dayStats(sql, me, cfg)]);
     const fiftyCount = people.filter((p) => p.stage === 'fifty').length;
     // Parked accounts (Compass) stay off the list until their date; the week block shows once the weekly 1-on-1 is saved.
-    const [parked, week] = await Promise.all([B.parkedUntil(sql, people.map((p) => p.id)), require('./_week').view(sql, me)]);
+    // The week block can be switched off (settings flags.week_view, api/_flags.js; on by default).
+    const weekOn = await require('./_flags').on(sql, 'week_view');
+    const [parked, week] = await Promise.all([B.parkedUntil(sql, people.map((p) => p.id)), weekOn ? require('./_week').view(sql, me) : null]);
     const list = B.todayList(people, me, cfg, parked);
     return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list, week };
   },

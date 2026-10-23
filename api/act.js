@@ -1,3 +1,4 @@
+require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.js)
 // Everything My Fifty writes (POST /api/act, body { op, ... }). Every write runs as the signed-in person inside
 // asUser(), so the change_logs trigger records who did it, from My Fifty.
 //
@@ -145,6 +146,7 @@ const OPS = {
   // The week (Compass): "Confirm my week" is the rep's one tap, on their own week only (an admin cannot confirm for a rep).
   async confirm_week(me) {
     const sql = db();
+    if (!(await require('./_flags').on(sql, 'week_view'))) throw fail(404, 'feature_off');
     const s = await W.session(sql, me);
     if (!s) throw fail(404, 'no_week');
     if (!s.week_confirmed_at) {
@@ -339,7 +341,8 @@ const OPS = {
     // Order dispatch (risk #4, 2026-10-23): with settings order_dispatch.pulse on, the order is saved as queued and
     // handed to n8n through api/_dispatch.js (tracked tries, retry, alert). Off (the default): as before.
     const D = require('./_dispatch');
-    const dispatch = await D.enabled(sql, 'pulse');
+    // flags.order_dispatch (api/_flags.js) is a kill switch over it: off = the old send, whatever order_dispatch says.
+    const dispatch = (await require('./_flags').on(sql, 'order_dispatch')) ? await D.enabled(sql, 'pulse') : null;
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;
       if (md) {
@@ -421,6 +424,7 @@ const OPS = {
 
   async voice(me, b) {
     const sql = db();
+    if (!(await require('./_flags').on(sql, 'voice_notes'))) throw fail(404, 'feature_off');   // settings flags.voice_notes
     await mine(sql, me, b.contactId);
     return require('./_voice').transcribe(sql, me, b);
   },

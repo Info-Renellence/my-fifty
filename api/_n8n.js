@@ -18,6 +18,8 @@
 // every try, so the n8n branch approves an order once however many times it arrives; an order n8n accepted is
 // recorded in change_logs (action 'send') and never sent again.
 async function call(action, payload) {
+  // Staging (STAGING=1, api/_staging.js): never calls n8n, so no email, text or invoice goes out from test data.
+  if (require('./_staging').blocked()) return { queued: false, reason: 'staging' };
   const url = String(process.env.N8N_MYFIFTY_URL || '').trim();
   if (!url) return { queued: false, reason: 'n8n_not_connected' };
   const ctl = new AbortController();

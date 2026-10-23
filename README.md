@@ -39,6 +39,9 @@ original #12).
 | `GEMINI_API_KEY` | Voice notes (the same key as Edge) |
 | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | The Google OAuth client that Supabase signs in with; Gmail uses it too |
 | `N8N_MYFIFTY_URL`, `N8N_MYFIFTY_KEY` | The n8n order branch |
+| `STAGING` | Never set here. `1` only in the Vercel project `pulse-staging` (on v1): banner, admins only, nothing goes out (`api/_staging.js`, renellence-ops/ops/release/STAGING.md) |
+
+Feature switches: the v2 `settings` row `flags` (`api/_flags.js`; live features default on). Turn one off with `node ops/release/flags.js v2 set <name>=off` in renellence-ops (RELEASE.md).
 
 ## Tests
 - `npm test` runs everything and reports coverage. It fails below 90% of lines.

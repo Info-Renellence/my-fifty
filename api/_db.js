@@ -13,6 +13,7 @@ function db() {
   if (sql) return sql;
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL;
   if (!url) { const e = new Error('database_not_configured'); e.status = 503; throw e; }
+  require('./_staging').refuseV2(url);   // a staging deployment (STAGING=1) never opens v2
   // Supabase's pooler (port 6543, transaction mode) does not keep prepared statements.
   sql = postgres(url, { max: 3, idle_timeout: 20, connect_timeout: 10, prepare: false, ssl: /localhost|127\.0\.0\.1/.test(url) ? false : 'require' });
   return sql;
