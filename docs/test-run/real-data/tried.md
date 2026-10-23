@@ -39,3 +39,9 @@ Database: Supabase v1 holding a fresh copy of v2's real data (see the conductor'
 - 20:33 · merged · "Add person" with the merged-away person's email · warning offered to open the merged-away person, whose card is "not found" (RD10) · fixed b53ccc6
 - 20:35 · times · imported calls, meetings, orders and tasks at exactly midnight UTC (would show on the wrong Toronto day) · none · ok
 - 20:36 · orders · ready-to-order people with no shipping address: 1 of 138; with no email: 6 · RD11 (owner: should Send wait for an address?)
+- 20:40 · merged · RD10 fix checked on the restarted server: warning now points at the live person · ok
+- 20:41 · history · longest real bodies: imported meeting notes up to 21,000 characters and notes up to 13,000 are shown in full on L14 (emails are cut at 400) · RD12 low
+- 20:44 · monkey · random taps on Emily's real book in the browser, 2 seeds, every write blocked in the browser · no page errors
+- 20:46 · today · fake Meta lead (demo-test-rd-meta) added to Lucas's real book · first on Today as "new Meta lead · 0m ago" · ok
+- 20:46 · data · 4 real social leads have no owner: no rep sees them in My Fifty · RD5 note
+- 20:47 · shared · book/lists/time/http identical in my-fifty and renellence-edge no-hubspot (header and require paths only) · ok

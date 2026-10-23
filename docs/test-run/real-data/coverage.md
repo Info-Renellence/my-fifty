@@ -16,9 +16,9 @@ second admin (everyone).
 | Candidate days / Today candidates | Q RD7 | 154 of 184 real shipped/delivered orders have no shipped/delivered time: candidates say "Not shipped" and never reach Today |
 | Onboarded group = primary contact only | ok | identical to SQL; 0 of 64 injectors / MDs / non-primary signers shown |
 | Lead groups (social, event, warm, cold) | ok | leads op and People counts agree for every user |
-| Going cold | Q RD4 | 55 imported meetings have no mode: not counted as visits |
+| Going cold | ok / Q RD4 | identical to SQL; 55 imported meetings have no mode (changes 1 person) |
 | New lead / reached today / touches | Q RD3 | inbound emails, texts and calls count as touches |
-| Today list order and contents | ok | follow-ups, going cold, candidates; no errors |
+| Today list order and contents | ok | follow-ups, going cold, candidates; a fake Meta lead (demo-test-rd-meta) comes first in a real book |
 | Day goal and streak | ok | per-day counts checked by SQL for the last 8 days |
 | Fifty tile / milestone | ok | |
 | Rewards: Q4 Booster | ok | new/reorder amounts identical to an independent SQL sum for every rep |
@@ -34,11 +34,11 @@ second admin (everyone).
 | L2 Today | ok | |
 | L6 People: My Fifty, Candidates, Leads | ok / Q RD7 | "Not shipped" on delivered samples |
 | L22-L25 lead groups incl. Onboarded | ok | |
-| L7/L8 person card | FIX RD2 | email shown as name / long clinic name ran off the card |
+| L7/L8 person card | FIX RD2 (6af06a5) | email shown as name / long clinic name ran off the card |
 | L14 History | FIX RD2 / Q RD3 | long links ran off; inbound emails shown as "You" |
-| L19/L21 order progress | FIX RD6 | delivered Shopify-era orders showed "Approved · Waiting" |
+| L19/L21 order progress | FIX RD6 (044419d) | delivered Shopify-era orders showed "Approved · Waiting" |
 | L20 onboarding | ok | |
-| L9 who is it for | FIX RD2 | long clinic names ran off |
+| L9 who is it for | FIX RD2 (6af06a5) | long clinic names ran off |
 | #12 products + quantity list | ok | 0-100 + "More than 100…", total updates |
 | L10 review | ok | (not sent) |
 | L11 rewards | ok | |
@@ -50,3 +50,25 @@ second admin (everyone).
 | Rep asks for another book's person / history / onboarding / products / order (560 reads) | ok | all 404 |
 | Search for a surname from another book | ok | no hits |
 | Head office opens an order it is credited on, in a rep's book | ok (by design) / Q RD5 | |
+
+## Writes on the real books (fake rows only: demo-test-rd-, @demo.invalid)
+
+| Check | Status | Notes |
+|---|---|---|
+| Add person (cold lead) in a real book | ok | shows in that rep's Cold leads only |
+| Add person with another book's real email / phone | ok | 409, no name or id given |
+| Another rep / head office writes on the fake person (log, follow-up, uses, order, email, invoice) | ok | all 404, nothing written |
+| Log a reached call, undo; no-answer call | ok | day count +1 then back; no-answer not counted |
+| Bad input: Feb 30 follow-up, 5000-char note | ok | 400 / saved |
+| Admin acts on a rep's person (rule E) | ok | |
+| Merged-away person: hidden; duplicate warning | FIX RD10 (b53ccc6) | warning pointed at the hidden person |
+| No first name: no-phone / no-email message | FIX RD8 (d03e28a) | |
+
+## Deeper
+
+| Check | Status | Notes |
+|---|---|---|
+| Random input on reads (300) | ok | no 5xx |
+| Random taps in the browser on a real book (2 seeds, writes blocked) | ok | no page errors |
+| Load: 20 parallel Today (rep), 10 parallel (admin, every book) | ok | 5 s / 9 s, all answered |
+| Shared copies (book, lists, time, http) identical in both repos | ok | apart from the header line and require paths |
