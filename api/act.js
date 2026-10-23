@@ -4,6 +4,7 @@
 //   log              L3 Save: a call / visit / text, reached or not, the note, and the next follow-up
 //   undo             L4 Undo: takes that log back
 //   snooze           L2 "Tomorrow": move the follow-up (or hide the person) until tomorrow
+//   confirm_week     Today: "Confirm my week" (Compass; one_on_ones.week_confirmed_at)
 //   seen_fifty       L5 has been shown
 //   add_person       L13 Save person
 //   set_follow_up    L7/L8 Next follow-up
@@ -23,6 +24,7 @@ const { signedIn } = require('./_auth');
 const { send, body, route, fail, isUuid, clean, own } = require('./_http');
 const B = require('./_book');
 const T = require('./_time');
+const W = require('./_week');
 
 module.exports = route(async (req, res) => {
   if (req.method !== 'POST') throw fail(405, 'post_only');
@@ -133,6 +135,17 @@ const OPS = {
       snoozed[c.id] = tomorrow;
       await tx`update users set preferences = (case when jsonb_typeof(preferences) = 'object' then preferences else '{}'::jsonb end) || ${tx.json({ snoozed })} where id = ${me.id}`;
     });
+    return { ok: true };
+  },
+
+  // The week (Compass): "Confirm my week" is the rep's one tap, on their own week only (an admin cannot confirm for a rep).
+  async confirm_week(me) {
+    const sql = db();
+    const s = await W.session(sql, me);
+    if (!s) throw fail(404, 'no_week');
+    if (!s.week_confirmed_at) {
+      await asUser(me.id, (tx) => tx`update one_on_ones set week_confirmed_at = now() where id = ${s.id} and rep_id = ${me.id} and week_confirmed_at is null`);
+    }
     return { ok: true };
   },
 

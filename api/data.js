@@ -2,7 +2,7 @@
 //
 //   config      public settings the page needs before sign-in (Supabase URL + anon key, push key)
 //   boot        who is signed in, their initials, and a "joined your Fifty" moment if one is due
-//   today       L2: the day ring, streak, Fifty tile, suggested next and the list
+//   today       L2: the day ring, streak, Fifty tile, suggested next and the list; the week (focus, visits, calls) when set
 //   people      L6: My Fifty (warm / going cold), Candidates, Leads (four groups)
 //   leads       L22-L25: one lead group, newest first (&group=onboarded|social|event|warm|cold)
 //   person      L7/L8: one person's card (&id=)
@@ -64,10 +64,10 @@ const OPS = {
     const cfg = await B.settings(sql);
     const [{ people }, day] = await Promise.all([B.book(sql, me, scope(me, { cfg })), B.dayStats(sql, me, cfg)]);
     const fiftyCount = people.filter((p) => p.stage === 'fifty').length;
-    // Parked accounts (Compass) stay off the list until their date.
-    const parked = await B.parkedUntil(sql, people.map((p) => p.id));
+    // Parked accounts (Compass) stay off the list until their date; the week block shows once the weekly 1-on-1 is saved.
+    const [parked, week] = await Promise.all([B.parkedUntil(sql, people.map((p) => p.id)), require('./_week').view(sql, me)]);
     const list = B.todayList(people, me, cfg, parked);
-    return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list };
+    return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list, week };
   },
 
   async people(sql, me) {

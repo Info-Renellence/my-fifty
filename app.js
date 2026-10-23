@@ -208,6 +208,7 @@
         + '<span style="display:flex;flex-direction:column"><span style="font-size:13px;font-weight:600;color:#6B7486;letter-spacing:0.3px">' + L.longDate(date) + '</span>'
         + '<span style="font-size:34px;font-weight:700;letter-spacing:-0.8px">Today</span></span>'
         + '<span style="width:36px;height:36px;border-radius:50%;background:#EEF2F8;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;margin-bottom:4px">' + esc(ME.initials) + '</span></div>'
+        + (d.week ? weekFocus(d.week) : '')
         // tiles
         + '<div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:80px 80px;gap:10px;margin-bottom:14px">'
         + '<div style="grid-row:1 / span 2;background:#FFFFFF;border-radius:22px;padding:14px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 2px rgba(0,0,0,0.04)">'
@@ -258,6 +259,27 @@
       return h;
     }, 'today');
   }
+
+  // ---- The week (Compass): set in the weekly 1-on-1, shown on Today once it is saved ----------------------------------
+  // The focus on top with one "Confirm my week" tap; then the agreed visits (each ends Done or Missed) and calls.
+  function weekFocus(w) {
+    return '<section style="background:linear-gradient(135deg,#0A2A7A,#1170C0);border-radius:22px;padding:14px 16px;margin-bottom:14px;color:#FFFFFF;display:flex;flex-direction:column;gap:6px">'
+      + '<span style="display:flex;justify-content:space-between;align-items:center;font-size:13px;font-weight:600;letter-spacing:0.3px;opacity:0.85"><span>THIS WEEK’S FOCUS</span>'
+      + (w.confirmed ? '<span style="display:flex;align-items:center;gap:4px;letter-spacing:0">' + ic('check', 14, 2.8) + 'Confirmed</span>' : '') + '</span>'
+      + '<span style="font-size:22px;font-weight:700;letter-spacing:-0.4px">' + esc(w.focus ? w.focus.name : 'Your week') + '</span>'
+      + (w.focus && w.focus.line ? '<span style="font-size:15px;font-weight:500;opacity:0.92">' + esc(w.focus.line) + '</span>' : '')
+      + (w.confirmed ? '<span style="font-size:13px;opacity:0.8">' + esc(w.counts) + '</span>'
+        : '<button type="button" data-confirm-week style="margin-top:6px;height:52px;border-radius:14px;border:0;background:#FFFFFF;color:#062064;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px">'
+          + '<span style="font-size:17px;font-weight:600">Confirm my week</span><span style="font-size:13px;color:#6B7486">' + esc(w.counts) + '</span></button>')
+      + '</section>';
+  }
+  $app.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-confirm-week]');
+    if (b) {
+      b.disabled = true;
+      act('confirm_week').then(function () { toast('Week confirmed'); screenToday(); }, function (err) { b.disabled = false; toast(errText(err)); });
+    }
+  });
 
   $app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-first]');
