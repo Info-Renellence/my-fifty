@@ -5,6 +5,7 @@
 //   undo             L4 Undo: takes that log back
 //   snooze           L2 "Tomorrow": move the follow-up (or hide the person) until tomorrow
 //   confirm_week     Today: "Confirm my week" (Compass; one_on_ones.week_confirmed_at)
+//   visit_missed     Today: an agreed visit marked Missed, or { undo } (account_picks.missed_at)
 //   seen_fifty       L5 has been shown
 //   add_person       L13 Save person
 //   set_follow_up    L7/L8 Next follow-up
@@ -97,7 +98,9 @@ const OPS = {
         values (${c.id}, ${me.id}, ${me.id}, ${next || 'Follow up'}, ${kind === 'meeting' ? 'visit' : 'call'}, ${due}, 'open', 'manual', ${i.id})
         returning id`;
       if (isUuid(b.aiOutputId)) await tx`update ai_outputs set output_json = coalesce(output_json, '{}'::jsonb) || ${tx.json({ saved_as: i.id })} where id = ${b.aiOutputId} and created_by_id = ${me.id}`;
-      return { interactionId: i.id, taskId: t.id, closedTaskIds: closed.map((r) => r.id) };
+      // A reached visit closes this week's agreed visit for them (Done; Compass). A no-show is not a visit.
+      const weekVisitId = kind === 'meeting' && b.reached ? await W.linkVisit(tx, me, c.id, i.id) : null;
+      return { interactionId: i.id, taskId: t.id, closedTaskIds: closed.map((r) => r.id), weekVisitId };
     });
     const cfg = await B.settings(sql);
     const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg, everyone: isAdmin(me) }), B.dayStats(sql, me, cfg)]);
@@ -112,6 +115,7 @@ const OPS = {
     await asUser(me.id, async (tx) => {
       const [i] = await tx`update interactions set deleted_at = now() where id = ${b.interactionId} and user_id = ${me.id} and source = 'my_fifty' and deleted_at is null and occurred_at > now() - interval '1 day' returning id`;
       if (!i) throw fail(404, 'not_found');
+      await W.unlinkVisit(tx, i.id);
       await tx`update tasks set status = 'cancelled', deleted_at = now() where from_interaction_id = ${i.id} and assignee_id = ${me.id}`;
       const ids = (Array.isArray(b.closedTaskIds) ? b.closedTaskIds : []).filter(isUuid);
       if (ids.length) await tx`update tasks set status = 'open', completed_at = null where id = any(${ids}) and assignee_id = ${me.id}`;
@@ -146,6 +150,22 @@ const OPS = {
     if (!s.week_confirmed_at) {
       await asUser(me.id, (tx) => tx`update one_on_ones set week_confirmed_at = now() where id = ${s.id} and rep_id = ${me.id} and week_confirmed_at is null`);
     }
+    return { ok: true };
+  },
+
+  // Missed (no reason asked, owner 2026-10-23), or { undo: true } to take it back. Only an agreed visit of the rep's own
+  // week that is not Done.
+  async visit_missed(me, b) {
+    if (!isUuid(b.pickId)) throw fail(400, 'bad_id');
+    const sql = db();
+    const s = await W.session(sql, me);
+    if (!s) throw fail(404, 'not_found');
+    const [p] = await sql`select id, visit_interaction_id from account_picks where id = ${b.pickId} and checkin_id = ${s.checkin_id} and final_pick = 'visit'`;
+    if (!p) throw fail(404, 'not_found');
+    if (p.visit_interaction_id) throw fail(409, 'already_done');
+    await asUser(me.id, (tx) => (b.undo
+      ? tx`update account_picks set missed_at = null where id = ${p.id} and visit_interaction_id is null`
+      : tx`update account_picks set missed_at = coalesce(missed_at, now()) where id = ${p.id} and visit_interaction_id is null`));
     return { ok: true };
   },
 

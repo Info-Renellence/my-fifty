@@ -76,6 +76,8 @@
     trophy: '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5a3 3 0 0 0 3 4M16 6h3a3 3 0 0 1-3 4M12 13v4M8 20h8"/>',
     redo: '<path d="M4 4v6h6"/><path d="M20 12a8 8 0 0 0-14.9-4L4 10M4 12a8 8 0 0 0 14.9 4"/>',
     bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    note: '<path d="M5 4h14v16H5z"/><path d="M9 9h6M9 13h6M9 17h3"/>',
+    x: '<path d="M6 6l12 12M18 6L6 18"/>',
   };
   function ic(name, size, width, extra) {
     return '<svg width="' + (size || 16) + '" height="' + (size || 16) + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="' + (width || 2.2)
@@ -255,6 +257,7 @@
         });
         h += '</section>';
       }
+      if (d.week) h += weekList('THIS WEEK’S VISITS', d.week.visits, 'visit');
       h += pushPrompt() + '</div>';
       return h;
     }, 'today');
@@ -273,11 +276,49 @@
           + '<span style="font-size:17px;font-weight:600">Confirm my week</span><span style="font-size:13px;color:#6B7486">' + esc(w.counts) + '</span></button>')
       + '</section>';
   }
+  function weekList(title, rows, kind) {
+    if (!rows.length) return '';
+    var open = rows.filter(function (r) { return r.state === 'open'; }).length;
+    var h = sectionLabel(title, open ? open + ' to go' : 'All done') + '<section style="background:#FFFFFF;border-radius:16px;margin-bottom:14px">';
+    rows.forEach(function (r, i) {
+      var done = r.state === 'done', missed = r.state === 'missed';
+      h += '<div style="' + (i ? 'border-top:0.5px solid #E3E6EC;' : '') + 'padding:12px 14px;display:flex;flex-direction:column;gap:8px">'
+        + '<a href="/person/' + r.contactId + '" data-nav style="display:flex;align-items:center;gap:12px">'
+        + '<span style="width:32px;height:32px;border-radius:9px;background:' + (done ? '#1170C0;color:#FFFFFF' : '#EEF2F8;color:#062064') + ';display:flex;align-items:center;justify-content:center;flex:none">'
+        + ic(done ? 'check' : kind === 'visit' ? 'pin' : 'phone', 16, done ? 2.8 : 2.2) + '</span>'
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;min-width:0"><span style="font-size:16px;font-weight:600' + (missed ? ';color:#6B7486' : '') + '">' + esc(r.name) + '</span>'
+        + '<span style="font-size:13px;color:#6B7486;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + nb(r.clinic) + '</span></span>'
+        + (done ? '<span style="font-size:14px;font-weight:600;color:#1170C0;flex:none">Done' + (r.when ? ' · ' + esc(r.when) : '') + '</span>'
+          : missed ? '<span style="font-size:14px;font-weight:600;color:#6B7486;flex:none">Missed</span>' : CHEV) + '</a>'
+        + (r.purpose && !done && !missed ? '<span style="display:flex;align-items:flex-start;gap:6px;background:#EAF3FC;color:#0A3F7A;border-radius:10px;padding:7px 10px;font-size:14px;line-height:1.3">'
+          + '<span style="display:flex;flex:none;margin-top:1px">' + ic('note', 14, 2) + '</span><span>' + esc(r.purpose) + '</span></span>' : '');
+      if (!done && !missed) {
+        h += '<div style="display:grid;grid-template-columns:1.2fr 1fr;gap:8px">'
+          + '<button type="button" data-log="' + r.contactId + '" data-kind="' + kind + '" style="height:42px;border-radius:12px;border:0;background:#1170C0;color:#FFFFFF;display:flex;align-items:center;justify-content:center;gap:6px;font-size:16px;font-weight:600">' + ic('check', 16, 2.6) + 'Log</button>'
+          + (kind === 'visit'
+            ? '<button type="button" data-missed="' + r.id + '" style="height:42px;border-radius:12px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('x', 15, 2.4) + 'Missed</button>'
+            : '<button type="button" data-call="' + r.contactId + '" style="height:42px;border-radius:12px;border:0;background:#EEF2F8;color:#062064;display:flex;align-items:center;justify-content:center;gap:5px;font-size:14px;font-weight:600">' + ic('phone', 15) + 'Call</button>')
+          + '</div>';
+      } else if (missed) {
+        h += '<button type="button" data-unmissed="' + r.id + '" style="align-self:flex-start;height:32px;padding:0 12px;border-radius:10px;border:0;background:#EEF2F8;color:#1170C0;font-size:14px;font-weight:600">Undo</button>';
+      }
+      h += '</div>';
+    });
+    return h + '</section>';
+  }
   $app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-confirm-week]');
     if (b) {
       b.disabled = true;
       act('confirm_week').then(function () { toast('Week confirmed'); screenToday(); }, function (err) { b.disabled = false; toast(errText(err)); });
+      return;
+    }
+    b = e.target.closest('[data-missed],[data-unmissed]');
+    if (b) {
+      var undo = b.hasAttribute('data-unmissed');
+      b.disabled = true;
+      act('visit_missed', { pickId: b.getAttribute(undo ? 'data-unmissed' : 'data-missed'), undo: undo || undefined })
+        .then(function () { toast(undo ? 'Undone' : 'Marked missed'); screenToday(); }, function (err) { b.disabled = false; toast(errText(err)); });
     }
   });
 
