@@ -12,7 +12,7 @@
 //                         group lists only the onboarding's primary contact (onboardings.primary_contact_id; Yousef
 //                         2026-10-22): never the injector or the medical director unless they are also the primary contact
 //   goingCold  a Fifty person with no order and no visit (in person or video; a no-show is not a visit) in the last N days (settings, default 30)
-//   isNew      a lead nobody has called, texted, emailed or visited yet
+//   isNew      a lead nobody has called, texted, emailed or visited yet (only what the rep sent or made counts: OUTBOUND)
 // Ordered and paid are different: "ordered" is every placed order that isn't cancelled or rejected; "paid" (used for
 // rewards and Total bought) needs the money: a paid status or a succeeded payment, and for a wire order only its wire
 // payment marked received (a wire order ships before it is paid, so its status says nothing about payment).
@@ -21,12 +21,20 @@
 // Today, only when they were reached: a no-answer call or a no-show visit does neither. An email never does; a text
 // takes the person off Today but is not a touchpoint.
 //
+// Inbound (Yousef 2026-10-23, RD3): only OUTBOUND calls, texts and emails are the rep's touches. A call, text or email the
+// person made or sent (interactions.direction = 'in') never makes them "contacted", never sets the last touch, never takes
+// them off Today and never counts towards the day goal. It still shows in History and Activity, as from the person.
+// Meetings and notes have no direction that matters here.
+//
 // Everything is scoped to contacts the person owns (owner_id), the same rule as row-level security.
 const T = require('./_time');
 const L = require('./_lists');
 
 const NOT_REACHED = ['no_answer', 'voicemail', 'busy', 'no_show'];
 const REACHED = (sql) => sql`(coalesce(i.outcome, 'connected') <> all(${NOT_REACHED}) and i.status is distinct from 'no_show')`;
+// Made or sent by the person, not the rep (RD3): never one of the rep's touches. Never null (a row with no direction is
+// the rep's), so "not INBOUND" keeps it.
+const INBOUND = (sql) => sql`(i.direction is not distinct from 'in' and i.kind in ('call', 'text', 'email'))`;
 
 const DEFAULTS = { daily_goal: 8, going_cold_days: 30, fifty_goal: 50, new_lead_hours: 24, fifty_months: 3 };
 
@@ -95,12 +103,12 @@ async function book(sql, me, opts) {
     ordersFor(sql, ids),
     sql`
       select i.contact_id,
-             max(i.occurred_at) filter (where i.kind <> 'note') as last_touch_at,
-             (array_agg(i.kind::text order by i.occurred_at desc) filter (where i.kind <> 'note'))[1] as last_touch_kind,
+             max(i.occurred_at) filter (where i.kind <> 'note' and not ${INBOUND(sql)}) as last_touch_at,
+             (array_agg(i.kind::text order by i.occurred_at desc) filter (where i.kind <> 'note' and not ${INBOUND(sql)}))[1] as last_touch_kind,
              max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode in ('in_person', 'video') and i.status is distinct from 'cancelled'
                                          and ${REACHED(sql)}) as last_visit_at,   -- a video call counts as a visit; a no-show does not (S1, Yousef 2026-10-22)
-             count(*) filter (where i.kind <> 'note') as touches,
-             bool_or(i.user_id = ${me.id} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
+             count(*) filter (where i.kind <> 'note' and not ${INBOUND(sql)}) as touches,
+             bool_or(i.user_id = ${me.id} and not ${INBOUND(sql)} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today
         from interactions i
        where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled' and i.status is distinct from 'cancelled'
@@ -180,7 +188,8 @@ function monthsAgo(n, now) { const d = new Date(now); d.setMonth(d.getMonth() - 
 function group(rows, key) { const out = {}; for (const r of rows) (out[r[key]] = out[r[key]] || []).push(r); return out; }
 
 // The day goal and streak: a touchpoint is a call or an in-person visit the person logged where they were reached
-// (Yousef 2026-10-21, Q9: no-answer calls and no-show visits don't count; emails and texts never do).
+// (Yousef 2026-10-21, Q9: no-answer calls and no-show visits don't count; emails and texts never do). An inbound call is
+// not the rep's (RD3).
 // The streak counts days in a row with at least the goal, ending yesterday, plus today once today's goal is met.
 // A business day short of the goal breaks it; a weekend or holiday (settings) never breaks it but adds one when
 // the goal was met on it (Yousef 2026-10-21, Q10).
@@ -189,7 +198,7 @@ async function dayStats(sql, me, cfg) {
     select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
       from interactions i
      where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-       and (i.kind = 'call' or (i.kind = 'meeting' and i.mode = 'in_person')) and ${REACHED(sql)}
+       and (i.kind = 'call' or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${INBOUND(sql)} and ${REACHED(sql)}
        and i.occurred_at > now() - interval '400 days'
      group by 1`;
   const by = Object.fromEntries(rows.map((r) => [r.day, r.n]));
@@ -250,4 +259,4 @@ function ago(at) {
 // The next milestone: every 5 people (the Fifty tile shows the last 10 dots towards it).
 const nextMilestone = (n) => Math.floor(n / 5) * 5 + 5;
 
-module.exports = { settings, book, ordersFor, dayStats, todayList, isSample, isPaid, isOrder, paidAt, placedAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };
+module.exports = { REACHED, INBOUND, NOT_REACHED, settings, book, ordersFor, dayStats, todayList, isSample, isPaid, isOrder, paidAt, placedAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };

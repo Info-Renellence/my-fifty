@@ -376,14 +376,17 @@ function shortName(n) {
 async function historyOf(sql, me, p) {
   const out = [];
   const inter = await sql`
-    select i.id, i.kind::text, i.mode::text, i.outcome, i.subject, i.body, i.occurred_at, i.user_id, u.full_name as user_name,
+    select i.id, i.kind::text, i.mode::text, i.direction::text, i.outcome, i.subject, i.body, i.occurred_at, i.user_id, u.full_name as user_name,
            (select t.title from tasks t where t.from_interaction_id = i.id and t.deleted_at is null order by t.created_at desc limit 1) as next_step
       from interactions i left join users u on u.id = i.user_id
      where i.contact_id = ${p.id} and i.deleted_at is null and i.status is distinct from 'scheduled'
      order by i.occurred_at desc limit 200`;
   for (const i of inter) {
-    const mine = i.user_id === me.id;
-    const who = mine ? 'You' : String(i.user_name || '').split(/\s+/)[0] || 'Renellence';
+    // A call, text or email the person made or sent (RD3, Yousef 2026-10-23) is from them, never "You", and can't be edited.
+    const inbound = i.direction === 'in' && ['call', 'text', 'email'].includes(i.kind);
+    const mine = !inbound && i.user_id === me.id;
+    const who = inbound ? p.first || p.name : mine ? 'You' : String(i.user_name || '').split(/\s+/)[0] || 'Renellence';
+    const kind = i.kind;
     if (i.kind === 'note' && !mine) {
       out.push({ type: 'note', at: i.occurred_at, title: 'Note from ' + who, body: i.body || '', by: who, id: i.id });
       continue;
@@ -391,8 +394,8 @@ async function historyOf(sql, me, p) {
     // "Next:" is the follow-up made from this log (tasks.from_interaction_id), or the line the rep wrote.
     const written = String(i.body || '').match(/(?:^|\n)[ \t]*next(?: step)?[ \t]*:\s*([\s\S]+)$/i);
     const next = i.next_step && i.next_step !== 'Follow up' ? i.next_step : written ? written[1].trim() : '';
-    out.push({ type: 'touch', kind: i.kind, at: i.occurred_at, id: i.id, editable: mine && i.kind !== 'email',
-      title: [KIND_WORD[i.kind] || 'Note', outcomeWord(i)].filter(Boolean).join(' · '),
+    out.push({ type: 'touch', kind, at: i.occurred_at, id: i.id, editable: mine && i.kind !== 'email',
+      title: [(KIND_WORD[kind] || 'Note') + (inbound ? ' from ' + who : ''), outcomeWord(i)].filter(Boolean).join(' · '),
       body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 400) : (i.body || ''),
       next, by: who });
   }
