@@ -257,7 +257,7 @@
         });
         h += '</section>';
       }
-      if (d.week) h += weekList('THIS WEEK’S VISITS', d.week.visits, 'visit');
+      if (d.week) h += weekList('THIS WEEK’S VISITS', d.week.visits, 'visit') + weekList('THIS WEEK’S CALLS', d.week.calls, 'call');
       h += pushPrompt() + '</div>';
       return h;
     }, 'today');
