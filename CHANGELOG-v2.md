@@ -162,7 +162,7 @@ Old `change_logs` rows keep the field names they were written with (`active`, `a
 
 Edge's Forecast page adds Training, Vienna or Event for a customer on an exact day, on its own (no amount, no target);
 it replaces the forecast's "Customer reward". Additive only: My Fifty reads neither `forecasts` nor the new table.
-**Status: written and checked in a rolled-back practice run on v1 and v2; not applied yet** (update this line when it is).
+**Status: applied 2026-10-23** to v1 (test, 8 demo rewards copied) and v2 (live, 0 copied; no live forecast had a reward). v1 and v2 structure fingerprints match (f001ed138862d428, 1664 items).
 
 | # | Change | Why |
 |---|---|---|
