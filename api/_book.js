@@ -224,18 +224,59 @@ async function dayStats(sql, me, cfg) {
   return { done, goal: cfg.daily_goal, streak };
 }
 
+// Compass (db/v2-010-compass.sql) is applied on one database before the other, so its tables are looked up first: until
+// they exist, nothing is parked and nothing breaks. Once seen, they are not looked up again.
+let compassSeen = false, compassAt = 0;
+async function hasCompass(sql) {
+  if (compassSeen) return true;
+  if (Date.now() - compassAt < 60000) return false;
+  const [r] = await sql`select to_regclass(${'public.account_picks'}) is not null as ok`;
+  compassAt = Date.now();
+  compassSeen = !!(r && r.ok);
+  return compassSeen;
+}
+
+// Parked (Compass, Yousef 2026-10-23; shared by Pulse, Edge and Compass): an account is parked when its LATEST agreed
+// pick (account_picks.final_pick, set when the weekly 1-on-1 is saved; picks with no final_pick yet don't count) is
+// "park". It stays parked for settings.compass.park_days (default 30) from the Monday of that check-in's week
+// (checkins.week_start_date); parked-until is worked out here, never stored. A later agreed pick of anything else ends it.
+// Returns { contactId: 'YYYY-MM-DD' } for the contacts parked today: the day each one shows again (hidden BEFORE that day).
+// opts: { days } to skip reading settings, { today } a 'YYYY-MM-DD' to check another day.
+async function parkedUntil(sql, contactIds, opts) {
+  const o = opts || {};
+  const ids = (contactIds || []).filter(Boolean);
+  if (!ids.length || !(await hasCompass(sql))) return {};
+  let days = Number(o.days);
+  if (!(days > 0)) {
+    const [s] = await sql`select value from settings where key = ${'compass'}`;
+    days = Number(s && s.value && s.value.park_days) > 0 ? Number(s.value.park_days) : 30;
+  }
+  const today = o.today || T.ymd();
+  const rows = await sql`
+    select distinct on (ap.contact_id) ap.contact_id, ap.final_pick::text as pick, (ck.week_start_date + ${days}::int)::text as until
+      from account_picks ap join checkins ck on ck.id = ap.checkin_id
+     where ap.contact_id = any(${ids}) and ap.final_pick is not null
+     order by ap.contact_id, ck.week_start_date desc, ap.updated_at desc`;
+  const out = {};
+  for (const r of rows) if (r.pick === 'park' && r.until > today) out[r.contact_id] = r.until;
+  return out;
+}
+
 // Today's list, in order (Yousef 2026-10-20): new ad leads (under 24 hours), follow-ups due today or
 // overdue, Fifty people going cold, then candidates nobody has touched since their samples arrived.
-// People already reached today drop off; "Tomorrow" hides someone until tomorrow (users.preferences.snoozed).
-function todayList(people, me, cfg) {
+// People already reached today drop off; "Tomorrow" hides someone until tomorrow (users.preferences.snoozed); a parked
+// account (parkedUntil above, passed in as `parked`) is left out until its date.
+function todayList(people, me, cfg, parked) {
   const today = T.ymd();
   const endOfToday = T.atLocal(today, 23, 59).toISOString();
   const snoozed = (me.preferences && me.preferences.snoozed) || {};
+  const hidden = parked || {};
   const out = [];
   const seen = new Set();
   const push = (p, item) => {
     if (seen.has(p.id) || p.touchedToday) return;
     if (snoozed[p.id] && snoozed[p.id] > today) return;
+    if (hidden[p.id] && hidden[p.id] > today) return;
     seen.add(p.id);
     out.push(Object.assign({ id: p.id, name: p.name, clinic: p.clinic, phone: p.phone, email: p.email }, item));
   };
@@ -267,4 +308,4 @@ function ago(at) {
 // The next milestone: every 5 people (the Fifty tile shows the last 10 dots towards it).
 const nextMilestone = (n) => Math.floor(n / 5) * 5 + 5;
 
-module.exports = { REACHED, INBOUND, CALL, kindOf, NOT_REACHED, settings, book, ordersFor, dayStats, todayList, isSample, isPaid, isOrder, paidAt, placedAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };
+module.exports = { REACHED, INBOUND, CALL, kindOf, NOT_REACHED, settings, book, ordersFor, dayStats, todayList, parkedUntil, hasCompass, isSample, isPaid, isOrder, paidAt, placedAt, fullName, ago, nextMilestone, DEFAULTS, addr, group };

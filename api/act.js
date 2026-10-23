@@ -99,7 +99,7 @@ const OPS = {
     });
     const cfg = await B.settings(sql);
     const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg, everyone: isAdmin(me) }), B.dayStats(sql, me, cfg)]);
-    const list = B.todayList(people, me, cfg);
+    const list = B.todayList(people, me, cfg, await B.parkedUntil(sql, people.map((p) => p.id)));
     return Object.assign(out, { day, name: B.fullName(c), followUp: T.short(due),
       counted: kind !== 'text' && !!b.reached, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
   },

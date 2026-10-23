@@ -64,7 +64,9 @@ const OPS = {
     const cfg = await B.settings(sql);
     const [{ people }, day] = await Promise.all([B.book(sql, me, scope(me, { cfg })), B.dayStats(sql, me, cfg)]);
     const fiftyCount = people.filter((p) => p.stage === 'fifty').length;
-    const list = B.todayList(people, me, cfg);
+    // Parked accounts (Compass) stay off the list until their date.
+    const parked = await B.parkedUntil(sql, people.map((p) => p.id));
+    const list = B.todayList(people, me, cfg, parked);
     return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list };
   },
 
