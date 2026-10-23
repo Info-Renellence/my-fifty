@@ -172,3 +172,34 @@ it replaces the forecast's "Customer reward". Additive only: My Fifty reads neit
 
 My Fifty: `test/db/testrun-rls.test.js` lists `forecast_activities` with the other business tables. `contact_id` cascades
 so `db/wipe-demo.sql` never stops on an Edge activity of a demo contact.
+
+## 16. Compass, the weekly sales loop (`renellence-edge/db/v2-010-compass.sql`), 2026-10-23, approved by Yousef
+
+The Friday check-in (Edge) -> weekly 1-on-1 (Compass) -> the week in Pulse, and the monthly 1-on-1. Proposal:
+`compass/docs/compass-data-proposal.md`. The four design choices are the recommended ones: parked-until is derived (not
+stored); forecasts from the monthly 1-on-1 are normal forecasts; weekly and monthly sessions share `one_on_ones` (`kind`);
+Done and Missed are columns on `account_picks`. **Not included (deferred):** `events.customer_reward` and dropping
+`forecast_activities`. Additive only: no existing row changes, apart from the new `settings` row.
+**Status: NOT APPLIED YET.** Dry-run on v1 2026-10-23 (rolled back, all checks passed: 30 -> 35 tables, every old table
+unchanged except settings +1 and its change_logs row, 5 new empty tables, 7 policies, 9 triggers; the enum line was
+skipped there, see below). The owner applies it with the scratchpad's `compass-apply/apply.js`, v1 first, then v2.
+
+| # | Change | Why |
+|---|---|---|
+| 59 | New enums `account_picks_pick` (visit · call · wait · park), `account_picks_sort_group` (candidate · onboarded · fifty · lead), `account_picks_second_look_decision` (keep · change), `forecast_changes_change_kind` (moved · dropped · pushed_later · reduced · went_up · pulled_forward), `forecast_changes_reason` (clinic_timing · still_has_stock · budget · decision_maker_unreachable · no_next_step · chose_other_brand · estimate_off · more_patient_demand · new_product_line · clinic_pulled_forward), `one_on_ones_kind` (weekly · monthly), `one_on_ones_skill` (price_pushback · ask_for_order · book_next_step · gatekeeper · cold_visit · plan_week), `one_on_ones_roleplay_character` (skeptic · fence_sitter · rusher · fan · gatekeeper · newcomer), `fifty_statuses_status` (on_track · watch · at_risk) | Fixed lists for the Compass screens |
+| 60 | `change_logs_source` + `compass` | Compass's writes are told apart in change_logs, like `my_fifty` |
+| 61 | New table `checkins` (`rep_id`, `week_start_date` a Monday, `submitted_at`, `help_note`; unique rep + week) | Edge's Friday check-in |
+| 62 | New table `account_picks` (`checkin_id` on delete cascade, `contact_id`, frozen `sort_group`, `suggested_pick`, `suggested_reason`, `rep_pick`, `final_pick`, `purpose`, `second_look_fact`, `second_look_decision`, `visit_interaction_id` = Done, `missed_at` = Missed, never both; unique check-in + contact) | Every account sorted on Friday and how its week ended. No missed reason (owner 2026-10-23) |
+| 63 | New table `forecast_changes` (`forecast_id`, `checkin_id` on delete cascade, `change_kind`, `reason`, `created_by_id`; no `updated_at`; unique check-in + forecast) | Why a forecast moved; old/new values stay in change_logs |
+| 64 | New table `one_on_ones` (`kind`, `rep_id`, `held_by_id`, `session_date`, `checkin_id`, `focus_action_target_count` 1-15, `skill`, `roleplay_character`, `roleplay_done_at`, `completed_at`, `week_confirmed_at`, `deleted_at`; weekly-only fields empty on monthly; unique rep + kind + date) | Weekly and monthly 1-on-1s in Compass |
+| 65 | New column `tasks.one_on_one_id` → one_on_ones | Ties the weekly focus task and the manager's commitments to their session |
+| 66 | New table `fifty_statuses` (`contact_id`, `month_start_date` the 1st, `status`, `one_on_one_id`, `set_by_id`; unique contact + month) | The monthly My Fifty check |
+| 67 | 10 indexes; triggers `touch_updated_at` (4 tables) and `log_changes` (all 5, so every `account_picks` insert is logged, as the owner wants) | SOP sections 3 and 7 |
+| 68 | RLS on all 5, helper `can_see_checkin(id)`: checkins = own rows or admin; account_picks and forecast_changes through the rep's own check-in (writes also need the contact to be theirs); one_on_ones = the rep reads their own, only admins write; fifty_statuses = read with the contact, only admins write. Grants as every v2 table | SOP section 7 |
+| 69 | New `settings` row `compass`: max_visits 15, park_days 30, second_look_max 4, sampled_no_order_days 20, fifty_quiet_days 30, check-in due Friday (5) 17:00 | Thresholds never hard-coded |
+
+On v1 the enum types belong to `postgres` while the test connection is `test_runner`, so `apply.js v1` refuses until
+this one line has been run on v1 as postgres (Supabase SQL editor): `alter type change_logs_source add value if not
+exists 'compass';`. On v2 it runs inside the one transaction. My Fifty: `test/db/testrun-rls.test.js` lists the five
+new tables. The demo wipes (`db/wipe-demo.sql`, Edge's `db/wipe-edge-test.sql`) don't clear Compass rows yet; add them
+when Compass writes demo rows.
