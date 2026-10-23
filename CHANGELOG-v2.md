@@ -180,7 +180,9 @@ The Friday check-in (Edge) -> weekly 1-on-1 (Compass) -> the week in Pulse, and 
 stored); forecasts from the monthly 1-on-1 are normal forecasts; weekly and monthly sessions share `one_on_ones` (`kind`);
 Done and Missed are columns on `account_picks`. **Not included (deferred):** `events.customer_reward` and dropping
 `forecast_activities`. Additive only: no existing row changes, apart from the new `settings` row.
-**Status: NOT APPLIED YET.** Dry-run on v1 2026-10-23 (rolled back, all checks passed: 30 -> 35 tables, every old table
+**Status: APPLIED 2026-10-23 by the owner** to v1 (enum value added first in the SQL editor) and v2 (as postgres,
+in one transaction). Both: 30 -> 35 tables, old tables unchanged except settings +1 and its change_logs row, 5 new empty
+tables, 7 policies, 9 triggers, `compass` source present. Earlier dry-run on v1 2026-10-23 (rolled back, all checks passed: 30 -> 35 tables, every old table
 unchanged except settings +1 and its change_logs row, 5 new empty tables, 7 policies, 9 triggers; the enum line was
 skipped there, see below). The owner applies it with the scratchpad's `compass-apply/apply.js`, v1 first, then v2.
 
