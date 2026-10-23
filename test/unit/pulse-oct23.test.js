@@ -31,3 +31,12 @@ test('Rewards has two leaderboards, Trip to Vienna and Race to 25, switched by t
   const screen = app.slice(app.indexOf('function screenRewards'), app.indexOf('L1 Reminders'));
   assert.ok(screen.includes('+ boardSection(r)') && !screen.includes('r.trip.rows'), 'the screen draws the boards in one place');
 });
+
+test('the morning notification reads "N days in a row", without "plan done", like the Today tile', () => {
+  const cron = require('../../api/cron');
+  assert.equal(cron._.morningTitle(6), '6 days in a row');
+  assert.equal(cron._.morningTitle(1), '1 day in a row');
+  assert.equal(cron._.morningTitle(0), 'Good morning');
+  const src = fs.readFileSync(path.join(__dirname, '..', '..', 'api', 'cron.js'), 'utf8');
+  assert.ok(!/plan done/i.test(src), 'no "plan done" anywhere in the cron, comments included');
+});

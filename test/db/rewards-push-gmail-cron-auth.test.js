@@ -296,7 +296,7 @@ describe('cron', () => {
       assert.deepEqual(await cron._.morning(sql), { users: 0, sent: 0 });
     } finally { wp.restore(); }
   }));
-  test('a streak reads "N days in a row with your plan done"; nothing to say means no push', () => h.withDb(async (sql) => {
+  test('a streak reads "N days in a row"; nothing to say means no push', () => h.withDb(async (sql) => {
     const wp = fakeWebPush();
     try {
       await sql`update connections set status = 'off' where provider = 'push'`;

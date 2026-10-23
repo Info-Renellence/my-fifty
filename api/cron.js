@@ -5,7 +5,8 @@
 // Each tick:
 //   1. new_lead pushes (L1 "New Instagram lead: <name>"): every social-media lead created in the last 24 hours that
 //      nobody has touched yet, to its owner, once (notifications.dedupe_key).
-//   2. the morning summary (L1 "6 days in a row with your plan done · 7 on today's list"), once a business day,
+//   2. the morning summary (L1 "6 days in a row · 7 on today's list"; the streak in days only,
+//      like the Today streak tile, Yousef 2026-10-23), once a business day,
 //      on the first tick from 7:30 AM Toronto.
 //   3. orders n8n did not accept when they were placed are sent again (resendOrders, once-only key; F22).
 //   4. the Gmail pull (api/_gmail.js), with what is left of the time.
@@ -53,6 +54,9 @@ async function newLeads(sql) {
   return { found: leads.length, sent };
 }
 
+// The morning notification's title: the streak in days, as the Today tile shows it (Yousef 2026-10-23).
+const morningTitle = (streak) => streak ? streak + (streak === 1 ? ' day' : ' days') + ' in a row' : 'Good morning';
+
 async function morning(sql) {
   const now = new Date();
   const today = T.ymd(now);
@@ -69,7 +73,7 @@ async function morning(sql) {
     const list = B.todayList(people, me, cfg);
     if (!list.length && !day.streak) continue;   // nothing worth a notification
     const visits = list.filter((x) => x.action === 'visit').length;
-    const title = day.streak ? day.streak + (day.streak === 1 ? ' day' : ' days') + ' in a row with your plan done' : 'Good morning';
+    const title = morningTitle(day.streak);
     const body = list.length + ' on today\'s list.' + (visits ? ' ' + visits + (visits === 1 ? ' is a visit.' : ' are visits.') : '');
     const r = await push.notify(sql, u.id, { kind: 'morning_summary', dedupeKey: 'morning:' + u.id + ':' + today, title, body, url: '/' });
     sent += r.sent || 0;
@@ -166,4 +170,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, wires, resendOrders };
+module.exports._ = { authorised, newLeads, morning, morningTitle, wires, resendOrders };
