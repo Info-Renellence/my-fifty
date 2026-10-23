@@ -21,3 +21,15 @@ test('a duplicate on a merged-away person points to the person they were merged 
   await sql`update contacts set merged_into_contact_id = ${theirs} where id = ${gone}`;
   await assert.rejects(A.add_person(me, { firstName: 'X', email: g.email }), (e) => e.status === 409 && e.message === 'email_someones' && !e.detail);
 }));
+
+// RD18 (found by Edge, lane A): a NUL character (\u0000) in any text is refused by Postgres, so Add person, Log and the
+// rest answered 500. The shared route() wrapper (api/_http.js = Edge's api/_edge/http.js) now answers 400 bad_input.
+test('a NUL character in a text is bad input (400), not a server error', () => h.withDb(async (sql) => {
+  const me = await h.user(sql);
+  await assert.rejects(A.add_person(me, { firstName: 'Nul\u0000', lastName: 'Unit' }), (e) => e.code === '22021');
+  const { route } = require('../../api/_http');
+  const res = h.fakeRes();
+  await route(async () => { await A.add_person(me, { firstName: 'Nul\u0000', lastName: 'Unit' }); })({ method: 'POST', url: '/api/act' }, res);
+  assert.equal(res.statusCode, 400);
+  assert.equal(JSON.parse(res.body).error, 'bad_input');
+}));
