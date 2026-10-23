@@ -10,7 +10,7 @@ const h = require('../helpers');
 after(h.closeDb);
 const TABLES = ['contacts', 'clinics', 'orders', 'order_lines', 'payments', 'interactions', 'tasks', 'events', 'ad_objects', 'ad_daily_metrics',
   'territory_rules', 'ingest_events', 'change_logs', 'notifications', 'connections', 'ai_outputs', 'agreements', 'agreement_signers', 'onboardings',
-  'files', 'event_attendees', 'forecasts', 'targets', 'metric_snapshots', 'marketing_requests'];
+  'files', 'event_attendees', 'forecasts', 'forecast_activities', 'targets', 'metric_snapshots', 'marketing_requests'];   // forecast_activities: Edge, 2026-10-23
 
 async function as(sql, role, sub, fn) {
   return sql.savepoint(async (sp) => {

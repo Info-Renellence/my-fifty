@@ -157,3 +157,18 @@ Every row kept (805 contacts, 553 orders, 8 connections, 3,743 change log rows b
 | 55 | Files naming rule (no field): `storage_path` = `<parent table>/<parent id>/<file id>.<ext>`, downloaded as `<name>_<first 8 of id>.<ext>` (helper `api/_files.js`, Edge `api/_edge/files.js`) | Every file named by its id |
 
 Old `change_logs` rows keep the field names they were written with (`active`, `at` …); they are never rewritten.
+
+## 15. Forecast activities (`renellence-edge/db/v2-009-forecast-activities.sql`), 2026-10-23, approved by Yousef
+
+Edge's Forecast page adds Training, Vienna or Event for a customer on an exact day, on its own (no amount, no target);
+it replaces the forecast's "Customer reward". Additive only: My Fifty reads neither `forecasts` nor the new table.
+**Status: written and checked in a rolled-back practice run on v1 and v2; not applied yet** (update this line when it is).
+
+| # | Change | Why |
+|---|---|---|
+| 56 | New enum `forecast_activities_activity_kind` (training · vienna · event) and new table `forecast_activities` (`id`, `contact_id` → contacts on delete cascade, `rep_id` → users, `activity_kind`, `due_date`, `created_by_id` → users, `deleted_at`, `created_at`, `updated_at`), index on `contact_id` | Activities on the Forecast page, apart from money |
+| 57 | RLS on, policy `by_contact` as on forecasts (`can_see_contact(contact_id)`), the same grants, triggers `touch_updated_at` and `log_changes` (made after the copy, so the copy adds no change_logs rows) | Same access as forecasts |
+| 58 | Live forecasts with a `customer_benefit` copied in on their due day (v2: none live; v1 test copy: 8 demo rows). `forecasts.customer_benefit` stays but Edge no longer writes it; dropping it and its enum is a later step | — |
+
+My Fifty: `test/db/testrun-rls.test.js` lists `forecast_activities` with the other business tables. `contact_id` cascades
+so `db/wipe-demo.sql` never stops on an Edge activity of a demo contact.
