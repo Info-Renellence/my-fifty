@@ -1244,6 +1244,63 @@
   }
 
   // ---- L11 Rewards ------------------------------------------------------------------------------------------
+  // Two leaderboards side by side (Yousef 2026-10-23): Trip to Vienna and Race to 25, switched with the two tabs or a
+  // sideways swipe on the board. Both show first names and counts only, never anyone's people.
+  var rewardsBoard = 'trip', rewardsData = null;
+  function rankDot(x) {
+    return '<span style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none;font-size:13px;font-weight:700;' + (x.rank === 1 ? 'background:#FFC94A;color:#3D2A00' : 'background:#EEF2F8') + '">' + x.rank + '</span>';
+  }
+  function boardSection(r) {
+    rewardsData = r;
+    var race = rewardsBoard === 'race' && r.race, b = race ? r.race : r.trip;
+    var h = '<section data-board style="background:#FFFFFF;border-radius:20px;padding:12px 16px 14px;margin-bottom:10px;touch-action:pan-y">'
+      + '<div style="display:grid;grid-template-columns:1fr 1fr;background:#E3E6EC;border-radius:10px;padding:2px">'
+      + [['trip', r.trip.name], ['race', r.race ? r.race.name : '']].map(function (t) {
+        var on = (race ? 'race' : 'trip') === t[0];
+        return '<button type="button" data-board-tab="' + t[0] + '" aria-pressed="' + on + '" style="height:34px;border:0;border-radius:8px;font-size:14px;font-weight:600;' + (on ? 'background:#FFFFFF;color:#062064;box-shadow:0 1px 2px rgba(0,0,0,0.08)' : 'background:transparent;color:#6B7486') + '">' + esc(t[1]) + '</button>';
+      }).join('') + '</div>'
+      + '<span style="display:block;font-size:13px;font-weight:500;color:#6B7486;margin-top:10px">' + esc(b.sub) + '</span>'
+      + '<span style="display:block;font-size:14px;color:#1170C0;font-weight:600;margin:2px 0 6px">' + esc(b.line) + '</span>';
+    if (!race) {
+      return h + b.rows.map(function (x, i) {
+        return '<div style="display:flex;align-items:center;gap:12px;height:44px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">' + rankDot(x)
+          + '<span style="flex:1 1 auto;font-size:16px;' + (x.you ? 'font-weight:700;color:#1170C0' : 'font-weight:500') + '">' + esc(x.name) + '</span>'
+          + '<span style="font-size:16px;font-weight:700">' + x.n + '</span></div>';
+      }).join('') + '</section>';
+    }
+    return h + b.rows.map(function (x, i) {
+      var pct = Math.min(100, Math.round(x.n / b.goal * 100));
+      return '<div style="display:flex;align-items:center;gap:12px;padding:9px 0' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">' + rankDot(x)
+        + '<span style="flex:1 1 auto;display:flex;flex-direction:column;gap:6px;min-width:0">'
+        + '<span style="display:flex;align-items:center;gap:8px">'
+        + '<span style="flex:1 1 auto;font-size:16px;' + (x.you ? 'font-weight:700;color:#1170C0' : 'font-weight:500') + '">' + esc(x.name) + '</span>'
+        + (x.done ? '<span style="display:flex;align-items:center;gap:3px;flex:none;height:22px;padding:0 8px;border-radius:11px;background:#FFF1C7;color:#3D2A00;font-size:12px;font-weight:700">' + ic('check', 12, 3) + 'Reached ' + b.goal + '</span>' : '')
+        + '<span style="flex:none;font-size:16px;font-weight:700">' + x.n + '<span style="font-size:13px;font-weight:600;color:#6B7486">/' + b.goal + '</span></span></span>'
+        + '<span role="progressbar" aria-valuemin="0" aria-valuemax="' + b.goal + '" aria-valuenow="' + x.n + '" style="display:block;height:6px;border-radius:3px;background:#EEF2F8;overflow:hidden">'
+        + '<span style="display:block;height:100%;width:' + pct + '%;border-radius:3px;background:' + (x.done ? 'linear-gradient(90deg,#FFD86B,#F5B21F)' : 'linear-gradient(90deg,#4FA3EE,#1170C0)') + '"></span></span></span></div>';
+    }).join('') + '</section>';
+  }
+  function showBoard(which) {
+    var el = $app.querySelector('[data-board]');
+    if (!el || !rewardsData || which === rewardsBoard) return;
+    rewardsBoard = which;
+    el.outerHTML = boardSection(rewardsData);
+  }
+  $app.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-board-tab]');
+    if (t) showBoard(t.getAttribute('data-board-tab'));
+  });
+  var boardTouch = null;
+  $app.addEventListener('touchstart', function (e) {
+    boardTouch = e.target.closest('[data-board]') && e.touches.length === 1 ? { x: e.touches[0].clientX, y: e.touches[0].clientY } : null;
+  }, { passive: true });
+  $app.addEventListener('touchend', function (e) {
+    if (!boardTouch || !e.changedTouches.length) return;
+    var dx = e.changedTouches[0].clientX - boardTouch.x, dy = e.changedTouches[0].clientY - boardTouch.y;
+    boardTouch = null;
+    if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy) * 1.5) return;   // a sideways swipe only, not a scroll
+    showBoard(dx < 0 ? 'race' : 'trip');   // swipe left: the next board (Race to 25); right: back to Trip to Vienna
+  }, { passive: true });
   function screenRewards() {
     return paint(read('rewards'), function (r) {
       var h = '<div class="scr">' + LOGO
@@ -1255,15 +1312,7 @@
         + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
         + '<div style="background:linear-gradient(135deg,#1A80D6,#1170C0);border-radius:18px;padding:10px 14px;color:#FFFFFF"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.syringes + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;opacity:0.85">saypha syringes · this month</span></div>'
         + '<div style="background:#FFFFFF;border-radius:18px;padding:10px 14px"><span style="display:block;font-size:24px;font-weight:700;line-height:1.15">' + r.exprecell + '</span><span style="display:block;font-size:13px;font-weight:600;line-height:1.25;color:#6B7486">Exprecell boxes · this month</span></div></div>'
-        + '<section style="background:#FFFFFF;border-radius:20px;padding:14px 16px;margin-bottom:10px">'
-        + '<span style="display:flex;justify-content:space-between;font-size:17px;font-weight:700"><span>' + esc(r.trip.name) + '</span><span style="font-size:13px;font-weight:500;color:#6B7486">' + esc(r.trip.sub) + '</span></span>'
-        + '<span style="display:block;font-size:14px;color:#1170C0;font-weight:600;margin:4px 0 6px">' + esc(r.trip.line) + '</span>'
-        + r.trip.rows.map(function (x, i) {
-          return '<div style="display:flex;align-items:center;gap:12px;height:44px' + (i ? ';border-top:0.5px solid #E3E6EC' : '') + '">'
-            + '<span style="width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;' + (x.rank === 1 ? 'background:#FFC94A;color:#3D2A00' : 'background:#EEF2F8') + '">' + x.rank + '</span>'
-            + '<span style="flex:1 1 auto;font-size:16px;' + (x.you ? 'font-weight:700;color:#1170C0' : 'font-weight:500') + '">' + esc(x.name) + '</span>'
-            + '<span style="font-size:16px;font-weight:700">' + x.n + '</span></div>';
-        }).join('') + '</section>'
+        + boardSection(r)
         + '<section style="background:#FFFFFF;border-radius:20px;padding:14px 16px"><span style="font-size:17px;font-weight:700">' + esc(r.booster.name) + '</span>'
         + '<div style="display:grid;grid-template-columns:1fr 1fr;margin-top:8px">'
         + '<span><span style="display:block;font-size:22px;font-weight:700">' + esc(r.booster.onNew) + '</span><span style="font-size:13px;color:#6B7486">' + esc(r.booster.newText) + '</span></span>'

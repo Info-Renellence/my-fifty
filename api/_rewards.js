@@ -11,6 +11,23 @@ const PROGRAMS = {
   booster: { name: 'Q4 Booster', from: '2026-10-01', to: '2026-12-31', newRate: 0.02, reorderRate: 0.04 },
   trip: { name: 'Trip to Vienna', from: '2026-10-01', to: '2026-12-31', metric: 'New people' },
 };
+// Race to 25 (Yousef 2026-10-23): the second leaderboard, people in each rep's Fifty right now, out of 25.
+const RACE = { name: 'Race to 25', goal: 25, metric: 'In your Fifty now' };
+
+// A leaderboard: every active rep (plus the asking person when they are not one), most first, ties by name; the rows
+// shown are the top three, with the asking person's own row in third place when they are not in the top three.
+// Only first names and counts, as the Trip to Vienna board has always shown.
+function leaderboard(reps, me, count) {
+  const board = reps.map((r) => ({ id: r.id, name: String(r.full_name || '').split(/\s+/)[0], n: count(r.id) }));
+  if (!board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, n: count(me.id) });
+  board.sort((a, b2) => b2.n - a.n || a.name.localeCompare(b2.name));
+  board.forEach((r, i) => { r.rank = i + 1; r.you = r.id === me.id; });
+  const mine = board.find((r) => r.you);
+  const top = board.slice(0, 3);
+  if (!top.includes(mine)) top[2] = mine;
+  const bestOther = board.filter((r) => !r.you).reduce((a, r) => Math.max(a, r.n), 0);
+  return { top, mine, bestOther };
+}
 
 const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-CA');
 const inRange = (at, p) => { const d = T.ymd(at); return d >= p.from && d <= p.to; };
@@ -47,16 +64,21 @@ async function rewards(sql, me) {
   const perRep = {};
   for (const o of Object.values(firstBy)) if (o.rep_id && inRange(B.paidAt(o), t)) perRep[o.rep_id] = (perRep[o.rep_id] || 0) + 1;
   const reps = await sql`select id, full_name from users where kind = ${'rep'} and is_active is not false`;
-  const board = reps.map((r) => ({ id: r.id, name: String(r.full_name || '').split(/\s+/)[0], n: perRep[r.id] || 0 }));
-  if (!board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, n: perRep[me.id] || 0 });
-  board.sort((a, b2) => b2.n - a.n || a.name.localeCompare(b2.name));
-  board.forEach((r, i) => { r.rank = i + 1; r.you = r.id === me.id; });
-  const mine = board.find((r) => r.you);
-  const top = board.slice(0, 3);
-  if (!top.includes(mine)) top[2] = mine;
+  const { top, mine, bestOther } = leaderboard(reps, me, (id) => perRep[id] || 0);
   // A tie for first is not the lead: it takes one more than the best of the others.
-  const bestOther = board.filter((r) => !r.you).reduce((a, r) => Math.max(a, r.n), 0);
   const toLead = mine.n > bestOther ? 0 : bestOther - mine.n + 1;
+
+  // Race to 25 (Yousef 2026-10-23): how many people each rep has in their Fifty right now, worked out by the shared
+  // book (_book.js: stage 'fifty' = an order that isn't samples in the last fifty_months, paid or not), over the
+  // contacts each rep owns. It goes down when someone leaves the Fifty. Only the counts are shown, never the people.
+  const cfg = await B.settings(sql);
+  const fiftyOf = {};
+  await Promise.all(reps.concat(reps.some((r) => r.id === me.id) ? [] : [{ id: me.id }]).map(async (r) => {
+    const { people } = await B.book(sql, { id: r.id, preferences: {} }, { cfg });
+    fiftyOf[r.id] = people.filter((p) => p.stage === 'fifty').length;
+  }));
+  const race = leaderboard(reps, me, (id) => fiftyOf[id] || 0);
+  const goal = RACE.goal;
 
   return {
     extra: money(onNew + onReorders),
@@ -64,8 +86,11 @@ async function rewards(sql, me) {
     trip: { name: t.name, sub: t.metric + ' · ends ' + T.short(t.to + 'T12:00:00Z'),
       line: toLead ? toLead + ' more new ' + (toLead === 1 ? 'person' : 'people') + ' to take the lead' : 'You are in the lead',
       rows: top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, n: r.n, you: r.you })) },
+    race: { name: RACE.name, goal, sub: RACE.metric,
+      line: race.mine.n >= goal ? 'You reached ' + goal : (goal - race.mine.n) + ' more to reach ' + goal,
+      rows: race.top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, n: r.n, you: r.you, done: r.n >= goal })) },
     booster: { name: b.name, onNew: money(onNew), onReorders: money(onReorders), newText: Math.round(b.newRate * 100) + '% on new orders', reorderText: Math.round(b.reorderRate * 100) + '% on reorders' },
   };
 }
 
-module.exports = { rewards, PROGRAMS };
+module.exports = { rewards, PROGRAMS, RACE };
