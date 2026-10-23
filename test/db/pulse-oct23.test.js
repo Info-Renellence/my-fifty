@@ -42,3 +42,22 @@ test('RD3 inbound calls, texts and emails are not the rep\'s touches and show as
   const mine = (await D.historyOf(sql, me, after)).find((e) => e.type === 'touch' && e.by === 'You');
   assert.ok(mine && mine.title === 'Call · reached');
 }));
+
+// RD4 (owner 2026-10-23): an imported meeting with no type counts as a call everywhere: a touchpoint when they were
+// reached, a "Call" in History and the last touch, and never a visit (it does not keep a Fifty person from going cold).
+test('RD4 a meeting with no type is a call, not a visit', () => h.withDb(async (sql) => {
+  const me = await h.user(sql);
+  const c = await h.contact(sql, me);
+  await h.order(sql, c, me, { days: 40, paid: true, status: 'paid' });
+  const m = await h.touch(sql, c, me.id, { kind: 'meeting' });
+  await sql`update interactions set mode = null where id = ${m}`;
+  const p = (await B.book(sql, me, { contactId: c })).people[0];
+  assert.equal(p.lastTouchKind, 'call');
+  assert.equal(p.lastVisitAt, null, 'not a visit');
+  assert.equal(p.goingCold, true, 'still going cold');
+  assert.equal(p.touchedToday, true);
+  assert.equal((await B.dayStats(sql, me, await B.settings(sql))).done, 1, 'a touchpoint, as a reached call');
+  const e = (await D.historyOf(sql, me, p)).find((x) => x.type === 'touch');
+  assert.deepEqual([e.kind, e.title], ['call', 'Call · reached']);
+  assert.match(await D.lastHistoryLine(sql, p), /^Call · reached/);
+}));

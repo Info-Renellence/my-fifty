@@ -342,9 +342,9 @@ function when(at) { const d = T.ymd(at); return d === T.ymd() ? 'today' : T.shor
 
 // The last line on the card's History row: "Call · reached · today".
 async function lastHistoryLine(sql, p) {
-  const [i] = await sql`select kind::text, outcome, occurred_at from interactions where contact_id = ${p.id} and deleted_at is null and status is distinct from 'scheduled' order by occurred_at desc limit 1`;
+  const [i] = await sql`select kind::text, mode::text, outcome, occurred_at from interactions where contact_id = ${p.id} and deleted_at is null and status is distinct from 'scheduled' order by occurred_at desc limit 1`;
   if (!i) return p.orders.length ? 'Order · ' + T.short(p.orders[0].submitted_at || p.orders[0].created_at) : 'Nothing yet';
-  return [KIND_WORD[i.kind], outcomeWord(i), when(i.occurred_at)].filter(Boolean).join(' · ');
+  return [KIND_WORD[B.kindOf(i)], outcomeWord(i), when(i.occurred_at)].filter(Boolean).join(' · ');
 }
 
 const ORDER_WORD = (o) => {
@@ -386,7 +386,7 @@ async function historyOf(sql, me, p) {
     const inbound = i.direction === 'in' && ['call', 'text', 'email'].includes(i.kind);
     const mine = !inbound && i.user_id === me.id;
     const who = inbound ? p.first || p.name : mine ? 'You' : String(i.user_name || '').split(/\s+/)[0] || 'Renellence';
-    const kind = i.kind;
+    const kind = B.kindOf(i);   // a meeting with no type is a call (RD4, Yousef 2026-10-23)
     if (i.kind === 'note' && !mine) {
       out.push({ type: 'note', at: i.occurred_at, title: 'Note from ' + who, body: i.body || '', by: who, id: i.id });
       continue;
