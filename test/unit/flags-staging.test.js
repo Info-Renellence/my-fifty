@@ -189,7 +189,7 @@ describe('staging: admins only', () => {
 describe('staging banner (staging.js)', () => {
   const src = fs.readFileSync(path.join(__dirname, '..', '..', 'staging.js'), 'utf8');
   async function run(config) {
-    const body = { children: [], appendChild(el) { this.children.push(el); } };
+    const body = { children: [], style: {}, appendChild(el) { this.children.push(el); } };
     const doc = { title: 'My Fifty', body,
       getElementById: (id) => body.children.find((c) => c.id === id) || null,
       createElement: () => ({ style: {}, setAttribute(k, v) { this[k] = v; } }) };
@@ -204,6 +204,11 @@ describe('staging banner (staging.js)', () => {
     assert.equal(d.body.children[0].textContent, 'Staging · test data');
     assert.match(d.body.children[0].style.cssText, /position:fixed/);
     assert.equal(d.title, 'STAGING · My Fifty');
+  });
+  test('staging: the page moves down by the strip, so it covers nothing (R3B-6)', async () => {
+    const d = await run({ staging: true });
+    assert.equal(d.body.style.paddingTop, '26px');
+    assert.equal((await run({ staging: false })).body.style.paddingTop, undefined, 'production: unchanged');
   });
   test('production: nothing', async () => {
     assert.equal((await run({ staging: false })).body.children.length, 0);
