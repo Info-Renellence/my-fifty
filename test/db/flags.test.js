@@ -68,6 +68,18 @@ describe('flags in Pulse', () => {
     assert.ok((await Dt.today(sql, me)).week, 'back on: the week is back');
   }));
 
+  test('week_view off: Missed on a week visit is refused too, and works again once it is back on (R3B-2)', () => h.withDb(async (sql) => {
+    const me = await rep(sql);
+    const c = await week(sql, me);
+    const [p] = await sql`select ap.id from account_picks ap join checkins ck on ck.id = ap.checkin_id where ck.rep_id = ${me.id} and ap.contact_id = ${c}`;
+    await setFlags(sql, { week_view: false });
+    await assert.rejects(A.visit_missed(me, { pickId: p.id }), (e) => e.status === 404 && e.message === 'feature_off');
+    const [still] = await sql`select missed_at from account_picks where id = ${p.id}`;
+    assert.equal(still.missed_at, null, 'nothing written');
+    await setFlags(sql, { week_view: true });
+    assert.deepEqual(await A.visit_missed(me, { pickId: p.id }), { ok: true });
+  }));
+
   test('voice_notes off: the mic is not offered and a recording is refused', () => h.withDb(async (sql) => {
     process.env.GEMINI_API_KEY = 'test-key';
     const me = await rep(sql);

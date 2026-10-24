@@ -160,6 +160,7 @@ const OPS = {
   async visit_missed(me, b) {
     if (!isUuid(b.pickId)) throw fail(400, 'bad_id');
     const sql = db();
+    if (!(await require('./_flags').on(sql, 'week_view'))) throw fail(404, 'feature_off');   // as Confirm my week (R3B-2)
     const s = await W.session(sql, me);
     if (!s) throw fail(404, 'not_found');
     const [p] = await sql`select id, visit_interaction_id from account_picks where id = ${b.pickId} and checkin_id = ${s.checkin_id} and final_pick = 'visit'`;
