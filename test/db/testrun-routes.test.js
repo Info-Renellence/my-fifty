@@ -65,12 +65,17 @@ describe('random input against every write and read (no 500s)', () => {
     const c = await h2.contact(sql, u);
     me = { id: u.id, email: u.email, name: 'Fuzz Rep', first: 'Fuzz', initials: 'FR', kind: 'rep', preferences: {} };
     const bad = [];
-    for (let i = 0; i < 300; i++) {
-      const body = { op: OPS[rnd(OPS.length)] };
-      for (const f of FIELDS) if (rnd(3) === 0) body[f] = rnd(4) === 0 ? c : junk[rnd(junk.length)];
-      const res = await post(body);
-      if (res.statusCode >= 500) bad.push(res.statusCode + ' ' + JSON.stringify(body).slice(0, 200) + ' -> ' + res.body.slice(0, 120));
-    }
+    // Outside services answer as they would to junk (test run 2026-10-23, R3B-5): Google refuses a junk refresh token
+    // (a random gmail_connect stores one; a later email asks Google for an access token), and nothing else is reached.
+    const f = h2.fakeFetch((url) => (/oauth2\.googleapis\.com/.test(url) ? { status: 400, json: { error: 'invalid_grant' } } : { status: 400, json: { error: 'fake' } }));
+    try {
+      for (let i = 0; i < 300; i++) {
+        const body = { op: OPS[rnd(OPS.length)] };
+        for (const f of FIELDS) if (rnd(3) === 0) body[f] = rnd(4) === 0 ? c : junk[rnd(junk.length)];
+        const res = await post(body);
+        if (res.statusCode >= 500) bad.push(res.statusCode + ' ' + JSON.stringify(body).slice(0, 200) + ' -> ' + res.body.slice(0, 120));
+      }
+    } finally { f.restore(); }
     assert.deepEqual(bad, []);
   }));
   test('random read queries: every answer is 2xx or 4xx', () => h2.withDb(async (sql) => {
