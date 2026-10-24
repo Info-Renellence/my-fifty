@@ -71,6 +71,19 @@ describe('gmail parsing', () => {
     f = fakeFetch(() => ({ status: 500, json: {} }));
     await assert.rejects(G.accessToken('rt'), (e) => e.message === 'gmail_token_failed' && e.status === 502);
   });
+  test('Google not reachable: a 502, never a 500 (R3B-5)', async () => {
+    f = fakeFetch(() => { throw new Error('connect ECONNREFUSED'); });
+    await assert.rejects(G.accessToken('rt'), (e) => e.message === 'gmail_token_failed' && e.status === 502);
+    const save = process.env.MYFIFTY_SECRET; process.env.MYFIFTY_SECRET = save || 'unit-test-secret';
+    try {
+      const sealed = require('../../api/_crypto').seal('rt');
+      const sql = async () => [{ id: 'c1', credentials_encrypted: sealed }];
+      let n = 0;
+      f.restore(); f = fakeFetch(() => { if (n++ === 0) return { json: { access_token: 'at-1' } }; throw new Error('socket hang up'); });
+      await assert.rejects(Gm.send(sql, { id: 'u1', name: 'Test Rep', email: 'rep@renellence.com' }, { to: 'a@b.ca', subject: 's', text: 't' }),
+        (e) => e.message === 'gmail_send_failed' && e.status === 502);
+    } finally { if (save === undefined) delete process.env.MYFIFTY_SECRET; else process.env.MYFIFTY_SECRET = save; }
+  });
   test('gget returns null on 404 and throws on other errors', async () => {
     f = fakeFetch((url) => (/missing/.test(url) ? { status: 404 } : /broken/.test(url) ? { status: 500 } : { json: { ok: 1 } }));
     assert.equal(await G.gget('at', 'missing'), null);

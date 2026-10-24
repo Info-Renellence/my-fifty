@@ -17,11 +17,12 @@ const API = 'https://gmail.googleapis.com/gmail/v1/users/me/';
 const OURS = /@renellence\.com$/i;
 const fail = (status, message) => { const e = new Error(message); e.status = status; return e; };
 
+// Google not reachable (network down, timed out) is the same 502 as a refused call, never a 500 (test run 2026-10-23, R3B-5).
 async function accessToken(refresh) {
   const r = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({ client_id: process.env.GOOGLE_CLIENT_ID || '', client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-      refresh_token: refresh, grant_type: 'refresh_token' }) });
+      refresh_token: refresh, grant_type: 'refresh_token' }) }).catch(() => { throw fail(502, 'gmail_token_failed'); });
   const j = await r.json().catch(() => ({}));
   if (!r.ok || !j.access_token) throw fail(r.status === 400 ? 409 : 502, j.error === 'invalid_grant' ? 'gmail_reconnect' : 'gmail_token_failed');
   return j.access_token;
@@ -65,7 +66,8 @@ async function send(sql, me, { to, subject, text }) {
     '',
     String(text || ''),
   ].join('\r\n');
-  const r = await fetch(API + 'messages/send', { method: 'POST', headers: { Authorization: 'Bearer ' + at, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64url(raw) }) });
+  const r = await fetch(API + 'messages/send', { method: 'POST', headers: { Authorization: 'Bearer ' + at, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64url(raw) }) })
+    .catch(() => { throw fail(502, 'gmail_send_failed'); });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw fail(502, 'gmail_send_failed');
   return { id: j.id, threadId: j.threadId, messageId };
