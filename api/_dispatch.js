@@ -21,9 +21,12 @@
 const DEFAULTS = { pulse: false, edge: false, max_attempts: 5, retry_after_minutes: 15, timeout_ms: 20000,
   alert_email: 'info@renellence.com' };
 
+// The columns not added yet (v2-011 not applied) = off, whatever the row says: queueing an order would fail and take the
+// order down with it (test run 2026-10-23, R3B-1).
 async function config(sql) {
-  const [row] = await sql`select value from settings where key = ${'order_dispatch'}`;
-  const v = row && row.value && typeof row.value === 'object' && !Array.isArray(row.value) ? row.value : null;
+  const [row] = await sql`select value, exists (select 1 from information_schema.columns where table_schema = 'public'
+      and table_name = 'orders' and column_name = 'dispatch_status') as ready from settings where key = ${'order_dispatch'}`;
+  const v = row && row.ready && row.value && typeof row.value === 'object' && !Array.isArray(row.value) ? row.value : null;
   return v ? Object.assign({}, DEFAULTS, v) : null;
 }
 
