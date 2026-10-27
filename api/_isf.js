@@ -83,4 +83,24 @@ async function send(sql, orderId) {
   }
 }
 
-module.exports = { send, payloadFor, configured, STAFF };
+// "Resend pay link" (L19, owner 2026-10-27): the sales-form workflow's /pulse-resend-paylink branch finds the order's
+// open Stripe pay link (the one the waiting order resumes on when it is paid) and emails it to the customer again.
+// Nothing new is made in Stripe. Same key as the token door (X-Edge-ISF, PULSE_ISF_KEY).
+async function resendPayLink(sql, orderId) {
+  if (!process.env.PULSE_ISF_KEY) return { queued: false, reason: 'n8n_not_connected' };
+  const [o] = await sql`select o.order_number, c.first_name, c.email, c.secondary_email from orders o join contacts c on c.id = o.contact_id where o.id = ${orderId}`;
+  if (!o || !o.order_number) return { queued: false, reason: 'no_order_number' };
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const r = await fetch(N8N + '/pulse-resend-paylink', { method: 'POST', signal: ctl.signal, headers: { 'Content-Type': 'application/json', 'X-Edge-ISF': KEY() },
+      body: JSON.stringify({ orderNumber: String(o.order_number), firstName: o.first_name || '', emails: [o.email, o.secondary_email].filter(Boolean) }) });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) return { queued: false, reason: 'n8n_' + r.status };
+    return j.sent ? { queued: true } : { queued: false, reason: j.reason || 'no_open_link' };
+  } catch (e) {
+    return { queued: false, reason: e && e.name === 'AbortError' ? 'n8n_timeout' : 'n8n_unreachable' };
+  } finally { clearTimeout(t); }
+}
+
+module.exports = { send, payloadFor, configured, resendPayLink, STAFF };

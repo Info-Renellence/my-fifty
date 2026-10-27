@@ -23,6 +23,7 @@ async function call(action, payload) {
   const url = String(process.env.N8N_MYFIFTY_URL || '').trim();
   // Owner 2026-10-27: orders go to the live Internal Sales Form workflow, the same one Edge's New order uses (api/_isf.js).
   if (!url && action === 'order' && payload && payload.orderId) return require('./_isf').send(require('./_db').db(), payload.orderId);
+  if (!url && action === 'resend_pay_link' && payload && payload.orderId) return require('./_isf').resendPayLink(require('./_db').db(), payload.orderId);
   if (!url) return { queued: false, reason: 'n8n_not_connected' };
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 20000);

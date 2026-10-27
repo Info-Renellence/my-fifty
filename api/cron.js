@@ -19,6 +19,12 @@ const B = require('./_book');
 const T = require('./_time');
 const push = require('./_push');
 
+function isfKey(req) {
+  const want = String(process.env.PULSE_ISF_KEY || '').trim();
+  const got = String(req.headers['x-edge-isf'] || '');
+  if (!want || got.length !== want.length) return false;
+  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+}
 function authorised(req) {
   const want = process.env.CRON_SECRET || '';
   const got = String(req.headers['x-cron-key'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || '');
@@ -27,9 +33,10 @@ function authorised(req) {
 }
 
 module.exports = route(async (req, res) => {
-  if (!authorised(req)) throw fail(401, 'not_allowed');
   const op = query(req).get('op') || 'tick';
-  if (op === 'wires') return send(res, 200, await wires(db()));
+  // The daily wire list is also read by n8n's [DIGEST] with the Pulse ISF key it already holds (owner 2026-10-27)
+  if (op === 'wires' && (authorised(req) || isfKey(req))) return send(res, 200, await wires(db()));
+  if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
   const sql = db();
@@ -38,6 +45,8 @@ module.exports = route(async (req, res) => {
   Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) });
   // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
   out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
+  // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27)
+  out.signatureapi = await require('./_sigapi').sync(sql, Math.min(12000, Math.max(4000, 40000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
@@ -148,7 +157,7 @@ async function wires(sql, now) {
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
      order by o.submitted_at`;
   const [admin] = await sql`select id from users where lower(email::text) = ${INFO} and is_active is not false`;
-  const base = process.env.PUBLIC_URL || 'https://my-fifty.vercel.app';
+  const base = process.env.PUBLIC_URL || 'https://pulse.renellence.com';
   const items = [];
   for (const r of rows) {
     const s = W.state(r, { status: r.pay_status, paid_at: r.paid_at }, fallback, now);

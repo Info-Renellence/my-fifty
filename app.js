@@ -1141,7 +1141,11 @@
     var op = b.getAttribute('data-nudge');
     act(op, { orderId: b.getAttribute('data-order') || undefined, onboardingId: b.getAttribute('data-onboarding') || undefined }).then(function (r) {
       if (r.ok) { b.textContent = 'Sent ✓'; b.style.background = 'var(--raised)'; b.style.color = 'var(--green)'; }
-      else { b.disabled = false; toast('Couldn’t send it yet. Ask an admin to check the order connection.'); }
+      else {
+        b.disabled = false;
+        toast({ no_open_link: 'No open pay link for this order. Ask an admin to send a new one.', not_waiting: 'This one isn’t waiting on a signature any more.',
+          nobody_to_remind: 'Everyone has signed, or the email bounced. Ask an admin.' }[r.reason] || 'Couldn’t send it yet. Ask an admin to check the order connection.');
+      }
     }, function (err) { b.disabled = false; toast(errText(err)); });
   });
 

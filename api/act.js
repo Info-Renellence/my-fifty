@@ -402,7 +402,9 @@ const OPS = {
     let payload, entity, contactId, agreement;
     if (isUuid(b.orderId)) {
       const o = await myOrder(me, b.orderId);
-      [agreement] = await sql`select id, last_reminded_at from agreements where order_id = ${o.id} and kind = 'md_pdr' and status = 'waiting' order by created_at desc limit 1`;
+      [agreement] = await sql`select id, last_reminded_at, signatureapi_envelope_id from agreements where order_id = ${o.id} and kind = 'md_pdr' and status = 'waiting' order by created_at desc limit 1`;
+      // envelopes read from SignatureAPI carry no order: then the customer's newest waiting MD record
+      if (!agreement) [agreement] = await sql`select id, last_reminded_at, signatureapi_envelope_id from agreements where contact_id = ${o.contact_id} and kind = 'md_pdr' and status = 'waiting' order by created_at desc limit 1`;
       payload = { orderId: o.id }; entity = ['orders', o.id]; contactId = o.contact_id;
     } else if (isUuid(b.onboardingId)) {
       const [onb] = await sql`
@@ -410,12 +412,16 @@ const OPS = {
           join contacts c on c.id = coalesce(o.primary_contact_id, o.injector_contact_id)
          where o.id = ${b.onboardingId} and (c.owner_id = ${me.id} or ${isAdmin(me)}::boolean)`;
       if (!onb) throw fail(404, 'not_found');
-      [agreement] = onb.agreement_id ? await sql`select id, last_reminded_at from agreements where id = ${onb.agreement_id}` : [];
+      [agreement] = onb.agreement_id ? await sql`select id, last_reminded_at, signatureapi_envelope_id from agreements where id = ${onb.agreement_id}` : [];
       payload = { onboardingId: onb.id }; entity = ['onboardings', onb.id]; contactId = onb.contact_id;
     } else throw fail(400, 'bad_id');
     // At most once an hour (agreements.last_reminded_at, SOP section 10).
     if (agreement && agreement.last_reminded_at && Date.now() - new Date(agreement.last_reminded_at) < 3600000) throw fail(429, 'reminded_recently');
-    const sent = await require('./_n8n').call('remind_md', payload);
+    // SignatureAPI itself resends the signing email (owner 2026-10-27); n8n only when the envelope is unknown
+    const sent = agreement && agreement.signatureapi_envelope_id && !require('./_staging').blocked()
+      ? await require('./_sigapi').remind(agreement.signatureapi_envelope_id)
+      : await require('./_n8n').call('remind_md', payload);
+    if (!sent.queued && sent.reason === 'reminded_recently') throw fail(429, 'reminded_recently');
     if (sent.queued) {
       if (agreement) await asUser(me.id, (tx) => tx`update agreements set last_reminded_at = now() where id = ${agreement.id}`);
       await logResend(me, entity[0], entity[1], contactId, 'MD reminded to sign');
