@@ -46,7 +46,7 @@ async function intake(sql, b) {
     on conflict (source, external_id) do nothing returning id`;
   if (!ev) return { ok: true, duplicate: true };
   try {
-    const r = await apply(sql, Object.assign({}, hs, { response: resp }));
+    const r = await apply(sql, Object.assign({}, hs, { response: resp }), { fromEdge: b.wf === 'Edge' });
     await sql`update ingest_events set status = ${r.skipped ? 'skipped' : 'done'}, attempts = 1, processed_at = now(), error_message = ${r.why || null},
                 result_table = ${r.table || null}, result_id = ${r.id || null} where id = ${ev.id}`;
     return Object.assign({ ok: true }, r);
@@ -59,8 +59,8 @@ async function intake(sql, b) {
 const safeJson = (t) => { try { return JSON.parse(t); } catch (e) { return {}; } };
 
 // One HubSpot write -> v2. Returns { table, id } or { skipped: true, why }.
-async function apply(sql, hs) {
-  const c = M.classify(hs);
+async function apply(sql, hs, opts = {}) {
+  const c = M.classify(hs, opts);
   if (c.kind === 'skip' || c.kind === 'unknown') return { skipped: true, why: c.why };
   return sql.begin(async (tx) => {
     await tx`select set_config('app.source', 'n8n', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
@@ -93,6 +93,22 @@ async function apply(sql, hs) {
       let last = null;
       for (const id of c.ids) last = await syncOrder(tx, id);
       return last || { skipped: true, why: 'order not found' };
+    }
+    // a call, meeting, note or task (live Edge, n8n): re-read with its contacts, then the sync's rules (syncOne)
+    if (c.kind === 'activity') {
+      let last = null;
+      for (const id of c.ids) {
+        const rec = await H.activity(c.type, id, PROPS[c.type]);
+        if (!rec) continue;
+        const r = await syncOne(tx, c.type, rec, H.assocIds(rec, 'contacts'), { person: !!opts.fromEdge });
+        last = r === 'skipped' ? last || { skipped: true, why: 'not on a contact in v2, or not kept' } : { table: c.type === 'tasks' ? 'tasks' : 'interactions', result: r };
+      }
+      return last || { skipped: true, why: 'not found in HubSpot' };
+    }
+    if (c.kind === 'activity_delete') {
+      if (c.type === 'tasks') await tx`update tasks set deleted_at = now() where id = any(${c.ids.map((id) => M.uid('task:' + id))}) and deleted_at is null`;
+      else await tx`update interactions set deleted_at = now() where source = 'import' and external_id = any(${c.ids.map((id) => 'hubspot:' + c.type.replace(/s$/, '') + ':' + id)}) and deleted_at is null`;
+      return { table: c.type === 'tasks' ? 'tasks' : 'interactions', deleted: c.ids.length };
     }
     return { skipped: true, why: 'nothing to do' };
   });
@@ -266,7 +282,7 @@ async function sync(sql, budgetMs) {
   return out;
 }
 
-async function syncOne(tx, type, rec, contactHs) {
+async function syncOne(tx, type, rec, contactHs, o = {}) {
   const p = rec.properties || {};
   if (type === 'contacts') {
     const have = await idOf(tx, 'contacts', rec.id);
@@ -303,7 +319,7 @@ async function syncOne(tx, type, rec, contactHs) {
     }
     return 'skipped';
   }
-  const m = type === 'calls' ? M.callRow(rec.id, p) : type === 'meetings' ? M.meetingRow(rec.id, p) : M.noteRow(rec.id, p);
+  const m = type === 'calls' ? M.callRow(rec.id, p, o) : type === 'meetings' ? M.meetingRow(rec.id, p) : M.noteRow(rec.id, p, o);
   if (m.skip) return 'skipped';
   let result = 'skipped';
   for (const c of contacts) {

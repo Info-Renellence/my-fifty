@@ -98,6 +98,36 @@ test('an Internal Sales Form order becomes an order with lines and a payment; a 
   });
 });
 
+test('live Edge: a rep\'s note goes on the contact\'s history (n8n\'s same note would not), and deleting it in Edge removes it', async () => {
+  await h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const c = await h.contact(sql, me);
+    const cHs = String(893000000 + n), note = String(894000000 + n);
+    await sql`update contacts set legacy_id = ${cHs} where id = ${c}`;
+    const real = global.fetch;
+    global.fetch = async (url) => {
+      if (new URL(url).pathname.endsWith('/notes/' + note)) return { ok: true, status: 200, text: async () => JSON.stringify({ id: note,
+        properties: { hs_note_body: 'Dropped off the lips kit', hs_timestamp: new Date().toISOString(), hs_object_source: 'INTEGRATION' }, associations: { contacts: { results: [{ id: cHs }] } } }) };
+      throw new Error('unexpected ' + url);
+    };
+    try {
+      const fromN8n = await I.intake(sql, copy('POST', '/crm/v3/objects/notes', {}, { id: note }));
+      assert.equal(fromN8n.skipped, true);
+      const e = copy('POST', '/crm/v3/objects/notes', {}, { id: note });
+      e.wf = 'Edge'; e.node = 'POST /crm/v3/objects/notes';
+      const r = await I.intake(sql, e);
+      assert.equal(r.table, 'interactions');
+      const [i] = await sql`select body from interactions where contact_id = ${c} and external_id = ${'hubspot:note:' + note} and deleted_at is null`;
+      assert.equal(i.body, 'Dropped off the lips kit');
+      const d = copy('DELETE', '/crm/v3/objects/notes/' + note, null, {});
+      d.wf = 'Edge'; d.node = 'DELETE';
+      await I.intake(sql, d);
+      const [{ n: left }] = await sql`select count(*)::int n from interactions where external_id = ${'hubspot:note:' + note} and deleted_at is null`;
+      assert.equal(left, 0);
+    } finally { global.fetch = real; }
+  });
+});
+
 test('deals, automated notes and files are kept in the log as skipped, never applied', async () => {
   await h.withDb(async (sql) => {
     const r = await I.intake(sql, copy('POST', '/crm/v3/objects/deals', { properties: { dealname: 'x' } }, { id: String(860000000 + n) }));

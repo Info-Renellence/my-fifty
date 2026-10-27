@@ -47,6 +47,8 @@ async function contactsOf(type, ids) {
   const r = await call('POST', `/crm/v4/associations/${type}/contacts/batch/read`, { inputs: ids.map((id) => ({ id: String(id) })) });
   return Object.fromEntries(((r && r.results) || []).map((x) => [String(x.from.id), (x.to || []).map((t) => String(t.toObjectId))]));
 }
+// One call, meeting, note or task with its contacts.
+const activity = (type, id, properties) => call('GET', `/crm/v3/objects/${type}/${encodeURIComponent(id)}?properties=${properties.join(',')}&associations=contacts`);
 const assocIds = (rec, type) => (((rec && rec.associations && rec.associations[type]) || {}).results || []).map((x) => String(x.id));
 
-module.exports = { contact, company, order, lineItems, assocIds, call, changedSince, contactsOf, CONTACT_PROPS, ORDER_PROPS };
+module.exports = { contact, company, order, lineItems, assocIds, call, changedSince, contactsOf, activity, CONTACT_PROPS, ORDER_PROPS };

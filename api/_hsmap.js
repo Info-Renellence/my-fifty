@@ -167,10 +167,11 @@ const DISP = { 'f240bbac-87c9-4f6e-bf70-924b57d47db7': 'connected', 'b2cf5968-55
   '9d9162e7-6cf3-4944-bf63-4dff82258764': 'busy', 'a4c4c377-d246-4b32-a13b-75a56a4cd0ff': 'left_live_message', '17b47fee-58de-441e-a44c-c6300d46f273': 'wrong_number' };
 const intId = (externalId, contactId) => uid('int:import|' + externalId + '|' + contactId);
 // -> { row } for each contact, or { skip: why }. Rows have no id/contact_id yet (forContact fills them).
-function callRow(id, p) {
+// o.person: the write came from a rep's own action in Edge (its notes and calls go through the API, not HubSpot's UI)
+function callRow(id, p, o = {}) {
   if (String(p.hs_object_source || '').startsWith('INTERNAL_PROCESSING')) return { skip: 'HubSpot sample call' };
   if (/AC[0-9a-f]{32}/.test(JSON.stringify(p))) return { skip: 'HubSpot copy of a Quo call (Quo sends it itself)' };
-  const auto = /Automation|Quo/.test(String(p.hs_object_source) + '/' + String(p.hs_object_source_detail_1 || ''));
+  const auto = !o.person && /Automation|Quo/.test(String(p.hs_object_source) + '/' + String(p.hs_object_source_detail_1 || ''));
   return { row: { kind: 'call', user_id: ownerUser(p.hubspot_owner_id), occurred_at: iso(p.hs_timestamp), direction: p.hs_call_direction === 'INBOUND' ? 'in' : p.hs_call_direction === 'OUTBOUND' ? 'out' : null,
     mode: 'phone', status: 'completed', outcome: DISP[p.hs_call_disposition] || null, subject: orNull(p.hs_call_title), body: auto ? null : strip(p.hs_call_body),
     duration_seconds: p.hs_call_duration ? Math.round(Number(p.hs_call_duration) / 1000) : null, recording_url: orNull(p.hs_call_recording_url),
@@ -188,8 +189,8 @@ function meetingRow(id, p, now = new Date().toISOString()) {
     body: [strip(p.hs_meeting_body), strip(p.hs_internal_meeting_notes)].filter(Boolean).join('\n\n') || null, location: orNull(p.hs_meeting_location), needs_review: false,
     source: 'import', external_id: 'hubspot:meeting:' + id } };
 }
-function noteRow(id, p) {
-  if (!/^(CRM_UI|MOBILE)/.test(String(p.hs_object_source || ''))) return { skip: 'automated note (only notes a person writes are kept)' };
+function noteRow(id, p, o = {}) {
+  if (!o.person && !/^(CRM_UI|MOBILE)/.test(String(p.hs_object_source || ''))) return { skip: 'automated note (only notes a person writes are kept)' };
   const body = strip(p.hs_note_body);
   if (!body) return { skip: 'empty note' };
   return { row: { kind: 'note', user_id: ownerUser(p.hubspot_owner_id), occurred_at: iso(p.hs_timestamp), body, needs_review: false, source: 'import', external_id: 'hubspot:note:' + id } };
@@ -211,7 +212,8 @@ function contactSkip(p) {
 }
 
 // What an n8n HubSpot write was, from its method and URL. -> { kind, ids, props } or { kind: 'skip', why }
-function classify(hs) {
+// o.fromEdge: a copy from live Edge (renellence-edge main api/_mirror.js): its call, meeting, note and task writes are a rep's.
+function classify(hs, o = {}) {
   const method = s(hs.method).toUpperCase(), url = s(hs.url).replace(/^https?:\/\/api\.hubapi\.com/, '').replace(/\?.*$/, '');
   const b = hs.body && typeof hs.body === 'string' ? (() => { try { return JSON.parse(hs.body); } catch (e) { return {}; } })() : hs.body || {};
   const r = hs.response || {};
@@ -226,6 +228,14 @@ function classify(hs) {
   if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/contacts\/(\d+)/))) return { kind: 'contact_md', contact: m[1], md: m[2] };
   if ((m = url.match(/^\/crm\/v3\/objects\/orders\/?$/)) && method === 'POST') return { kind: 'order', ids: [r.id].filter(Boolean) };
   if ((m = url.match(/^\/crm\/v3\/objects\/orders\/(\d+)$/)) && method === 'PATCH') return { kind: 'order', ids: [m[1]] };
+  // calls, meetings and tasks from anyone; notes only from Edge (n8n's notes are automated, as on Oct 22)
+  const act = (t) => t !== 'notes' || o.fromEdge;
+  if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/?$/)) && method === 'POST' && act(m[1])) return { kind: 'activity', type: m[1], ids: [r.id].filter(Boolean) };
+  if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/batch\/(create|update)$/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: (r.results || []).map((x) => x.id).filter(Boolean) };
+  if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/(\d+)$/)) && method === 'PATCH' && act(m[1])) return { kind: 'activity', type: m[1], ids: [m[2]] };
+  if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/(\d+)$/)) && method === 'DELETE') return { kind: 'activity_delete', type: m[1], ids: [m[2]] };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/(calls|meetings|notes|tasks)\/(\d+)\/associations\/contacts\//)) && act(m[1])) return { kind: 'activity', type: m[1], ids: [m[2]] };
+  if ((m = url.match(/^\/crm\/v4\/associations\/(calls|meetings|notes|tasks)\/contacts\/batch\/create$/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: (b.inputs || []).map((x) => x.from && x.from.id).filter(Boolean) };
   if (/\/objects\/line_items\/batch\/create/.test(url)) return { kind: 'skip', why: 'line items: saved with their order' };
   if (/\/objects\/deals|\/associations\/(deals|orders)\/|\/objects\/orders\/deals|deals\//.test(url)) return { kind: 'skip', why: 'deals are not in v2 (data model 2026-10-19)' };
   if (/\/objects\/notes/.test(url)) return { kind: 'skip', why: 'automated note (only notes a rep writes are kept, as on Oct 22)' };
