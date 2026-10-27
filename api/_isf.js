@@ -3,7 +3,9 @@
 // public/assets/js/sales-form.js payload, renellence-edge main api/isf.js relay), so approval, the card charge or pay
 // link, the MD signature, QuickBooks, the warehouse and the texts all run unchanged. The HubSpot order that workflow
 // writes comes back into v2 through the Mirrors (api/intake.js) and is linked to this Pulse order, not added twice.
-// The token: n8n's /edge-isf-token signs "<ts>.<HMAC(ts-<email>-internal-sales)>" for a caller holding EDGE_ISF_SECRET.
+// The token: n8n signs "<ts>.<HMAC(ts-<email>-internal-sales)>" for a caller holding a key. Pulse has its own door, /pulse-isf-token
+// with its own n8n Header Auth credential (owner 2026-10-27: Edge's key can't be read back), key PULSE_ISF_KEY; Edge's
+// /edge-isf-token + EDGE_ISF_SECRET still works if that is set instead.
 'use strict';
 const N8N = 'https://renellence.app.n8n.cloud/webhook';
 // The sales person on the order, as the sales form's staff list has it (renellence-edge main api/isf.js STAFF).
@@ -14,10 +16,12 @@ const STAFF = {
   'admin@renellence.com': { name: 'Renellence Admin', rep: 'internal' }, 'aria.moghimi@renellence.com': { name: 'Aria Moghimi', rep: 'internal' },
   'caterina.paggos@renellence.com': { name: 'Caterina Paggos', rep: 'internal' },
 };
-const configured = () => !!String(process.env.EDGE_ISF_SECRET || '').trim();
+const KEY = () => String(process.env.PULSE_ISF_KEY || process.env.EDGE_ISF_SECRET || '').trim();
+const configured = () => !!KEY();
 
 async function token(email) {
-  const r = await fetch(N8N + '/edge-isf-token', { method: 'POST', headers: { 'X-Edge-ISF': process.env.EDGE_ISF_SECRET, 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+  const path = process.env.PULSE_ISF_KEY ? '/pulse-isf-token' : '/edge-isf-token';
+  const r = await fetch(N8N + path, { method: 'POST', headers: { 'X-Edge-ISF': KEY(), 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
   if (!r.ok) throw new Error('token_' + r.status);
   const j = await r.json();
   if (!j || !j.ok || !j.token) throw new Error('token_refused');
