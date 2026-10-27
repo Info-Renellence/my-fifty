@@ -373,7 +373,10 @@ button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { trans
 .pcount { flex: none; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 14px; background: var(--blue); color: #fff; font-size: 14px; font-weight: 800; display: flex; align-items: center; justify-content: center; }
 .pclear { width: 44px; align-self: stretch; flex: none; color: var(--dim); display: flex; align-items: center; justify-content: center; }
 .pclear > span { width: 26px; height: 26px; border-radius: 50%; background: var(--raised); display: flex; align-items: center; justify-content: center; font-size: 15px; line-height: 1; }
-.padd { width: 28px; height: 28px; border-radius: 50%; background: var(--raised); color: var(--sky); font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex: none; pointer-events: none; }
+/* the + is its own 44px target (owner 2026-10-27: it did nothing), drawn as the 28px circle */
+.padd { width: 44px; height: 44px; margin-right: 4px; display: flex; align-items: center; justify-content: center; flex: none; }
+.padd > span { width: 28px; height: 28px; border-radius: 50%; background: var(--raised); color: var(--sky); font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+.padd:active > span { transform: scale(0.9); }
 .orderbar { position: fixed; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; bottom: calc(var(--safe-bottom) + 72px); padding: 0 16px 10px; z-index: 15; display: flex; flex-direction: column; }
 .clearorder { align-self: flex-end; color: var(--danger); font-size: 14px; font-weight: 600; padding: 8px 6px 0; min-height: 36px; }
 .sumbar { height: 62px; border-radius: 20px; background: var(--raised); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 18px; margin-top: 4px; box-shadow: 0 10px 22px rgba(0,0,0,0.48); }

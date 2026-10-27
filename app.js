@@ -155,6 +155,8 @@
   var ROUTES = [
     [/^\/$/, function () { return screenToday(); }],
     [/^\/people$/, function () { return screenPeople(); }],
+    // The Today My Fifty tile (owner 2026-10-27): People, always on the My Fifty tab, whatever tab was open last.
+    [/^\/people\/fifty$/, function () { peopleView = 'fifty'; history.replaceState({}, '', '/people'); return screenPeople(); }],
     [/^\/people\/leads\/(onboarded|social|event|warm|cold)$/, function (m) { return screenLeads(m[1]); }],
     [/^\/person\/([0-9a-f-]{36})$/, function (m) { return screenPerson(m[1]); }],
     [/^\/person\/([0-9a-f-]{36})\/history$/, function (m) { return screenHistory(m[1]); }],
@@ -264,7 +266,7 @@
     var top = Math.max(25, Math.ceil((f.count + 1) / 25) * 25), each = top / 5, toNext = Math.max(0, f.next - f.count);
     var segs = '';
     for (var i = 0; i < 5; i++) segs += '<span class="seg5"><span style="width:' + Math.round(Math.max(0, Math.min(1, (f.count - i * each) / each)) * 100) + '%"></span></span>';
-    return '<a href="/people" data-nav class="tile blue' + (fiftyUp(f.count) ? ' fifty-up' : '') + '" aria-label="' + f.count + ' in My Fifty, ' + toNext + ' more to ' + f.next + '">'
+    return '<a href="/people/fifty" data-nav class="tile blue' + (fiftyUp(f.count) ? ' fifty-up' : '') + '" aria-label="' + f.count + ' in My Fifty, ' + toNext + ' more to ' + f.next + '">'
       + '<span class="tile-bg" style="right:-18px;top:-10px;opacity:.16">' + ic('target', 96, 1.5) + '</span>'
       + '<span class="tile-top"><span class="tile-ico" style="color:#62B2F7">' + ic('target', 18, 1.8) + '</span>'
       + '<span class="tile-n"><span class="num">' + f.count + '</span><span class="tile-w">My Fifty</span></span></span>'
@@ -280,7 +282,7 @@
       var h = '<div class="scr today">'
         + '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#D9640C"/></linearGradient></defs></svg>'
         + '<div class="head"><span style="display:flex;flex-direction:column"><span class="date">' + esc(dateLine) + '</span><h1 class="h1">Today</h1></span>'
-        + '<span class="me num" aria-label="Signed in as ' + esc(ME.name || '') + '">' + esc(ME.initials) + '</span></div>'
+        + '<button type="button" data-me class="me num" aria-label="Signed in as ' + esc(ME.name || '') + '. Open to sign out" aria-haspopup="dialog">' + esc(ME.initials) + '</button></div>'
         + (d.week ? weekFocus(d.week) : '')
         + '<div class="tiles">' + streakTile(d.day, perfect) + fiftyTile(d.fifty) + '</div>'
         + '<div class="seg big" role="tablist">' + [['visit', 'Visits'], ['call', 'Calls']].map(function (k) {
@@ -357,8 +359,6 @@
     b = e.target.closest('[data-ttab]');
     if (b) { todayTab = b.getAttribute('data-ttab'); screenToday(); return; }
     if (e.target.closest('[data-tdone]')) { todayShowDone = !todayShowDone; screenToday(); return; }
-    // The My Fifty tile always opens People on the My Fifty tab (owner 2026-10-27), whatever tab was open last.
-    if (e.target.closest('.tile.blue')) { peopleView = 'fifty'; return; }
     b = e.target.closest('[data-tlog]');
     if (b) {
       var id = b.getAttribute('data-tlog'), kind = b.getAttribute('data-kind'), pick = b.getAttribute('data-pick');
@@ -1220,7 +1220,7 @@
             + '<span class="grow"><span class="t">' + esc(r.name) + '</span>' + (n ? '<span class="sub ellip" style="color:var(--sky);font-weight:600">' + esc(subs.join(' · ')) + '</span>' : r.base ? '<span class="sub ellip">' + esc(r.base) + '</span>' : '') + '</span>'
             + (n ? '<span class="pcount num">' + n + '</span>' : '') + '</button>'
             + (n ? '<button type="button" class="pclear" data-pclear="' + esc(r.key) + '" aria-label="Remove ' + esc(r.name) + '"><span>✕</span></button>'
-              : na ? '' : '<span class="padd" aria-hidden="true">+</span>') + '</div>';
+              : na ? '' : '<button type="button" class="padd" data-prow="' + esc(r.key) + '" aria-label="Add ' + esc(r.name) + '"><span>+</span></button>') + '</div>';
         });
         h += '</section>';
       });
@@ -1234,7 +1234,8 @@
   // The product sheet (F9): size (Magic Needle, Mesbio), quantity, free, and for saypha the price each.
   // saypha's price each (owner 2026-10-27): $135, $155, the product's list price ($225; $245 for volume plus), or Custom.
   var TIERS = function (p) { return [135, 155, p.price].filter(function (v, i, a) { return a.indexOf(v) === i; }); };
-  function productSheet(row) {
+  // after: the screen to show once saved (Review edits its items in place, owner 2026-10-27); default the products list.
+  function productSheet(row, after) {
     var dft = draft, fam = row.family;
     var pickSku = fam ? (row.items.filter(function (p) { return (dft.qty[p.sku] || dft.free[p.sku]); })[0] || row.items[0]).sku : row.items[0].sku;
     var st = { sku: pickSku, op: null };
@@ -1284,7 +1285,7 @@
         if (st.f) dft.free[p.sku] = st.f; else delete dft.free[p.sku];
         if (p.cat === 'saypha' && st.price !== p.price) dft.price[p.sku] = st.price; else delete dft.price[p.sku];
       }
-      closeSheet(); keepScroll(function () { return screenProducts(dft.contactId); });
+      closeSheet(); keepScroll(after || function () { return screenProducts(dft.contactId); });
     }
     sheetHandler = function (e, type) {
       if (type === 'input' || type === 'change') { var c = e.target.closest('[data-custom]'); if (c) st.price = L.parsePrice(c.value); if (type === 'change' && c) draw(); return; }
@@ -1333,6 +1334,36 @@
     return out.filter(function (l) { return !l.free; }).concat(out.filter(function (l) { return l.free; }));
   }
   var sentOrder = null;
+  // The product row (one product, or a size family) a sku belongs to.
+  function rowOf(d, sku) {
+    var hit = null;
+    productGroups(d.products).forEach(function (g) { g[1].forEach(function (r) { if (r.items.some(function (p) { return p.sku === sku; })) hit = r; }); });
+    return hit || { key: sku };
+  }
+  // Review's "Add a product": the products list in a sheet; picking one opens its own sheet.
+  function addItemSheet(after) {
+    var groups = productGroups(draft.products.products);
+    var h = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Add a product"><span class="grab"></span>'
+      + '<div class="sheet-head" style="align-items:center"><span class="display" style="font-size:24px;font-weight:800;letter-spacing:-0.6px">Add a product</span><button type="button" data-close class="pillbtn">Cancel</button></div>'
+      + '<div style="max-height:60dvh;overflow-y:auto;overscroll-behavior:contain">';
+    groups.forEach(function (g) {
+      h += '<div class="kicker" style="padding:10px 4px 6px">' + esc(g[0]) + '</div><section class="card r18 plist">';
+      g[1].forEach(function (r) {
+        var na = r.items.length === 1 && r.items[0].unavailable;
+        h += '<div class="prow"><button type="button" class="pmain" data-addrow="' + esc(r.key) + '"' + (na ? ' disabled' : '') + '>' + thumb(r.family ? 'needle' : r.items[0].freeOnly ? 'free item' : (r.items[0].sku + ' ' + r.name), 36)
+          + '<span class="grow"><span class="t">' + esc(r.name) + '</span>' + (r.base ? '<span class="sub ellip">' + esc(r.base) + '</span>' : '') + '</span></button></div>';
+      });
+      h += '</section>';
+    });
+    $sheet.innerHTML = h + '</div></div>';
+    sheetHandler = function (e, type) {
+      if (type) return;
+      var b = e.target.closest('[data-addrow]');
+      if (!b || b.disabled) return;
+      var k = b.getAttribute('data-addrow');
+      groups.forEach(function (g) { g[1].forEach(function (r) { if (r.key === k) { closeSheet(); productSheet(r, after); } }); });
+    };
+  }
   function screenReview(contactId) {
     var dft = draftFor(contactId);
     return paint(read('products', { id: contactId }), function (d) {
@@ -1350,10 +1381,13 @@
         + info('Billing', L.billingSame(who) ? 'Same as shipping' : esc(who.billing.line)) + (who.secondaryEmail ? info('Invoice email', esc(who.secondaryEmail)) : '') + '</section>'
         + (noShip ? '<button type="button" data-ship-address class="link" style="margin:-8px 0 -2px;padding:0 4px">' + ic('plus', 14) + ' Add a shipping address</button>' : '')
         + (who.secondaryEmail ? '' : '<button type="button" data-invoice-email class="link" style="margin:-8px 0 -2px;padding:0 4px">' + ic('plus', 14) + ' Add an invoice email</button>')
-        + '<div class="sect" style="padding:6px 4px"><span class="label">Items</span><a href="/order/' + contactId + '" data-nav class="link" style="min-height:32px">Edit</a></div>'
+        + '<div class="sect" style="padding:6px 4px"><span class="label">Items</span><button type="button" data-items-edit class="link" style="min-height:32px">' + (dft.editItems ? 'Done' : 'Edit') + '</button></div>'
         + '<section class="card" style="margin-bottom:10px">' + lines.map(function (l, i) {
-          return info(esc(l.p.fullName || l.p.name) + ' · ' + l.qty, l.free ? '<span class="tag free">Free</span>' : money2(l.qty * l.price), !i).replace('class="k"', 'class="k" style="flex:0 1 auto"');
+          var v = l.free ? '<span class="tag free">Free</span>' : money2(l.qty * l.price);
+          if (dft.editItems) return '<button type="button" class="kv" data-item-row="' + esc(rowOf(d, l.p.sku).key) + '" style="min-height:48px' + (i ? ';border-top:0.5px solid var(--line)' : '') + '"><span class="k" style="flex:0 1 auto">' + esc(l.p.fullName || l.p.name) + ' · ' + l.qty + '</span><span class="v" style="display:flex;align-items:center;gap:6px">' + v + CHEV + '</span></button>';
+          return info(esc(l.p.fullName || l.p.name) + ' · ' + l.qty, v, !i).replace('class="k"', 'class="k" style="flex:0 1 auto"');
         }).join('')
+          + (dft.editItems ? '<button type="button" class="kv" data-item-add style="min-height:48px;border-top:0.5px solid var(--line);color:var(--sky);font-weight:600;justify-content:flex-start;gap:8px">' + ic('plus', 15, 2.2) + 'Add a product</button>' : '')
           + (samples ? '' : '<div class="kv" style="min-height:48px"><b style="font-size:15px">Total</b><b style="font-size:17px">' + money2(sum.total) + '</b></div>') + '</section>';
       if (samples) {
         h += '<div class="sect" style="padding:6px 4px"><span class="label">Medical director</span></div>'
@@ -1408,6 +1442,15 @@
       setTimeout(function () { var f = $app.querySelector('[data-notefield="' + k + '"]'); if (f) f.focus(); }, 80);
       return;
     }
+    // Items edited on Review itself (owner 2026-10-27): tap a line for its sheet, or add a product; saving comes back here.
+    if (e.target.closest('[data-items-edit]')) { draft.editItems = !draft.editItems; keepScroll(function () { return screenReview(draft.contactId); }); return; }
+    var back = function () { return screenReview(draft.contactId); };
+    if ((b = e.target.closest('[data-item-row]'))) {
+      var rk = b.getAttribute('data-item-row');
+      productGroups(draft.products.products).forEach(function (g) { g[1].forEach(function (r) { if (r.key === rk) productSheet(r, back); }); });
+      return;
+    }
+    if (e.target.closest('[data-item-add]')) { addItemSheet(back); return; }
     if (e.target.closest('[data-invoice-email]')) { invoiceEmailSheet(draft.contactId); return; }
     if (e.target.closest('[data-ship-address]')) { shippingSheet(draft.contactId); return; }
     if ((b = e.target.closest('[data-send-order]'))) {
@@ -1590,6 +1633,22 @@
       + '<span style="font-size:15px;color:var(--muted);max-width:300px;line-height:1.4">' + esc(errText({ message: 'reps_only' })) + '</span>'
       + '<button type="button" data-repsout class="btn soft" style="max-width:340px">Sign out</button></div>';
   }
+  // Tapping your initials on Today (owner 2026-10-27): who is signed in, and Sign out.
+  function meSheet() {
+    $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Your account"><span class="grab"></span>'
+      + '<div style="display:flex;align-items:center;gap:12px;padding:6px 2px 18px"><span class="me num" style="width:48px;height:48px;font-size:17px;margin:0">' + esc((ME && ME.initials) || '') + '</span>'
+      + '<span class="grow"><span class="t" style="display:block;font-size:18px;font-weight:700">' + esc((ME && ME.name) || '') + '</span><span class="sub" style="display:block;font-size:14px;color:var(--muted);overflow-wrap:anywhere">' + esc((ME && ME.email) || '') + '</span></span></div>'
+      + '<div style="display:flex;flex-direction:column;gap:10px"><button type="button" data-signout class="btn soft" style="color:var(--danger)">Sign out</button>'
+      + '<button type="button" data-close class="btn soft">Cancel</button></div></div>';
+    sheetHandler = function (e, type) {
+      if (type) return;
+      var b = e.target.closest('[data-signout]');
+      if (!b) return;
+      b.disabled = true; b.textContent = 'Signing out…';
+      sb.auth.signOut().catch(function () {}).then(function () { closeSheet(); history.replaceState({}, '', '/'); signOutLocal(); });
+    };
+  }
+  $app.addEventListener('click', function (e) { if (e.target.closest('[data-me]')) meSheet(); });
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-repsout]')) { signInMessage = ''; sb.auth.signOut().catch(function () {}).then(function () { showSignIn(); }); } });
 
   function start() {
