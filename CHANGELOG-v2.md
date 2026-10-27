@@ -281,3 +281,17 @@ the same scope, cleaning and build as Oct 22 (fixed ids), then `migration-load/d
 
 Rules: Oct 22 decisions stand (the 162 contacts left out then stay out); nothing deleted in v2 since came back (a row is
 added only if it was not in the Oct 22 load). Report: `backfill-2026-10-27/migration-load/delta-commit.log`.
+
+## 22. Quo calls and texts from unknown numbers (`renellence-edge/db/v2-014-quo-unmatched.sql`), 2026-10-27, approved by Yousef
+
+Owner's rule (2026-10-23, option 2): Quo never creates contacts; calls/texts from numbers not in v2 are held quietly and
+attach when a contact gets that number. The owner approved the holding table on 2026-10-27. **Status: applied to v1 and
+v2 2026-10-27** (`renellence-ops/ops/fixes/apply-v2-014.js`, dry runs first; the trigger proven in a rolled-back savepoint).
+
+| # | Change | Why |
+|---|---|---|
+| 83 | New table `quo_unmatched` (phone, kind, direction, quo_id UNIQUE, line_id, occurred_at, payload, attached_contact_id, attached_at; RLS on, admins read; touch_updated_at + log_changes triggers) | Calls/texts waiting for a contact, never shown to reps |
+| 84 | New functions `migration_uid(text)` (the migration's fixed ids) and `attach_quo_unmatched()`; trigger `attach_quo_unmatched` AFTER INSERT OR UPDATE OF phone, mobile_phone ON contacts | Any path that creates a contact (Pulse, Edge, n8n intake, imports) picks up its held calls/texts and Quo summaries |
+
+Code: Pulse `api/quo.js` (Quo webhook: known number -> interactions source quo; unknown -> quo_unmatched; summaries ->
+ai_outputs; the 647 automated line's outgoing texts skipped). Add `quo_unmatched` to the SOP (System section).

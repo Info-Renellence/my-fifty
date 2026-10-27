@@ -4,7 +4,8 @@
   "functions": {
     "api/act.js": { "maxDuration": 60 },
     "api/cron.js": { "maxDuration": 60 },
-    "api/intake.js": { "maxDuration": 60 }
+    "api/intake.js": { "maxDuration": 60 },
+    "api/quo.js": { "maxDuration": 60 }
   },
   "rewrites": [
     { "source": "/((?!api/|icons/|.*\\..*).*)", "destination": "/" }
