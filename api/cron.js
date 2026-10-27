@@ -169,13 +169,15 @@ async function sendOrders(sql) {
 }
 
 async function resendOrders(sql, notQueued) {
-  if (!String(process.env.N8N_MYFIFTY_URL || '').trim()) return { skipped: 'n8n_not_connected' };
+  // Orders go through the Internal Sales Form (api/_isf.js) when N8N_MYFIFTY_URL is empty (it is not set in Vercel), so a failed send is retried there too (run 4).
+  if (!String(process.env.N8N_MYFIFTY_URL || '').trim() && !require('./_isf').configured()) return { skipped: 'n8n_not_connected' };
   const waiting = await sql`
     select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id left join users u on u.id = o.rep_id
      where o.status = ${'submitted'} and o.deleted_at is null and o.placed_by_id is not null and o.submitted_at > now() - interval '7 days'
        and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
        and not exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'send')
+       and exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'create' and l.source = 'my_fifty')   -- only orders Pulse placed (Edge's go to the form themselves)
        ${notQueued ? sql`and o.dispatch_status is null` : sql``}
      order by o.submitted_at limit 20`;
   let sent = 0;

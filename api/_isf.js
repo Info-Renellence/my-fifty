@@ -21,7 +21,7 @@ const configured = () => !!KEY();
 
 async function token(email) {
   const path = process.env.PULSE_ISF_KEY ? '/pulse-isf-token' : '/edge-isf-token';
-  const r = await fetch(N8N + path, { method: 'POST', headers: { 'X-Edge-ISF': KEY(), 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
+  const r = await fetch(N8N + path, { method: 'POST', signal: AbortSignal.timeout(15000), headers: { 'X-Edge-ISF': KEY(), 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) });
   if (!r.ok) throw new Error('token_' + r.status);
   const j = await r.json();
   if (!j || !j.ok || !j.token) throw new Error('token_refused');
@@ -73,7 +73,9 @@ async function send(sql, orderId) {
   if (!configured()) return { queued: false, reason: 'n8n_not_connected' };
   try {
     const body = await payloadFor(sql, orderId);
-    const r = await fetch(N8N + '/internal-sales-form-cof', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await token(body.csrf_customer_id) },
+    // Run 4: a timeout (a hung workflow no longer holds the rep's order request) and a once-only key, the same on every try, as api/_n8n.js sends.
+    const r = await fetch(N8N + '/internal-sales-form-cof', { method: 'POST', signal: AbortSignal.timeout(25000),
+      headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': await token(body.csrf_customer_id), 'X-Idempotency-Key': 'order:' + orderId },
       body: JSON.stringify(body) });
     const text = await r.text();
     if (!r.ok) return { queued: false, reason: 'n8n_' + r.status, detail: text.slice(0, 300) };
