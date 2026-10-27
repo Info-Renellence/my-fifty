@@ -62,6 +62,8 @@
   // L9 product step (the mockup's New order): a line's price is the rep's price, or the list price.
   function priceOf(p, draft) { var v = draft.price && draft.price[p.sku]; return v != null ? v : p.price; }
   // What the rep typed in a price box: a number of dollars (cents kept), never below 0; junk is 0.
+  // A paid quantity on a Custom price needs a price above 0; with none it would silently become a free line (run 4).
+  function priceChoiceOk(custom, qty, price) { return !(custom && (qty || 0) > 0 && !(Number(price) > 0)); }
   function parsePrice(s) { var v = parseFloat(String(s == null ? '' : s).replace(/[^0-9.]/g, '')); return isNaN(v) ? 0 : Math.round(v * 100) / 100; }
   // The paid-quantity picker on the product step (Yousef 2026-10-22): 0 to 100 in the list, plus the current
   // quantity when it is above 100 so it still shows; "More than 100…" opens a box for a typed number.
@@ -111,7 +113,7 @@
 
   var L = { MONTHS: MONTHS, LONG_DAYS: LONG_DAYS, LONG_MONTHS: LONG_MONTHS, esc: esc, nb: nb, ymd: ymd, addDays: addDays, shortDate: shortDate, longDate: longDate,
     ERR: ERR, errText: errText, initials: initials, money: money, ringDash: ringDash, fiftyTile: fiftyTile, dayLeftText: dayLeftText, winLine: winLine,
-    candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, moneyExact: moneyExact, draftSummary: draftSummary,
+    candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, priceChoiceOk: priceChoiceOk, moneyExact: moneyExact, draftSummary: draftSummary,
     QTY_LIST_MAX: QTY_LIST_MAX, QTY_MAX: QTY_MAX, qtyOptions: qtyOptions, parseQty: parseQty,
     billingSame: billingSame, stripNext: stripNext, longText: longText, b64ToBytes: b64ToBytes };
   if (typeof module !== 'undefined' && module.exports) module.exports = L;

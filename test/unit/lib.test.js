@@ -106,6 +106,13 @@ describe('ordering pieces', () => {
     assert.equal(s.line, '1 item · $147.50');
     assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 2 }, price: { SAF100: 135 } })).line, '2 items · $270');
   });
+  test('priceChoiceOk: a paid quantity on a Custom price with no price is refused (run 4)', () => {
+    assert.equal(L.priceChoiceOk(true, 1, 0), false);
+    assert.equal(L.priceChoiceOk(true, 2, NaN), false);
+    assert.equal(L.priceChoiceOk(true, 1, 147.5), true);
+    assert.equal(L.priceChoiceOk(false, 1, 0), true);
+    assert.equal(L.priceChoiceOk(true, 0, 0), true, 'free only is fine');
+  });
   test('draftSummary: only free units is a sample order', () => {
     const s = L.draftSummary(products, draft({ free: { SAF100: 2 } }));
     assert.deepEqual([s.samples, s.line, s.sub], [true, '2 free samples', 'MD signs after approval']);

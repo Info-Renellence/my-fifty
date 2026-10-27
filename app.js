@@ -1306,7 +1306,8 @@
         return;
       }
       if (e.target.closest('[data-premove]')) { save(true); return; }
-      if (e.target.closest('[data-psave]')) { if ((st.q || 0) + (st.f || 0) === 0 && !st.had) return; save((st.q || 0) + (st.f || 0) === 0); }
+      if (e.target.closest('[data-psave]')) { if ((st.q || 0) + (st.f || 0) === 0 && !st.had) return;
+        if (!L.priceChoiceOk(st.custom && prod().cat === 'saypha', st.q, st.price)) { toast('Enter a price above $0, or pick another price.'); var ci = $sheet.querySelector('[data-custom]'); if (ci) ci.focus(); return; } save((st.q || 0) + (st.f || 0) === 0); }
     };
   }
   $app.addEventListener('click', function (e) {
