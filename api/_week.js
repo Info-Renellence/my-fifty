@@ -58,9 +58,10 @@ async function view(sql, me) {
   const s = await session(sql, me);
   if (!s) return null;
   const wk = weekOf();
+  // The focus: a goal key (set on Edge Home), or since 2026-10-27 the typed focus from the 1-on-1 (title = the line).
   const [goal] = await sql`
     select title from tasks where assignee_id = ${me.id} and source = 'one_on_one' and deleted_at is null
-       and title = any(${Object.keys(GOALS)}) and due_at >= ${wk.start} and due_at < ${wk.end}
+       and (title = any(${Object.keys(GOALS)}) or one_on_one_id is not null) and due_at >= ${wk.start} and due_at < ${wk.end}
      order by created_at desc limit 1`;
   const picks = await sql`
     select ap.id, ap.contact_id, ap.final_pick::text as pick, ap.purpose, ap.missed_at, ap.visit_interaction_id,
@@ -91,7 +92,8 @@ async function view(sql, me) {
   const g = goal ? GOALS[goal.title] : null;
   return {
     id: s.id, confirmed: !!s.week_confirmed_at,
-    focus: g ? { key: goal.title, name: g.name, line: focusLine(goal.title, s.focus_action_target_count), target: s.focus_action_target_count || null } : null,
+    focus: g ? { key: goal.title, name: g.name, line: focusLine(goal.title, s.focus_action_target_count), target: s.focus_action_target_count || null }
+      : goal ? { key: 'custom', name: 'This week’s focus', line: goal.title, target: null } : null,
     counts: countLine(visits.length, calls.length), visits, calls,
   };
 }

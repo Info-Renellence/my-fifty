@@ -238,3 +238,21 @@ change: `ingest_events` already has UNIQUE (`source`, `external_id`).
 Code: `renellence-edge/supabase/functions/_shared/guard.ts` + `ingest.ts` (signatures, once-only, not deployed),
 `renellence-ops/ops/ingest/replay.js`, `renellence-ops/ops/health/daily-report.js`, n8n side
 `renellence-ops/ops/n8n/health-email-proposal.md`. When applied, add `ingest_rejections` to the SOP (System section).
+
+## 19. One attendees table for events and expenses (`renellence-edge/db/v2-013-attendees.sql`), 2026-10-27, approved by Yousef
+
+Edge's Expenses page asks who was at a meal (Lunch, Dinner, Snacks/Beverages; never Parking): customers picked from the
+book, or a name typed in with a role. The owner chose one table for event and expense attendees ("option 1") over a
+separate `expense_attendees`. **Status: applied to v1 2026-10-27; v2 waiting** (the apply was blocked by a permission
+check in the session; run `node renellence-ops/ops/attendees/apply-v2-013.js v2` after `backup-v2.js`, then push the
+held Edge and Compass commits that read the new name).
+
+| # | Change | Why |
+|---|---|---|
+| 76 | `event_attendees` renamed `attendees`; list type `event_attendees_status` → `attendees_status`; its constraints and index renamed to match | One table for everyone who was at an event or a meal |
+| 77 | New columns `expense_id` (→ expenses), `first_name`, `last_name`, `role` (contacts_role) | Expense attendees: a linked customer or a typed name with a role |
+| 78 | Checks `attendees_one_parent` (exactly one of event_id / expense_id) and `attendees_person` (a contact or a typed first name); unique (expense_id, contact_id); index on expense_id | The SOP's "one nullable link per parent + exactly one filled" rule |
+| 79 | Policies: the three event policies now cover event rows only; new `by_expense` (all commands) follows the expense's owner, or an admin | Expense rows have no contact to check for typed names |
+
+Code: Edge `api/_edge/reads.js` / `writes.js` (expense_submit saves attendees; the list shows "3 people"), `web/src/pages/Expenses.jsx`;
+Compass `api/_compass/reads.js` / `rules.js` (event rows only). Pulse doesn't read the table. Test: `renellence-edge/test/run/db-attendees.test.js`.
