@@ -266,3 +266,18 @@ Yousef chose "Change to 5" when asked before the UI rebuild. **Status: applied t
 | 80 | `settings` key `my_fifty`: `daily_goal` 8 → 5 (the other values unchanged) | The streak and the day ring now count 5 reached calls and in-person visits |
 
 Note: Edge and Compass read the same setting (shared `_book.js` settings), so their day goal shows 5 too.
+
+## 21. Backfill Oct 22 → Oct 27 (data only), 2026-10-27, approved by Yousef
+
+The owner asked to bring v2 up to date with everything that happened in HubSpot, SignatureAPI, Quo and Edge since the
+Oct 22 export (11:36 Toronto), **without wiping**. Fresh read-only pulls into `renellence-ops/data/backfill-2026-10-27/`,
+the same scope, cleaning and build as Oct 22 (fixed ids), then `migration-load/delta.js` (dry run first, backup first:
+`data/backups/2026-10-27T19-25-13-504Z`). **Status: committed to v2 2026-10-27.** No schema change.
+
+| # | Change | Why |
+|---|---|---|
+| 81 | Added: 20 contacts (17 new since Oct 22 + 3 left out then that now qualify by new activity), 11 clinics, 6 attendees, 11 orders, 31 order lines, 6 payments, 237 interactions, 44 AI summaries, 3 tasks, 19 agreements, 26 signers, 12 onboardings, 3 forecasts | Missing since the Oct 22 export |
+| 82 | Existing rows not edited in v2 since the load took the newer source values (e.g. 4 orders delivered, 5 onboardings completed, 9 tasks done); rows edited in v2 only had blank fields filled | Owner: "v2 wins, HubSpot fills gaps" |
+
+Rules: Oct 22 decisions stand (the 162 contacts left out then stay out); nothing deleted in v2 since came back (a row is
+added only if it was not in the Oct 22 load). Report: `backfill-2026-10-27/migration-load/delta-commit.log`.
