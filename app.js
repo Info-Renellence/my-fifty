@@ -862,7 +862,7 @@
 
   // ---- L13 Add a person -------------------------------------------------------------------------------------
   // Roles as the Edge redesign agreed them (v2 part B); the server writes whichever name v2 has (api/_lists.js).
-  var ROLES = [['physician', 'Physician'], ['injector', 'Injector'], ['dentist', 'Dentist'], ['manager', 'Manager'], ['other', 'Other']];
+  var ROLES = [['physician', 'Physician'], ['injector', 'Nurse'], ['dentist', 'Dentist'], ['manager', 'Manager'], ['other', 'Other']];
   function openAddPerson() {
     var st = { role: null, warm: true, busy: false };
     var IN = 'flex:1 1 auto;min-width:0;height:50px;border:0;background:transparent;padding:0 14px;font-size:17px;color:#062064;outline:none';
