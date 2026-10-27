@@ -357,6 +357,8 @@
     b = e.target.closest('[data-ttab]');
     if (b) { todayTab = b.getAttribute('data-ttab'); screenToday(); return; }
     if (e.target.closest('[data-tdone]')) { todayShowDone = !todayShowDone; screenToday(); return; }
+    // The My Fifty tile always opens People on the My Fifty tab (owner 2026-10-27), whatever tab was open last.
+    if (e.target.closest('.tile.blue')) { peopleView = 'fifty'; return; }
     b = e.target.closest('[data-tlog]');
     if (b) {
       var id = b.getAttribute('data-tlog'), kind = b.getAttribute('data-kind'), pick = b.getAttribute('data-pick');
@@ -1230,12 +1232,14 @@
     }, 'order');
   }
   // The product sheet (F9): size (Magic Needle, Mesbio), quantity, free, and for saypha the price each.
+  // saypha's price each (owner 2026-10-27): $135, $155, the product's list price ($225; $245 for volume plus), or Custom.
+  var TIERS = function (p) { return [135, 155, p.price].filter(function (v, i, a) { return a.indexOf(v) === i; }); };
   function productSheet(row) {
     var dft = draft, fam = row.family;
     var pickSku = fam ? (row.items.filter(function (p) { return (dft.qty[p.sku] || dft.free[p.sku]); })[0] || row.items[0]).sku : row.items[0].sku;
     var st = { sku: pickSku, op: null };
     function prod() { return row.items.filter(function (p) { return p.sku === st.sku; })[0]; }
-    function load() { var p = prod(); st.q = dft.qty[p.sku] || (fam || p.freeOnly ? 0 : 0); st.f = dft.free[p.sku] || 0; st.price = dft.price[p.sku] != null ? dft.price[p.sku] : p.price; st.had = !!(dft.qty[p.sku] || dft.free[p.sku]); st.custom = st.price !== p.price; if (!st.had && !p.freeOnly) st.q = 1; if (!st.had && p.freeOnly) st.f = 1; }
+    function load() { var p = prod(); st.q = dft.qty[p.sku] || (fam || p.freeOnly ? 0 : 0); st.f = dft.free[p.sku] || 0; st.price = dft.price[p.sku] != null ? dft.price[p.sku] : p.price; st.had = !!(dft.qty[p.sku] || dft.free[p.sku]); st.custom = TIERS(p).indexOf(st.price) < 0; if (!st.had && !p.freeOnly) st.q = 1; if (!st.had && p.freeOnly) st.f = 1; }
     load();
     function field(op, label, value) {
       return '<button type="button" class="pfield' + (st.op === op ? ' on' : '') + '" data-op="' + op + '" aria-expanded="' + (st.op === op) + '"><span class="pl">' + label + '</span><span class="pv num">' + esc(value) + '</span>'
@@ -1244,17 +1248,17 @@
     function opts() {
       var p = prod();
       if (st.op === 'size') return row.items.map(function (x) { return [x.sku, x.name + (row.key === 'mesbio' ? ' · ' + money2(x.price) : '')]; });
-      if (st.op === 'price') return [['list', money2(p.price)], ['custom', 'Custom']];
+      if (st.op === 'price') return TIERS(p).map(function (v) { return [String(v), money2(v)]; }).concat([['custom', 'Custom']]);
       var a = []; for (var i = 0; i <= 100; i++) a.push([String(i), String(i)]); return a;
     }
-    function cur() { return st.op === 'size' ? st.sku : st.op === 'price' ? (st.custom ? 'custom' : 'list') : String(st.op === 'q' ? st.q : st.f); }
+    function cur() { return st.op === 'size' ? st.sku : st.op === 'price' ? (st.custom ? 'custom' : String(st.price)) : String(st.op === 'q' ? st.q : st.f); }
     function draw() {
       var p = prod(), say = p.cat === 'saypha', unit = p.freeOnly ? 0 : st.price, total = (st.q || 0) * unit;
       var h = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(row.name) + '"><span class="grab"></span>'
         + '<div class="sheet-head" style="align-items:center"><span class="display" style="font-size:24px;font-weight:800;letter-spacing:-0.6px">' + esc(row.name) + '</span><button type="button" data-close class="pillbtn">Cancel</button></div>';
       if (fam) h += field('size', 'Size', p.name);
       h += '<div style="display:grid;grid-template-columns:' + (p.freeOnly ? '1fr' : '1fr 1fr') + ';gap:10px">' + (p.freeOnly ? '' : field('q', 'Quantity', String(st.q))) + field('f', 'Free', String(st.f)) + '</div>';
-      if (say) h += field('price', 'Price each', st.custom ? 'Custom' : money2(p.price));
+      if (say) h += field('price', 'Price each', st.custom ? 'Custom' : money2(st.price));
       if (say && st.custom) h += '<label class="pfield on" style="display:flex;align-items:center"><span class="pl">Custom price each</span><span style="padding:18px 0 0 0;font-size:17px;font-weight:600">$</span>'
         + '<input type="text" inputmode="decimal" data-custom value="' + (st.price ? String(st.price) : '') + '" placeholder="0" aria-label="Custom price each" class="num" style="flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font-size:17px;font-weight:600;padding:18px 0 0 2px;outline:none"></label>';
       if (!say && !p.freeOnly) h += '<span style="font-size:14px;color:var(--muted);padding:0 2px">' + money2(p.price) + ' each</span>';
@@ -1290,7 +1294,7 @@
       if ((b = e.target.closest('[data-opt]'))) {
         var v = b.getAttribute('data-opt');
         if (st.op === 'size') { st.sku = v; load(); }
-        else if (st.op === 'price') { st.custom = v === 'custom'; if (!st.custom) st.price = prod().price; }
+        else if (st.op === 'price') { st.custom = v === 'custom'; if (!st.custom) st.price = +v; }
         else if (st.op === 'q') st.q = +v; else st.f = +v;
         st.op = null; draw();
         if (st.custom) { var ci = $sheet.querySelector('[data-custom]'); if (ci) ci.focus(); }
