@@ -101,6 +101,11 @@ describe('ordering pieces', () => {
     assert.deepEqual([s.paid, s.free, s.total, s.samples, s.line, s.sub], [3, 4, 635, false, '3 items · $635', '+ 4 free']);
     assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 1 } })).sub, 'Paid order');
   });
+  test('draftSummary keeps cents on a custom price (run 4): $147.50 is not shown as $148', () => {
+    const s = L.draftSummary(products, draft({ qty: { SAF100: 1 }, price: { SAF100: 147.5 } }));
+    assert.equal(s.line, '1 item · $147.50');
+    assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 2 }, price: { SAF100: 135 } })).line, '2 items · $270');
+  });
   test('draftSummary: only free units is a sample order', () => {
     const s = L.draftSummary(products, draft({ free: { SAF100: 2 } }));
     assert.deepEqual([s.samples, s.line, s.sub], [true, '2 free samples', 'MD signs after approval']);

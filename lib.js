@@ -35,6 +35,8 @@
 
   // 'Dr. Maya Sample' -> 'MS'
   function initials(name) { return String(name || '').replace(/^Dr\.?\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map(function (w) { return w[0].toUpperCase(); }).join(''); }
+  // A total that keeps its cents when it has some (a custom price of $147.50 reads $147.50, not $148).
+  function moneyExact(n) { var v = Math.round((Number(n) || 0) * 100) / 100; return '$' + v.toLocaleString('en-CA', { minimumFractionDigits: v % 1 ? 2 : 0, maximumFractionDigits: 2 }); }
   function money(n) { return '$' + Math.round(Number(n) || 0).toLocaleString('en-CA'); }
 
   // A progress ring's stroke-dasharray for done of goal on a circle of radius r ('' when nothing is done).
@@ -88,7 +90,7 @@
     });
     var samples = paid === 0 && free > 0;
     return { paid: paid, free: free, total: Math.round(total * 100) / 100, samples: samples, empty: paid + free === 0,
-      line: samples ? free + ' free sample' + (free === 1 ? '' : 's') : paid + (paid === 1 ? ' item' : ' items') + ' · ' + money(total),
+      line: samples ? free + ' free sample' + (free === 1 ? '' : 's') : paid + (paid === 1 ? ' item' : ' items') + ' · ' + moneyExact(total),
       sub: samples ? 'MD signs after approval' : free ? '+ ' + free + ' free' : 'Paid order' };
   }
   // L10 Billing row: the same as shipping when there is no billing street or it matches.
@@ -109,7 +111,7 @@
 
   var L = { MONTHS: MONTHS, LONG_DAYS: LONG_DAYS, LONG_MONTHS: LONG_MONTHS, esc: esc, nb: nb, ymd: ymd, addDays: addDays, shortDate: shortDate, longDate: longDate,
     ERR: ERR, errText: errText, initials: initials, money: money, ringDash: ringDash, fiftyTile: fiftyTile, dayLeftText: dayLeftText, winLine: winLine,
-    candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, draftSummary: draftSummary,
+    candidatePill: candidatePill, priceOf: priceOf, parsePrice: parsePrice, moneyExact: moneyExact, draftSummary: draftSummary,
     QTY_LIST_MAX: QTY_LIST_MAX, QTY_MAX: QTY_MAX, qtyOptions: qtyOptions, parseQty: parseQty,
     billingSame: billingSame, stripNext: stripNext, longText: longText, b64ToBytes: b64ToBytes };
   if (typeof module !== 'undefined' && module.exports) module.exports = L;
