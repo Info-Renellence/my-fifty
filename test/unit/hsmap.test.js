@@ -51,6 +51,10 @@ test('an Internal Sales Form order: status, rep from the note, lines without tax
   assert.equal(w.order.payment_method, 'wire');
   assert.equal(w.order.payment_terms_days, 30);
   assert.equal(w.payments[0].status, 'pending');
+  // the sales form stamps a wire order Paid when invoiced: still not paid in v2 (owner 2026-10-21)
+  const wp = M.orderRows('903', { hs_pipeline_stage: '937ea84d', hs_payment_status: 'Paid', hs_total_price: '900', hs_order_note: 'Rep: Emily Grace | WIRE TRANSFER' }, [], 'C1');
+  assert.equal(wp.order.status, 'invoiced');
+  assert.equal(wp.payments[0].status, 'pending');
   const sample = M.orderRows('902', { hs_pipeline_stage: '937ea84d', hs_total_price: '0', hs_payment_status: 'Paid' }, [{ id: 'L3', properties: { hs_sku: 'SAL400', quantity: '2', price: '0' } }], 'C1');
   assert.equal(sample.payments.length, 0);
   assert.equal(sample.lines[0].is_free, true);

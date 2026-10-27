@@ -122,8 +122,11 @@ function orderRows(hsId, p, lineItems, contactId) {
   const pay = p.hs_payment_status;
   const cancelled = stage === 'cancelled' || p.hs_is_canceled === 'true';
   const submitted = iso(p.hs_external_created_date) || iso(p.hs_createdate);
+  // A wire order is never "paid" from HubSpot (the sales form stamps wire orders Paid when invoiced): it counts as
+  // ordered, and is paid only when an admin marks the money received in v2 (owner 2026-10-21).
+  const paidHere = pay === 'Paid' && !wire;
   const status = cancelled ? 'cancelled' : stage === 'delivered' ? 'delivered' : stage === 'shipped' ? 'shipped'
-    : stage === 'processed' ? (pay === 'Paid' ? 'paid' : 'invoiced') : 'submitted';
+    : stage === 'processed' ? (paidHere ? 'paid' : 'invoiced') : 'submitted';
   const id = uid('order:' + hsId);
   const total = num(p.hs_total_price);
   const isShopify = p.hs_object_source_detail_1 === 'Shopify';
@@ -146,8 +149,8 @@ function orderRows(hsId, p, lineItems, contactId) {
   }
   const payments = [];
   const paidAt = iso(p.hs_processed_date) || submitted;
-  if (pay === 'Paid' && total > 0) payments.push({ id: uid('pay:' + hsId), order_id: id, kind: 'charge', method: wire ? 'wire' : 'card_on_file', amount: total, currency: 'CAD', status: 'succeeded', provider: wire ? 'wire' : null, paid_at: paidAt, is_test: false });
-  else if (pay === 'Payment Pending' && total > 0) payments.push({ id: uid('pay:' + hsId), order_id: id, kind: 'charge', method: 'wire', amount: total, currency: 'CAD', status: 'pending', provider: 'wire', paid_at: null, is_test: false });
+  if (paidHere && total > 0) payments.push({ id: uid('pay:' + hsId), order_id: id, kind: 'charge', method: 'card_on_file', amount: total, currency: 'CAD', status: 'succeeded', provider: null, paid_at: paidAt, is_test: false });
+  else if ((pay === 'Payment Pending' || (wire && pay === 'Paid')) && total > 0) payments.push({ id: uid('pay:' + hsId), order_id: id, kind: 'charge', method: 'wire', amount: total, currency: 'CAD', status: 'pending', provider: 'wire', paid_at: null, is_test: false });
   if (payments.some((x) => x.status === 'pending')) { order.payment_method = 'wire'; order.payment_terms_days = order.payment_terms_days || 30; }
   return { order, lines, payments };
 }

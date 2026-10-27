@@ -162,8 +162,32 @@ async function syncOrder(tx, hsId) {
   const lis = await H.lineItems(H.assocIds(rec, 'line_items'));
   const { order, lines, payments } = M.orderRows(hsId, rec.properties || {}, lis, contactId);
   for (const k of Object.keys(order)) if (order[k] == null) delete order[k];
+  // A Pulse order sent to the Internal Sales Form (api/_isf.js) comes back here as a HubSpot order: link it to the Pulse
+  // order (same customer, same paid items, placed in Pulse in the last week, not linked yet) instead of adding a second.
+  // HubSpot holds only the paid lines of a paid order (free extras stay on the Pulse order), and every line of samples.
+  let pulseOrder = null;
+  if (!(await idOf(tx, 'orders', hsId))) {
+    const want = lines.filter((l) => !l.is_free || lines.every((x) => x.is_free)).map((l) => l.product_sku + ':' + l.quantity).sort().join(',');
+    const cands = await tx`
+      select o.id, (select string_agg(l.product_sku || ':' || l.quantity, ',' order by l.product_sku || ':' || l.quantity) from order_lines l
+                     where l.order_id = o.id and (not l.is_free or not exists (select 1 from order_lines x where x.order_id = o.id and not x.is_free))) as sig
+        from orders o where o.contact_id = ${contactId} and o.legacy_id is null and o.placed_by_id is not null and o.deleted_at is null
+         and o.created_at > now() - interval '7 days' order by o.created_at desc`;
+    const hit = cands.find((x) => x.sig === want);
+    if (hit) { pulseOrder = hit.id; await tx`update orders set legacy_id = ${String(hsId)} where id = ${hit.id}`; }
+  }
   const r = await upsert(tx, 'orders', order, ORDER_OWNED);
   const orderId = r.id;
+  if (pulseOrder) {
+    // its lines are already there; its payment: a pending wire stays until marked received, a card charge is added once
+    for (const pm of payments) {
+      const [cur] = await tx`select id, status from payments where order_id = ${orderId} and kind = 'charge' order by created_at limit 1`;
+      if (!cur) await tx.unsafe(`insert into public.payments (${Object.keys(pm).map((k) => `"${k}"`).join(', ')}) select ${Object.keys(pm).map((k) => `"${k}"`).join(', ')}
+                                 from json_populate_record(null::public.payments, $1::text::json) on conflict do nothing`, [JSON.stringify(Object.assign({}, pm, { order_id: orderId }))]);
+      else if (cur.status === 'pending' && pm.status === 'succeeded' && pm.method !== 'wire') await tx`update payments set status = 'succeeded', paid_at = ${pm.paid_at} where id = ${cur.id}`;
+    }
+    return { table: 'orders', id: orderId, linked: 'pulse' };
+  }
   const prod = Object.fromEntries((await tx`select id, sku, list_price from products where sku = any(${lines.map((l) => l.product_sku)})`).map((p) => [p.sku, p]));
   for (const l of lines) {
     const p = prod[l.product_sku];
