@@ -41,8 +41,8 @@ async function intake(sql, b) {
   const external = crypto.createHash('sha256').update([b.wf, b.node, hs.method, hs.url, typeof hs.body === 'string' ? hs.body : JSON.stringify(hs.body || null),
     resp && resp.id ? resp.id : JSON.stringify(resp || null)].join('|')).digest('hex');
   const [ev] = await sql`
-    insert into ingest_events (source, external_id, payload, received_via, status, attempts)
-    values ('n8n', ${external}, ${sql.json({ wf: b.wf || '', node: b.node || '', hs: Object.assign({}, hs, { response: resp }) })}, 'n8n', 'pending', 0)
+    insert into ingest_events (source, external_id, payload, received_via, status, attempts, received_at)
+    values ('n8n', ${external}, ${sql.json({ wf: b.wf || '', node: b.node || '', hs: Object.assign({}, hs, { response: resp }) })}, 'n8n', 'pending', 0, now())
     on conflict (source, external_id) do nothing returning id`;
   if (!ev) return { ok: true, duplicate: true };
   try {

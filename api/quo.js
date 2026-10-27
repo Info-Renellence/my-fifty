@@ -49,8 +49,8 @@ module.exports = route(async (req, res) => {
 
 async function handle(sql, ev) {
   if (!ev || !ev.id || !ev.type) return { ok: true, ignored: 'not_an_event' };
-  const [row] = await sql`insert into ingest_events (source, external_id, payload, received_via, status, attempts)
-                          values ('quo', ${s(ev.id)}, ${sql.json(ev)}, 'webhook', 'pending', 0) on conflict (source, external_id) do nothing returning id`;
+  const [row] = await sql`insert into ingest_events (source, external_id, payload, received_via, status, attempts, received_at)
+                          values ('quo', ${s(ev.id)}, ${sql.json(ev)}, 'webhook', 'pending', 0, now()) on conflict (source, external_id) do nothing returning id`;
   if (!row) return { ok: true, duplicate: true };
   try {
     const r = await apply(sql, ev);
