@@ -22,14 +22,14 @@ const push = require('./_push');
 function isfKey(req) {
   const want = String(process.env.PULSE_ISF_KEY || '').trim();
   const got = String(req.headers['x-edge-isf'] || '');
-  if (!want || got.length !== want.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 function authorised(req) {
   const want = process.env.CRON_SECRET || '';
   const got = String(req.headers['x-cron-key'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || '');
-  if (!want || got.length !== want.length) return false;
-  return crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 module.exports = route(async (req, res) => {

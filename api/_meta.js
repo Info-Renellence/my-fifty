@@ -41,11 +41,15 @@ async function sync(sql) {
   let latest = since;
   for (const l of (feed && feed.leads) || []) {
     out.seen++;
-    const r = await sql.begin(async (tx) => {
-      await tx`select set_config('app.source', 'meta', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
-      return one(tx, l);
-    });
-    out[r]++;
+    // One lead the database refuses (a bad date, a NUL character) must not block the leads after it every tick: it is counted and skipped.
+    let r;
+    try {
+      r = await sql.begin(async (tx) => {
+        await tx`select set_config('app.source', 'meta', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
+        return one(tx, l);
+      });
+    } catch (e) { console.error('META lead', s(l.id), e.message); r = 'skipped'; }
+    out[r] = (out[r] || 0) + 1;
     if (l.ts > latest) latest = l.ts;
   }
   await sql`insert into settings (key, value) values ('meta_sync', ${sql.json({ sinceMs: latest + 1 })}) on conflict (key) do update set value = excluded.value`;
@@ -75,7 +79,7 @@ async function one(tx, l) {
   await tx`insert into contacts (owner_id, first_name, last_name, email, mobile_phone, lead_source, meta_lead_id,
              shipping_city, shipping_postal_code, shipping_province, billing_city, billing_postal_code, billing_province, created_at)
            values (${ownerOf(l.rep)}, ${named ? parts[0] : null}, ${named ? parts.slice(1).join(' ') || null : null}, ${email}, ${phone}, 'social', ${id},
-             ${s(l.city) || null}, ${postal(l.postal)}, ${prov}, ${s(l.city) || null}, ${postal(l.postal)}, ${prov}, ${l.at ? new Date(l.at) : new Date()})`;
+             ${s(l.city) || null}, ${postal(l.postal)}, ${prov}, ${s(l.city) || null}, ${postal(l.postal)}, ${prov}, ${l.at && !isNaN(new Date(l.at)) ? new Date(l.at) : new Date()})`;
   return 'added';
 }
 

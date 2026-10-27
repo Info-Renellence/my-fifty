@@ -19,9 +19,11 @@ const AUTOMATED_LINE = 'PNMnOzgxCz';   // +1 647 584 0040, n8n's customer texts
 const s = (v) => (v == null ? '' : String(v));
 const digits10 = (p) => { const d = s(p).replace(/\D/g, ''); return d.length >= 10 ? d.slice(-10) : ''; };
 
+// Equal as bytes (a key with a multi-byte character is just a wrong key, never an error).
+function same(a, b) { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); }
 function keyOk(req) {
   const want = s(process.env.N8N_INTAKE_SECRET), got = s(new URL(req.url, 'http://x').searchParams.get('key'));
-  return !!want && got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+  return !!want && same(got, want);
 }
 // Quo's signature: 'hmac;1;<timestamp>;<base64 HMAC-SHA256 of "<timestamp>.<raw body>" with the base64 signing key>'.
 function signatureOk(header, raw, now = Date.now()) {
@@ -35,7 +37,7 @@ function signatureOk(header, raw, now = Date.now()) {
   if (Math.abs(now - at) > 10 * 60 * 1000) return false;
   const want = crypto.createHmac('sha256', Buffer.from(secret, 'base64')).update(parts[2] + '.' + raw).digest('base64');
   const got = parts.slice(3).join(';').trim();
-  return got.length === want.length && crypto.timingSafeEqual(Buffer.from(got), Buffer.from(want));
+  return same(got, want);
 }
 
 module.exports = route(async (req, res) => {
