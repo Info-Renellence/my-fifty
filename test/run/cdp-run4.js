@@ -154,6 +154,50 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await click('#sheet [data-close]', 1); note('NEW5 cancel closed: ' + !(await sheetTxt()).trim());
       await click('[data-me]'); await click('#sheet [data-signout]'); await wait(1000); note('NEW5 after signout path ' + await path_() + ' text ' + oneLine((await txt()).slice(0, 80))); await shot('n5-signedout');
     }
+    else if (SCEN === 'custom0') {
+      const all = await api('op=search&q=');
+      const faye = all.people.find((p) => p.name.indexOf('Faye') >= 0).id;
+      await go('/order/' + faye); await click('[data-prow="SAF100"]'); await click('#sheet [data-op="price"]'); await click('#sheet [data-opt="custom"]');
+      await type('#sheet [data-custom]', ''); await click('#sheet [data-psave]'); note('CUSTOM0 toast: ' + await toast() + ' | sheet still open: ' + !!(await sheetTxt()).trim());
+      await type('#sheet [data-custom]', '147.50'); await click('#sheet [data-psave]'); note('CUSTOM0 bar: ' + oneLine(await evaluate("(document.querySelector('.orderbar')||{}).innerText")));
+    }
+    else if (SCEN === 'flow4') {
+      const all = await api('op=search&q=');
+      const find = (first) => (all.people.find((p) => p.name.indexOf(first) >= 0) || {}).id;
+      const today = () => api('op=today').then((d) => d.day.done + '/' + d.day.goal);
+      note('FLOW4 start count ' + await today());
+      // log a visit, reached, with a typed note and a Next: line
+      await go('/person/' + find('Wren')); await shot('f4-card');
+      await click('[data-log][data-kind="visit"]'); await shot('f4-log-open');
+      await click('#sheet [data-ans="yes"]'); await click('#sheet [data-notebox]'); await type('#sheet [data-note]', 'Run 4 probe visit.\nNext: send pricing');
+      await shot('f4-log-typed'); await click('#sheet [data-save]'); await wait(1500);
+      note('FLOW4 after visit: toast=' + await toast() + ' | count ' + await today() + ' | path ' + await path_()); await shot('f4-logged');
+      note('FLOW4 undo button present: ' + await evaluate("!!document.querySelector('[data-undo]')"));
+      if (await evaluate("!!document.querySelector('[data-undo]')")) { await click('[data-undo]'); await wait(1200); note('FLOW4 undo toast=' + await toast() + ' | count ' + await today()); }
+      // a text and a not-reached call
+      await go('/person/' + find('Wren')); await click('[data-log][data-kind="text"]'); note('FLOW4 text sheet: ' + oneLine((await sheetTxt()).slice(0, 100)));
+      await click('#sheet [data-ans="yes"]'); await click('#sheet [data-notebox]'); await type('#sheet [data-note]', 'Texted about the lips launch.'); await click('#sheet [data-save]'); await wait(1500);
+      note('FLOW4 after text: count ' + await today() + ' toast=' + await toast());
+      // an empty / one-character note must not save
+      await go('/person/' + find('Wren')); await click('[data-log][data-kind="visit"]'); await click('#sheet [data-ans="no"]'); await click('#sheet [data-notebox]'); await type('#sheet [data-note]', 'x');
+      await click('#sheet [data-save]'); note('FLOW4 one-char note: sheet still open ' + !!(await sheetTxt()).trim());
+      await click('#sheet [data-close]', 0);
+      // history
+      await go('/person/' + find('Wren') + '/history'); await shot('f4-history', true);
+      // Order for a card-on-file person, wire person, and a sample order
+      await go('/order/' + find('Faye')); await click('[data-prow="SAF100"]'); await click('#sheet [data-psave]'); await click('a[href$="/review"]'); await wait(800);
+      await click('[data-send-order]'); await wait(2500); note('FLOW4 order sent: toast=' + await toast() + ' | path ' + await path_()); await shot('f4-order-sent');
+      const oid = (await path_()); await click('a[href^="/orders/"]'); await wait(1200); note('FLOW4 status path ' + await path_()); await shot('f4-order-status', true);
+      note('FLOW4 order screen: ' + oneLine((await txt()).slice(0, 400)));
+    }
+    else if (SCEN === 'me') {
+      await wait(800); note('ME initials: ' + await evaluate("(document.querySelector('[data-me]')||{}).innerText") + ' aria: ' + await evaluate("(document.querySelector('[data-me]')||{}).getAttribute('aria-label')"));
+      await click('[data-me]'); note('ME sheet: ' + oneLine(await sheetTxt())); await shot('me-sheet');
+      await click('#sheet [data-close]', 1); note('ME cancel closes: ' + !(await sheetTxt()).trim());
+      await click('[data-me]'); await click('.dim[data-close]'); note('ME dim tap closes: ' + !(await sheetTxt()).trim());
+      await click('[data-me]'); await evaluate("(function(){ var b=document.querySelector('#sheet [data-signout]'); b.click(); b.click(); })()"); await wait(1200);
+      note('ME after double sign out: ' + oneLine((await txt()).slice(0, 60)) + ' errors above? none expected');
+    }
   } catch (e) { note('SCRIPT ERROR ' + e.message); }
   note('blocked outside requests: ' + blocked.length + ' (' + [...new Set(blocked.map((u) => new URL(u).host))].join(', ') + ')');
   fs.writeFileSync(path.join(OUT, SCEN + '-log.txt'), log.join('\n') + '\n');
