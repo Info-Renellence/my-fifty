@@ -266,7 +266,7 @@ describe('cron', () => {
       const mine = wp.sent.filter((s) => s.payload.url === '/person/' + fresh);
       assert.equal(mine.length, 1);
       assert.equal(mine[0].payload.title, 'New Meta lead: Nadia Unit');
-      assert.equal(mine[0].payload.body, "Reach out within 24 hours. It's at the top of your Today.");
+      assert.equal(mine[0].payload.body, 'Reach out today');
       assert.ok(r.found >= 1);
       wp.sent.length = 0;
       await cron._.newLeads(sql);
@@ -291,8 +291,8 @@ describe('cron', () => {
       const r = await cron._.morning(sql);
       assert.deepEqual(r, { users: 1, sent: 1 });
       assert.equal(wp.sent[0].payload.title, 'Good morning');
-      assert.match(wp.sent[0].payload.body, /^\d+ on today's list\./);
-      assert.match(wp.sent[0].payload.body, /1 is a visit\./);
+      assert.match(wp.sent[0].payload.body, /^\d+ on today's list/);
+      assert.match(wp.sent[0].payload.body, /· 1 visit$/);
       assert.deepEqual(await cron._.morning(sql), { users: 0, sent: 0 });
     } finally { wp.restore(); }
   }));

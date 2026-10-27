@@ -255,3 +255,14 @@ pushed right after; check.js: only the 4 known fix-staff-rls policies differ).
 
 Code: Edge `api/_edge/reads.js` / `writes.js` (expense_submit saves attendees; the list shows "3 people"), `web/src/pages/Expenses.jsx`;
 Compass `api/_compass/reads.js` / `rules.js` (event rows only). Pulse doesn't read the table. Test: `renellence-edge/test/run/db-attendees.test.js`.
+
+## 20. Daily goal 8 → 5 (settings data only), 2026-10-27, approved by Yousef
+
+The new Pulse design (Edge – Final Mockup (2), F2) counts 5 touchpoints a day for the streak ("3/5", "Streak saved" at 5).
+Yousef chose "Change to 5" when asked before the UI rebuild. **Status: applied to v2 2026-10-27.** No schema change.
+
+| # | Change | Why |
+|---|---|---|
+| 80 | `settings` key `my_fifty`: `daily_goal` 8 → 5 (the other values unchanged) | The streak and the day ring now count 5 reached calls and in-person visits |
+
+Note: Edge and Compass read the same setting (shared `_book.js` settings), so their day goal shows 5 too.

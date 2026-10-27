@@ -50,7 +50,7 @@ async function newLeads(sql) {
     const name = [l.first_name, l.last_name].filter(Boolean).join(' ') || 'someone new';
     const r = await push.notify(sql, l.owner_id, { kind: 'new_lead', contactId: l.id, dedupeKey: 'new_lead:' + l.id,
       title: 'New Meta lead: ' + name,
-      body: "Reach out within 24 hours. It's at the top of your Today.", url: '/person/' + l.id });
+      body: 'Reach out today', url: '/person/' + l.id });
     sent += r.sent || 0;
   }
   return { found: leads.length, sent };
@@ -76,7 +76,7 @@ async function morning(sql) {
     if (!list.length && !day.streak) continue;   // nothing worth a notification
     const visits = list.filter((x) => x.action === 'visit').length;
     const title = morningTitle(day.streak);
-    const body = list.length + ' on today\'s list.' + (visits ? ' ' + visits + (visits === 1 ? ' is a visit.' : ' are visits.') : '');
+    const body = list.length + ' on today\'s list' + (visits ? ' · ' + visits + (visits === 1 ? ' visit' : ' visits') : '');   // F1 wording (Pulse UI 2026-10-27)
     const r = await push.notify(sql, u.id, { kind: 'morning_summary', dedupeKey: 'morning:' + u.id + ':' + today, title, body, url: '/' });
     sent += r.sent || 0;
   }

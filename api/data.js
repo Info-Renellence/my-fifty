@@ -75,7 +75,23 @@ const OPS = {
     const weekOn = await require('./_flags').on(sql, 'week_view');
     const [parked, week] = await Promise.all([B.parkedUntil(sql, people.map((p) => p.id)), weekOn ? require('./_week').view(sql, me) : null]);
     const list = B.todayList(people, me, cfg, parked);
-    return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list, week };
+    // Role for the avatars, and the stage (Pulse UI 2026-10-27). Kept here, not in the shared _book.js.
+    const roleOf = Object.fromEntries(people.map((p) => [p.id, p]));
+    list.forEach((x) => { if (roleOf[x.id]) { x.role = roleOf[x.id].role; x.stage = roleOf[x.id].stage; } });
+    day.week = await weekStrip(sql, me, cfg);
+    // Logged today (the "done" fold under the list, Pulse UI 2026-10-27): the rep's latest reached call, visit or text per person.
+    const byId = Object.fromEntries(people.map((p) => [p.id, p]));
+    const doneRows = await sql`
+      select distinct on (i.contact_id) i.contact_id, i.kind::text as kind, i.mode::text as mode, i.occurred_at
+        from interactions i
+       where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
+         and not ${B.INBOUND(sql)} and ${B.REACHED(sql)} and i.kind in ('call', 'meeting', 'text')
+         and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date
+       order by i.contact_id, i.occurred_at desc`;
+    const done = doneRows.filter((r) => byId[r.contact_id]).sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
+      .map((r) => ({ id: r.contact_id, name: byId[r.contact_id].name, role: byId[r.contact_id].role,
+        kind: B.kindOf(r) === 'meeting' ? 'visit' : B.kindOf(r), at: r.occurred_at }));
+    return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list, done, week };
   },
 
   async people(sql, me) {
@@ -91,14 +107,18 @@ const OPS = {
       const g = leads.filter((p) => p.leadGroup === k);   // someone who left the Fifty is a warm lead
       return { key: k, label: LEAD_GROUPS[k] === 'Events and training' ? 'Event and training leads' : k === 'social' ? 'Social media leads' : LEAD_GROUPS[k], count: g.length, fresh: g.filter((p) => p.isNew).length };
     });
-    const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub });
+    const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub, role: p.role, initials: initials(p.name) });
+    // New this week (the Leads tab's story strip, Pulse UI 2026-10-27): leads added in the last 7 days, newest first.
+    const weekAgo = Date.now() - 7 * 86400000;
+    const newWeek = leads.filter((p) => new Date(p.createdAt) > weekAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .map((p) => ({ id: p.id, first: p.first || p.name.split(' ')[0], role: p.role, group: p.leadGroup }));
     return {
       fifty: { count: fifty.length, goal: cfg.fifty_goal, warmCount: warm.length, coldCount: cold.length, open: Math.max(0, cfg.fifty_goal - fifty.length),
         warm: warm.map((p) => row(p, (p.clinic ? p.clinic + ' · ' : '') + p.lastActiveKind + ' ' + T.short(p.lastActiveAt))),
         cold: cold.map((p) => row(p, (p.clinic ? p.clinic + ' · ' : '') + p.coldDays + ' days')) },
       candidates: cands.map((p) => Object.assign(row(p, p.clinic), { initials: initials(p.name), days: p.sampleDays,
         ring: p.sampleDays == null ? 0 : Math.min(1, p.sampleDays / 30) })),
-      leads: groups,
+      leads: groups, newWeek,
       all: people.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage })),
     };
   },
@@ -109,8 +129,14 @@ const OPS = {
     const { people } = await B.book(sql, me, scope(me));
     const leads = people.filter((p) => p.stage === 'lead' && p.leadGroup === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const added = group === 'cold' || group === 'warm' ? await addedBy(sql, leads.map((p) => p.id), me) : {};
+    // Onboarded: when they signed (the onboarding agreement completed).
+    const signed = group === 'onboarded' && leads.length ? Object.fromEntries((await sql`
+      select ob.primary_contact_id as id, max(coalesce(ob.completed_at, a.completed_at)) as at from onboardings ob join agreements a on a.id = ob.agreement_id
+       where ob.primary_contact_id = any(${leads.map((p) => p.id)}) group by 1`).map((r) => [r.id, r.at])) : {};
+    const weekAgo = Date.now() - 7 * 86400000;
     return { group, title: LEAD_GROUPS[group], leads: leads.map((p) => ({
-      id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt),
+      id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt), role: p.role, phone: !!p.phone,
+      lastKind: p.lastTouchKind || '', signed: signed[p.id] ? T.short(signed[p.id]) : '', newThisWeek: new Date(signed[p.id] || p.createdAt) > weekAgo,
       sub: [p.clinic, sourceText(p, added[p.id])].filter(Boolean).join(' · '),
       last: p.lastTouchKind ? (TOUCH_WORD[p.lastTouchKind] || 'Touched') + ' ' + T.short(p.lastTouchAt) : '',
     })) };
@@ -120,7 +146,19 @@ const OPS = {
     const p = await one(sql, me, q.get('id'));
     const status = await statusRow(sql, p);
     const last = await lastHistoryLine(sql, p);
+    // The card's three numbers (Pulse UI 2026-10-27): My Fifty = total bought, last order, days since contact;
+    // candidate = samples sent, days since samples, days since contact; lead = where they came from, since added, contacts.
+    const since = (at) => (at ? T.daysBetween(at, Date.now()) + (T.daysBetween(at, Date.now()) === 1 ? ' day' : ' days') : 'None');
+    const lastContact = [p.lastTouchAt, p.lastOrderAt].filter(Boolean).reduce((a, x) => (!a || x > a ? x : a), null);
+    const SOURCE = { social: 'Social', event: 'Event', warm: 'Warm', cold: 'Cold', onboarded: 'Onboarding' };
+    const sampleLines = p.sampleOrder ? (p.sampleOrder.summary || []).map((l) => ({ name: shortProduct(l.name), qty: l.qty, sku: l.sku })) : [];
+    const stats = p.stage === 'fifty'
+      ? [[money(p.totalBought), 'Total bought'], [p.lastPaid ? money(p.lastPaid.total) : '$0', p.lastPaid ? T.short(B.paidAt(p.lastPaid)) + ' order' : 'Last order'], [since(lastContact), 'Since contact']]
+      : p.stage === 'candidate'
+        ? [[String(sampleLines.reduce((a, l) => a + (Number(l.qty) || 0), 0)), 'Samples sent'], [p.sampleDays == null ? 'On the way' : since(p.samplesAt), 'Since samples'], [since(lastContact), 'Since contact']]
+        : [[p.sourceKind === 'event' && p.eventName ? p.eventName : SOURCE[p.leadGroup] || SOURCE[p.sourceKind] || 'Unknown', 'Came from'], [B.ago(p.createdAt).replace(' ago', ''), 'Since added'], [String(p.touches), 'Contacts']];
     return {
+      role: p.role, leadGroup: p.leadGroup, stats, samples: sampleLines.length ? { lines: sampleLines, sent: T.short(B.placedAt(p.sampleOrder)) } : null,
       id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold,
       label: p.stage === 'fifty' ? (p.goingCold ? 'MY FIFTY · GOING COLD' : 'MY FIFTY') : p.stage === 'candidate' ? 'CANDIDATE'
         : 'LEAD · ' + ({ onboarded: 'ONBOARDED', social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
@@ -144,7 +182,11 @@ const OPS = {
        where status in ('signed', 'complete') and (primary_contact_id = any(${ids}) or injector_contact_id = any(${ids}))` : [];
     const ok = new Set(onb.map((r) => r.id));
     return { people: people.filter((p) => ok.has(p.id) || p.orders.length)
-      .sort((a, b) => a.name.localeCompare(b.name)).map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name) })) };
+      .sort((a, b) => a.name.localeCompare(b.name)).map((p) => {
+        const last = p.orders.find(B.isOrder);
+        return { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role,
+          last: last ? money(last.total) : '', tag: p.goingCold ? 'Going cold' : last ? 'Last order' : 'Onboarded' };
+      }) };
   },
 
   async products(sql, me, q) {
@@ -157,7 +199,7 @@ const OPS = {
     const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active from products where is_active = ${true} or product_line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
     return {
-      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
+      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
       card,
       cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
       products: products.map((x) => {
@@ -225,11 +267,31 @@ const OPS = {
     const { people } = await B.book(sql, me, scope(me));
     const hits = people.filter((p) => !term || fold(p.name + ' ' + p.clinic + ' ' + p.email + ' ' + p.phone).includes(term))
       .sort((a, b) => a.name.localeCompare(b.name)).slice(0, 50);
-    return { people: hits.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage, initials: initials(p.name) })) };
+    return { people: hits.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage, initials: initials(p.name), role: p.role })) };
   },
 };
 
 // ---- helpers ------------------------------------------------------------------------------------
+
+// This week Monday to Friday for Today's streak card (Pulse UI 2026-10-27): met, missed, today or still to come. The
+// touchpoint rule is the day goal's (_book.js dayStats): a reached outbound call or in-person visit.
+async function weekStrip(sql, me, cfg) {
+  const today = T.ymd();
+  const dow = new Date(today + 'T12:00:00Z').getUTCDay();
+  const monday = T.addDays(today, -((dow + 6) % 7));
+  const rows = await sql`
+    select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
+      from interactions i
+     where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
+       and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
+       and (i.occurred_at at time zone 'America/Toronto')::date >= ${monday}::date
+     group by 1`;
+  const by = Object.fromEntries(rows.map((r) => [r.day, r.n]));
+  return ['M', 'T', 'W', 'T', 'F'].map((label, i) => {
+    const day = T.addDays(monday, i), n = by[day] || 0;
+    return { label, day, n, state: day === today ? 'today' : day > today ? 'future' : n >= cfg.daily_goal ? 'met' : 'missed' };
+  });
+}
 
 const initials = (name) => String(name || '').replace(/^Dr\.?\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
@@ -327,18 +389,22 @@ async function statusRow(sql, p) {
   const open = p.orders.find((o) => !o.shipped_at && !o.delivered_at && !['shipped', 'delivered'].includes(o.status));
   if (open) {
     const sample = B.isSample(open);
-    let label = 'Preparing to ship';
-    if (open.status === 'submitted') label = 'Waiting on approval';
-    else if (open.status === 'awaiting_md' || (sample && open.medical_director_contact_id && !open.medical_director_signed_at)) label = 'Waiting on MD signature';
-    else if (!sample && !open.paid_flag) label = 'Waiting on payment';
-    return { kind: sample ? 'samples' : 'order', id: open.id, label, sub: sample ? 'Samples · Free' : 'Order · ' + money(open.total) };
+    // The card's three-step bar (Pulse UI 2026-10-27): fill counts whole steps done, a half for the step under way.
+    let label = 'Preparing to ship', fill = 2.5;
+    if (open.status === 'submitted') { label = 'Waiting on approval'; fill = 0.5; }
+    else if (open.status === 'awaiting_md' || (sample && open.medical_director_contact_id && !open.medical_director_signed_at)) { label = 'Waiting on MD signature'; fill = 1.5; }
+    else if (!sample && !open.paid_flag) { label = 'Waiting on payment'; fill = 1.5; }
+    return { kind: sample ? 'samples' : 'order', id: open.id, label, sub: sample ? 'Samples · Free' : 'Order · ' + money(open.total),
+      value: sample ? 'Free' : money(open.total), fill, steps: sample ? ['Placed', 'MD signature', 'Shipped'] : ['Placed', 'Payment', 'Shipped'] };
   }
   const onb = await onboardingOf(sql, p.id);
   if (onb && !['signed', 'complete'].includes(onb.status)) {
     const first = onb.signers.find((x) => x.role !== 'md');
     const label = first && !first.signed_at ? 'Waiting on signature' : 'Waiting on MD signature';
-    return { kind: 'onboarding', id: onb.id, label, sub: 'Onboarding' };
+    return { kind: 'onboarding', id: onb.id, label, sub: 'Onboarding', value: '', fill: 1.5, steps: ['Form', 'Signature', 'Ready'] };
   }
+  // A lead with nothing sent yet: the next step is samples (F27 "No samples yet · Send").
+  if (p.stage === 'lead' && !p.orders.length) return { kind: 'send', id: p.id, label: 'No samples yet', sub: '', value: 'Send', fill: 1.5, steps: ['Lead', 'Samples', 'Order'] };
   return null;
 }
 

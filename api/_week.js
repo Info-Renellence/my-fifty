@@ -65,7 +65,7 @@ async function view(sql, me) {
      order by created_at desc limit 1`;
   const picks = await sql`
     select ap.id, ap.contact_id, ap.final_pick::text as pick, ap.purpose, ap.missed_at, ap.visit_interaction_id,
-           c.first_name, c.last_name, c.designation, c.email, cl.name as clinic, i.occurred_at as done_at
+           c.first_name, c.last_name, c.designation, c.email, c.role, cl.name as clinic, i.occurred_at as done_at
       from account_picks ap
       join contacts c on c.id = ap.contact_id
       left join clinics cl on cl.id = c.clinic_id
@@ -81,7 +81,7 @@ async function view(sql, me) {
        and ${B.CALL(sql)} and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
      group by i.contact_id` : [];
   const calledAt = Object.fromEntries(called.map((r) => [r.contact_id, r.at]));
-  const row = (p) => ({ id: p.id, contactId: p.contact_id, name: B.fullName(p), clinic: p.clinic || '', purpose: p.purpose || '' });
+  const row = (p) => ({ id: p.id, contactId: p.contact_id, name: B.fullName(p), clinic: p.clinic || '', purpose: p.purpose || '', role: p.role });
   const visits = picks.filter((p) => p.pick === 'visit').map((p) => Object.assign(row(p), {
     state: p.visit_interaction_id && p.done_at ? 'done' : p.missed_at ? 'missed' : 'open',
     when: p.visit_interaction_id && p.done_at ? dayName(p.done_at) : p.missed_at ? dayName(p.missed_at) : '',

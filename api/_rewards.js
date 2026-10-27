@@ -20,8 +20,9 @@ const RACE = { name: 'Race to 25', goal: 25, metric: 'In your Fifty now' };
 // never on the board: they see the reps' top three and `mine` is null. Only first names and counts, as the Trip to
 // Vienna board has always shown.
 function leaderboard(reps, me, count, { repsOnly = false } = {}) {
-  const board = reps.map((r) => ({ id: r.id, name: String(r.full_name || '').split(/\s+/)[0], n: count(r.id) }));
-  if (!repsOnly && !board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, n: count(me.id) });
+  const ini = (n) => String(n || '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
+  const board = reps.map((r) => ({ id: r.id, name: String(r.full_name || '').split(/\s+/)[0], initials: ini(r.full_name), n: count(r.id) }));
+  if (!repsOnly && !board.some((r) => r.id === me.id)) board.push({ id: me.id, name: me.first, initials: me.initials || ini(me.name), n: count(me.id) });
   board.sort((a, b2) => b2.n - a.n || a.name.localeCompare(b2.name));
   board.forEach((r, i) => { r.rank = i + 1; r.you = r.id === me.id; });
   const mine = board.find((r) => r.you) || null;
@@ -43,11 +44,18 @@ async function rewards(sql, me) {
 
   const b = PROGRAMS.booster;
   let onNew = 0, onReorders = 0;
+  const wins = [];   // every paid order in the booster that earned the rep something (Cha-ching, Pulse UI 2026-10-27)
   for (const o of orders) {
     if (o.rep_id !== me.id || !inRange(B.paidAt(o), b)) continue;
-    if (firstBy[o.contact_id].id === o.id) onNew += o.total * b.newRate;
-    else onReorders += o.total * b.reorderRate;
+    const isNew = firstBy[o.contact_id].id === o.id, earned = o.total * (isNew ? b.newRate : b.reorderRate);
+    if (isNew) onNew += earned; else onReorders += earned;
+    if (earned > 0) wins.push({ contactId: o.contact_id, kind: isNew ? 'New order' : 'Reorder', earned, at: B.paidAt(o) });
   }
+  wins.sort((x, y) => new Date(y.at) - new Date(x.at));
+  const names = wins.length ? Object.fromEntries((await sql`select id, first_name, last_name, designation, email from contacts where id = any(${[...new Set(wins.map((w) => w.contactId))]})`)
+    .map((c) => [c.id, B.fullName(c)])) : {};
+  const today = T.ymd();
+  const earnedToday = wins.filter((w) => T.ymd(w.at) === today).reduce((a, w) => a + w.earned, 0);
 
   // This month's saypha syringes and Exprecell boxes on the rep's paid orders.
   const month = T.ymd().slice(0, 7);
@@ -88,10 +96,15 @@ async function rewards(sql, me) {
     syringes, exprecell,
     trip: { name: t.name, sub: t.metric + ' · ends ' + T.short(t.to + 'T12:00:00Z'),
       line: toLead ? toLead + ' more new ' + (toLead === 1 ? 'person' : 'people') + ' to take the lead' : 'You are in the lead',
-      rows: top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, n: r.n, you: r.you })) },
+      rows: top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, initials: r.initials, n: r.n, you: r.you })),
+      daysLeft: Math.max(0, T.daysBetween(today + 'T12:00:00Z', t.to + 'T12:00:00Z')), toLead, leader: top.length ? top[0].n : 0, mine: mine ? mine.n : 0 },
     race: { name: RACE.name, goal, sub: RACE.metric,
       line: !race.mine ? '' : race.mine.n >= goal ? 'You reached ' + goal : (goal - race.mine.n) + ' more to reach ' + goal,
       rows: race.top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, n: r.n, you: r.you, done: r.n >= goal })) },
+    earned: money(onNew + onReorders), earnedToday: money(earnedToday), hasToday: earnedToday > 0,
+    split: { onNew: money(onNew), onReorders: money(onReorders), newShare: onNew + onReorders > 0 ? onNew / (onNew + onReorders) : 0 },
+    wins: wins.map((w) => ({ kind: w.kind, name: names[w.contactId] || '', date: T.ymd(w.at), when: T.ymd(w.at) === today ? 'Today' : T.short(w.at), earned: money(w.earned), amount: Math.round(w.earned * 100) / 100 })),
+    streak: (await B.dayStats(sql, me, cfg)).streak,
     booster: { name: b.name, onNew: money(onNew), onReorders: money(onReorders), newText: Math.round(b.newRate * 100) + '% on new orders', reorderText: Math.round(b.reorderRate * 100) + '% on reorders' },
   };
 }

@@ -5,31 +5,22 @@ const fs = require('fs');
 const path = require('path');
 const app = fs.readFileSync(path.join(__dirname, '..', '..', 'app.js'), 'utf8');
 
-test('the Today streak tile shows the days only, without "plan done"', () => {
-  const at = app.indexOf("STREAK ' + FLAME"); const tile = app.slice(at, app.indexOf('MY FIFTY', at));
-  assert.ok(tile.includes('day.streak'), 'the streak number is still shown');
-  assert.match(tile, /'day' : 'days'/);
+// Rebuilt to "Edge – Final Mockup (2)" on 2026-10-27: the F2 streak tile (days and this week's Monday to Friday),
+// and F11 Rewards (earned this quarter, Cha-ching, Race to Vienna). The syringe tiles and Race to 25 are not in it.
+test('the Today streak tile shows the streak days and this week, without "plan done"', () => {
+  const at = app.indexOf('function streakTile'); const tile = app.slice(at, app.indexOf('function fiftyTile', at));
+  assert.ok(tile.includes("day.streak + '</span><span class=\"tile-w\">day streak"), 'the streak number is shown');
+  assert.ok(tile.includes('day.week'), 'Monday to Friday of this week');
+  assert.ok(tile.includes("n + '/' + goal"), "today's ring counts towards the day goal");
   assert.ok(!/plan done/i.test(tile), 'no "plan done" on the tile');
 });
 
-test('the saypha and Exprecell boxes are tighter, keep their text, and write "saypha" in lower case', () => {
-  const at = app.indexOf('r.syringes'); const boxes = app.slice(app.lastIndexOf('<div style="display:grid', at), app.indexOf('Exprecell boxes', at) + 60);
-  assert.ok(boxes.includes('saypha syringes · this month') && boxes.includes('Exprecell boxes · this month'));
-  assert.ok(!/Saypha|SAYPHA/.test(boxes), 'saypha is lower case');
-  assert.equal((boxes.match(/padding:10px 14px/g) || []).length, 2, 'both boxes use the tighter padding');
-  assert.ok(!/padding:14px"/.test(boxes) && !/font-size:28px/.test(boxes), 'no longer the old tall boxes');
-});
-
-test('Rewards has two leaderboards, Trip to Vienna and Race to 25, switched by two tabs or a sideways swipe', () => {
-  const fn = app.slice(app.indexOf('function boardSection'), app.indexOf('function screenRewards'));
-  assert.ok(fn.includes("['trip', r.trip.name], ['race', r.race ? r.race.name : '']"), 'the two tabs');
-  assert.ok(fn.includes('data-board-tab'), 'tabs switch the board');
-  assert.ok(/touchend[\s\S]*showBoard\(dx < 0 \? 'race' : 'trip'\)/.test(fn), 'a swipe left shows Race to 25, right Trip to Vienna');
-  assert.ok(fn.includes('role="progressbar"') && fn.includes("/' + b.goal"), 'each rep: a count out of 25 and a progress bar');
-  assert.ok(fn.includes("'Reached ' + b.goal"), 'a rep at 25 shows as reached');
-  assert.ok(fn.includes('Math.min(100'), 'the bar never runs past full');
-  const screen = app.slice(app.indexOf('function screenRewards'), app.indexOf('L1 Reminders'));
-  assert.ok(screen.includes('+ boardSection(r)') && !screen.includes('r.trip.rows'), 'the screen draws the boards in one place');
+test('Rewards shows what was earned this quarter, the wins, and the Race to Vienna podium', () => {
+  const at = app.indexOf('function screenRewards'); const fn = app.slice(at, app.indexOf('function screenWins', at));
+  assert.ok(fn.includes('Earned this quarter') && fn.includes('r.earned'), 'earned this quarter');
+  assert.ok(fn.includes('Cha-ching') && fn.includes('/rewards/wins'), 'Cha-ching with See all');
+  assert.ok(fn.includes('Race to Vienna') && fn.includes('podium(t)'), 'the Race to Vienna podium');
+  assert.ok(!/r\.syringes|Race to 25/.test(fn), 'the old boxes and the second board are gone');
 });
 
 test('the morning notification reads "N days in a row", without "plan done", like the Today tile', () => {
@@ -60,7 +51,7 @@ test('Review holds Send without a shipping address and offers to add one', () =>
   assert.equal(L.errText({ message: 'no_shipping_address' }), 'Add a shipping address before sending this order.');
   const at = app.indexOf('function screenReview'); const fn = app.slice(at, app.indexOf('$app.addEventListener', at));
   assert.match(fn, /noShip = dft\.noShip = !\(who\.shipping\.street && who\.shipping\.city\)/);
-  assert.match(fn, /ic\('plus', 14\) \+ 'Add a shipping address/);   // the "+" is drawn as an icon (UI polish 2026-10-23)
+  assert.match(fn, /ic\('plus', 14\) \+ ' Add a shipping address/);   // the "+" is drawn as an icon (UI polish 2026-10-23)
   assert.match(fn, /Add a shipping address to send this order\./);
   assert.match(app, /if \(draft\.noShip\) \{ toast\(errText\(\{ message: 'no_shipping_address' \}\)\); shippingSheet\(draft\.contactId\); return; \}/);
   assert.match(app, /act\('shipping_address', \{ contactId: contactId, street: v\('street'\), city: v\('city'\)/);

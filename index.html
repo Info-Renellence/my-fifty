@@ -4,25 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Pulse</title>
-  <meta name="theme-color" content="#f2f3f7">
+  <meta name="theme-color" content="#161D30">
+  <meta name="color-scheme" content="dark">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Pulse">
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/icons/icon-192.png">
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/app.css">
 </head>
 <body>
-  <div id="app"><div class="scr" aria-busy="true" aria-label="Loading"><img src="/logo.png" alt="Renellence" style="height:15px;width:auto;align-self:flex-start;margin:0 4px 12px"><span class="sk line" style="width:40%;margin:4px 4px 10px"></span><span class="sk" style="display:block;width:55%;height:36px;margin:0 4px 16px"></span><div style="display:grid;grid-template-columns:1fr 1fr;grid-template-rows:80px 80px;gap:10px;margin-bottom:14px"><span class="sk tile" style="grid-row:1 / span 2"></span><span class="sk tile"></span><span class="sk tile"></span></div><span class="sk tile" style="display:block;height:132px;margin-bottom:14px"></span><span class="sk" style="display:block;height:54px;margin-bottom:8px"></span><span class="sk" style="display:block;height:54px;margin-bottom:8px"></span></div></div>
+  <div id="app"><div class="scr" aria-busy="true" aria-label="Loading"><span class="sk line" style="width:40%;margin:8px 4px 10px"></span><span class="sk" style="display:block;width:45%;height:36px;margin:0 4px 16px"></span><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><span class="sk tile" style="height:112px"></span><span class="sk tile" style="height:112px"></span></div><span class="sk" style="display:block;height:46px;margin-bottom:12px"></span><span class="sk tile" style="display:block;height:320px"></span></div></div>
   <div id="sheet"></div>
   <div id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
   <script src="/lib.js"></script>
+  <script src="/avatars.js"></script>
   <script src="/app.js"></script>
   <script src="/staging.js"></script>
 </body>
