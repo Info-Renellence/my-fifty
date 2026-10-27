@@ -205,5 +205,127 @@ async function syncOrder(tx, hsId) {
   return { table: 'orders', id: orderId, created: r.created };
 }
 
+// ---- the HubSpot sync (owner 2026-10-27: "everything in Pulse hooked up") ----------------------------------------------
+// Reps still work in the live Edge, which writes their calls, meetings, notes, tasks and new leads to HubSpot only, and
+// Meta leads land in HubSpot directly: none of that goes through n8n. Every timer tick (api/cron.js) reads what changed in
+// HubSpot since the last tick (read only) and brings it into v2 with the Oct 22 rules and ids (api/_hsmap.js):
+//   contacts  new since the Oct 22 export are added (not Quo-made, staff or test ones); people left out on Oct 22 are
+//             never brought back by a later edit; existing ones only get blank fields filled ("v2 wins")
+//   clinics   blank fields filled;  orders  as the n8n intake does (syncOrder)
+//   calls, meetings, notes (a person's only), tasks   added once on the v2 contacts they belong to; a meeting's or task's
+//             status and dates follow HubSpot
+// Emails are left to the Gmail sync. The bookmark per type is settings 'hubspot_sync' ({ type: ISO }).
+const EXPORT_AT = '2026-10-22T15:36:00Z';                  // the Oct 22 export: older contacts not in v2 were left out
+const START_AT = '2026-10-27T19:00:00Z';                   // the Oct 27 backfill read HubSpot up to here
+const PROPS = {
+  contacts: H.CONTACT_PROPS.concat(['createdate', 'hs_object_source', 'hs_object_source_label', 'hs_object_source_detail_1', 'lastmodifieddate']),
+  companies: ['name', 'phone', 'website', 'domain', 'hours_of_operation', 'address', 'city', 'state', 'province', 'zip', 'hs_lastmodifieddate'],
+  orders: ['hs_lastmodifieddate'],
+  calls: ['hs_timestamp', 'hs_call_direction', 'hs_call_disposition', 'hs_call_title', 'hs_call_body', 'hs_call_duration', 'hs_call_recording_url', 'hs_call_from_number',
+    'hs_call_to_number', 'hubspot_owner_id', 'hs_object_source', 'hs_object_source_detail_1', 'hs_lastmodifieddate'],
+  meetings: ['hs_meeting_start_time', 'hs_timestamp', 'hs_meeting_outcome', 'hs_video_conference_url', 'hs_video_conference_platform', 'hs_meeting_location_type', 'hs_meeting_location',
+    'hs_meeting_body', 'hs_internal_meeting_notes', 'hs_meeting_title', 'hs_meeting_end_time', 'hubspot_owner_id', 'hs_object_source', 'hs_lastmodifieddate'],
+  notes: ['hs_note_body', 'hs_timestamp', 'hubspot_owner_id', 'hs_object_source', 'hs_lastmodifieddate'],
+  tasks: ['hs_task_status', 'hs_task_subject', 'hs_task_body', 'hs_task_type', 'hs_timestamp', 'hs_task_completion_date', 'hubspot_owner_id', 'hs_object_source_detail_1', 'hs_createdate', 'hs_lastmodifieddate'],
+};
+const ORDER = ['contacts', 'companies', 'orders', 'calls', 'meetings', 'notes', 'tasks'];
+const modifiedOf = (type, rec) => (rec.properties || {})[type === 'contacts' ? 'lastmodifieddate' : 'hs_lastmodifieddate'] || rec.updatedAt;
+
+async function sync(sql, budgetMs) {
+  if (!process.env.HUBSPOT_READ_TOKEN) return { skipped: 'hubspot_not_set_up' };
+  const until = Date.now() + (budgetMs || 25000);
+  const [row] = await sql`select value from settings where key = 'hubspot_sync'`;
+  const marks = Object.assign({}, (row && row.value) || {});
+  const out = {};
+  for (const type of ORDER) {
+    const res = (out[type] = { seen: 0, added: 0, updated: 0, skipped: 0 });
+    let since = marks[type] || START_AT, after = null, latest = since;
+    while (Date.now() < until) {
+      const page = await H.changedSince(type, since, PROPS[type], after);
+      if (!page.results.length) break;
+      const links = ['calls', 'meetings', 'notes', 'tasks'].includes(type) ? await H.contactsOf(type, page.results.map((x) => x.id)) : {};
+      for (const rec of page.results) {
+        if (Date.now() > until) break;
+        res.seen++;
+        try {
+          const r = await sql.begin(async (tx) => {
+            await tx`select set_config('app.source', 'import', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
+            return syncOne(tx, type, rec, links[String(rec.id)] || []);
+          });
+          if (r === 'added') res.added++; else if (r === 'updated') res.updated++; else res.skipped++;
+        } catch (e) { res.skipped++; console.error('HUBSPOT_SYNC', type, rec.id, e.message); }
+        const m = modifiedOf(type, rec);
+        if (m && m > latest) latest = new Date(m).toISOString();
+      }
+      marks[type] = latest;
+      await sql`insert into settings (key, value) values ('hubspot_sync', ${sql.json(marks)}) on conflict (key) do update set value = excluded.value`;
+      if (!page.after) break;
+      after = page.after;
+    }
+  }
+  return out;
+}
+
+async function syncOne(tx, type, rec, contactHs) {
+  const p = rec.properties || {};
+  if (type === 'contacts') {
+    const have = await idOf(tx, 'contacts', rec.id);
+    if (!have) {
+      if (!p.createdate || new Date(p.createdate) < new Date(EXPORT_AT) || M.contactSkip(p)) return 'skipped';
+      return ((await syncContact(tx, rec.id, null)) || {}).created ? 'added' : 'skipped';
+    }
+    const row = Object.assign({ id: have }, M.contactRow(rec.id, p));
+    delete row.owner_id;
+    const r = await upsert(tx, 'contacts', row, null);
+    return r.changed && r.changed.length ? 'updated' : 'skipped';
+  }
+  if (type === 'companies') {
+    if (!(await idOf(tx, 'clinics', rec.id))) return 'skipped';   // a new clinic comes in with its contact
+    const r = await upsert(tx, 'clinics', Object.assign({ id: M.uid('clinic:' + rec.id) }, M.clinicRow(rec.id, p)), null);
+    return r.changed && r.changed.length ? 'updated' : 'skipped';
+  }
+  if (type === 'orders') {
+    const r = await syncOrder(tx, rec.id);
+    return r && r.created ? 'added' : r && !r.skipped ? 'updated' : 'skipped';
+  }
+  const contacts = [];
+  for (const k of contactHs) { const id = await idOf(tx, 'contacts', k); if (id) contacts.push(id); }
+  if (!contacts.length) return 'skipped';
+  if (type === 'tasks') {
+    const t = M.taskRow(rec.id, p).row;
+    t.contact_id = contacts[0];
+    if (!t.assignee_id) { const [o] = await tx`select owner_id from contacts where id = ${contacts[0]}`; t.assignee_id = o && o.owner_id; }
+    const [cur] = await tx`select id, status::text, due_at, completed_at from tasks where id = ${t.id}`;
+    if (!cur) { await insertRow(tx, 'tasks', t); return 'added'; }
+    if (cur.status !== t.status || String(cur.due_at && new Date(cur.due_at).toISOString()) !== String(t.due_at)) {
+      await tx`update tasks set status = ${t.status}, completed_at = ${t.completed_at}, due_at = ${t.due_at} where id = ${t.id}`;
+      return 'updated';
+    }
+    return 'skipped';
+  }
+  const m = type === 'calls' ? M.callRow(rec.id, p) : type === 'meetings' ? M.meetingRow(rec.id, p) : M.noteRow(rec.id, p);
+  if (m.skip) return 'skipped';
+  let result = 'skipped';
+  for (const c of contacts) {
+    const id = M.intId(m.row.external_id, c);
+    const [cur] = await tx`select id, status::text from interactions where id = ${id}`;
+    if (!cur) {
+      await insertRow(tx, 'interactions', Object.assign({ id, contact_id: c, created_by_id: m.row.user_id || null, created_at: m.row.occurred_at }, m.row));
+      if (m.summary) await insertRow(tx, 'ai_outputs', { id: M.uid('ai:' + id), kind: 'call_summary', interaction_id: id, output_text: m.summary, model_name: 'quo/hubspot', created_at: m.row.occurred_at });
+      result = 'added';
+    } else if (type === 'meetings' && cur.status !== m.row.status) {
+      await tx`update interactions set status = ${m.row.status}, ends_at = ${m.row.ends_at}, body = coalesce(${m.row.body}, body) where id = ${id}`;
+      if (result === 'skipped') result = 'updated';
+    }
+  }
+  return result;
+}
+async function insertRow(tx, table, row) {
+  const keys = Object.keys(row).filter((k) => row[k] !== undefined);
+  await tx.unsafe(`insert into public.${table} (${keys.map((k) => `"${k}"`).join(', ')}) select ${keys.map((k) => `"${k}"`).join(', ')}
+                   from json_populate_record(null::public.${table}, $1::text::json) on conflict do nothing`, [JSON.stringify(row)]);
+}
+
 module.exports.intake = intake;
 module.exports.apply = apply;
+module.exports.sync = sync;

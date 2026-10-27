@@ -67,7 +67,8 @@ describe('rewards', () => {
       const newPeople = async (rep, n) => { for (let i = 0; i < n; i++) await h.order(sql, await h.contact(sql, rep), rep, { status: 'shipped', days: 2 }); };
       await newPeople(lead, 4); await newPeople(third, 3); await newPeople(fourth, 2); await newPeople(me, 1);
       const r = await R.rewards(sql, me);
-      assert.deepEqual(r.trip.rows, [{ rank: 1, name: 'Robin', n: 4, you: false }, { rank: 2, name: 'Ash', n: 3, you: false }, { rank: 4, name: 'You', n: 1, you: true }]);
+      assert.deepEqual(r.trip.rows.map(({ initials, ...x }) => x), [{ rank: 1, name: 'Robin', n: 4, you: false }, { rank: 2, name: 'Ash', n: 3, you: false }, { rank: 4, name: 'You', n: 1, you: true }]);
+      assert.deepEqual(r.trip.rows.map((x) => x.initials), ['RR', 'AR', 'PR'], 'the podium shows initials (2026-10-27)');
       assert.equal(r.trip.line, '4 more new people to take the lead');
       await newPeople(me, 4);
       const r2 = await R.rewards(sql, me);
@@ -318,7 +319,7 @@ describe('cron', () => {
       const ok = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=tick', headers: { 'x-cron-key': 'test-cron-key' } }, ok);
       assert.equal(ok.statusCode, 200);
-      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'leads', 'morning', 'orders']);
+      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'hubspot', 'leads', 'morning', 'orders']);   // + the HubSpot sync (2026-10-27)
       const bad = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=other', headers: { 'x-cron-key': 'test-cron-key' } }, bad);
       assert.equal(bad.statusCode, 400);

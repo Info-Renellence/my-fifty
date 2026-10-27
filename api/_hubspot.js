@@ -11,7 +11,7 @@ const ORDER_PROPS = ['hs_order_name', 'hs_order_note', 'hubspot_owner_id', 'hs_p
   'hs_external_canceled_date', 'hs_processed_date', 'hs_object_source_detail_1', 'hs_external_order_id', 'qbo_id'];
 
 async function call(method, path, body) {
-  if (!(method === 'GET' || (method === 'POST' && /\/batch\/read$/.test(path)))) throw new Error('hubspot_read_only');
+  if (!(method === 'GET' || (method === 'POST' && /\/(batch\/read|search)$/.test(path)))) throw new Error('hubspot_read_only');
   const token = process.env.HUBSPOT_READ_TOKEN;
   if (!token) { const e = new Error('hubspot_not_set_up'); e.status = 503; throw e; }
   for (let i = 0; i < 4; i++) {
@@ -33,6 +33,20 @@ async function lineItems(ids) {
   const r = await call('POST', '/crm/v3/objects/line_items/batch/read', { inputs: ids.map((id) => ({ id: String(id) })), properties: ['name', 'hs_sku', 'quantity', 'price', 'amount'] });
   return (r && r.results) || [];
 }
+// Records of a type changed since `since` (ISO), oldest first: one page of up to 100. -> { results, after }
+const MODIFIED = { contacts: 'lastmodifieddate' };
+async function changedSince(type, since, properties, after) {
+  const prop = MODIFIED[type] || 'hs_lastmodifieddate';
+  const r = await call('POST', `/crm/v3/objects/${type}/search`, { filterGroups: [{ filters: [{ propertyName: prop, operator: 'GTE', value: String(Date.parse(since)) }] }],
+    sorts: [{ propertyName: prop, direction: 'ASCENDING' }], properties, limit: 100, after: after || undefined });
+  return { results: (r && r.results) || [], after: r && r.paging && r.paging.next ? r.paging.next.after : null };
+}
+// ids -> { id: [contact ids] }
+async function contactsOf(type, ids) {
+  if (!ids.length) return {};
+  const r = await call('POST', `/crm/v4/associations/${type}/contacts/batch/read`, { inputs: ids.map((id) => ({ id: String(id) })) });
+  return Object.fromEntries(((r && r.results) || []).map((x) => [String(x.from.id), (x.to || []).map((t) => String(t.toObjectId))]));
+}
 const assocIds = (rec, type) => (((rec && rec.associations && rec.associations[type]) || {}).results || []).map((x) => String(x.id));
 
-module.exports = { contact, company, order, lineItems, assocIds, call };
+module.exports = { contact, company, order, lineItems, assocIds, call, changedSince, contactsOf, CONTACT_PROPS, ORDER_PROPS };

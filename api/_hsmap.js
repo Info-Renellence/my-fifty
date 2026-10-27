@@ -155,6 +155,61 @@ function orderRows(hsId, p, lineItems, contactId) {
   return { order, lines, payments };
 }
 
+// ---- activities (build.js interactions + tasks; the live sync keeps the Oct 22 rules) ------------------------------
+const strip = (h) => {
+  if (!h) return null;
+  const t = String(h).replace(/<br\s*\/?>/gi, '\n').replace(/<\/(p|div|li|h\d)>/gi, '\n').replace(/<li[^>]*>/gi, '• ').replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'")
+    .replace(/[ \t]+\n/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+  return t || null;
+};
+const DISP = { 'f240bbac-87c9-4f6e-bf70-924b57d47db7': 'connected', 'b2cf5968-551e-4856-9783-52b3da59a7d0': 'voicemail', '73a0d17f-1163-4015-bdd5-ec830791da20': 'no_answer',
+  '9d9162e7-6cf3-4944-bf63-4dff82258764': 'busy', 'a4c4c377-d246-4b32-a13b-75a56a4cd0ff': 'left_live_message', '17b47fee-58de-441e-a44c-c6300d46f273': 'wrong_number' };
+const intId = (externalId, contactId) => uid('int:import|' + externalId + '|' + contactId);
+// -> { row } for each contact, or { skip: why }. Rows have no id/contact_id yet (forContact fills them).
+function callRow(id, p) {
+  if (String(p.hs_object_source || '').startsWith('INTERNAL_PROCESSING')) return { skip: 'HubSpot sample call' };
+  if (/AC[0-9a-f]{32}/.test(JSON.stringify(p))) return { skip: 'HubSpot copy of a Quo call (Quo sends it itself)' };
+  const auto = /Automation|Quo/.test(String(p.hs_object_source) + '/' + String(p.hs_object_source_detail_1 || ''));
+  return { row: { kind: 'call', user_id: ownerUser(p.hubspot_owner_id), occurred_at: iso(p.hs_timestamp), direction: p.hs_call_direction === 'INBOUND' ? 'in' : p.hs_call_direction === 'OUTBOUND' ? 'out' : null,
+    mode: 'phone', status: 'completed', outcome: DISP[p.hs_call_disposition] || null, subject: orNull(p.hs_call_title), body: auto ? null : strip(p.hs_call_body),
+    duration_seconds: p.hs_call_duration ? Math.round(Number(p.hs_call_duration) / 1000) : null, recording_url: orNull(p.hs_call_recording_url),
+    participants: p.hs_call_from_number || p.hs_call_to_number ? { from: p.hs_call_from_number || null, to: p.hs_call_to_number || null } : null, needs_review: false,
+    source: 'import', external_id: 'hubspot:call:' + id }, summary: auto ? strip(p.hs_call_body) : null };
+}
+function meetingRow(id, p, now = new Date().toISOString()) {
+  if (String(p.hs_object_source || '').startsWith('INTERNAL_PROCESSING')) return { skip: 'HubSpot sample meeting' };
+  const start = iso(p.hs_meeting_start_time) || iso(p.hs_timestamp);
+  const oc = p.hs_meeting_outcome;
+  const status = oc === 'COMPLETED' ? 'completed' : oc === 'CANCELED' || oc === 'RESCHEDULED' ? 'cancelled' : oc === 'NO_SHOW' ? 'no_show' : start > now ? 'scheduled' : 'completed';
+  const mode = p.hs_video_conference_url || p.hs_video_conference_platform ? 'video' : p.hs_meeting_location_type === 'PHONE' ? 'phone'
+    : p.hs_meeting_location_type === 'ADDRESS' || (p.hs_meeting_location && !/zoom|meet\.google|teams/i.test(p.hs_meeting_location)) ? 'in_person' : null;
+  return { row: { kind: 'meeting', user_id: ownerUser(p.hubspot_owner_id), occurred_at: start, ends_at: iso(p.hs_meeting_end_time), mode, status, subject: orNull(p.hs_meeting_title),
+    body: [strip(p.hs_meeting_body), strip(p.hs_internal_meeting_notes)].filter(Boolean).join('\n\n') || null, location: orNull(p.hs_meeting_location), needs_review: false,
+    source: 'import', external_id: 'hubspot:meeting:' + id } };
+}
+function noteRow(id, p) {
+  if (!/^(CRM_UI|MOBILE)/.test(String(p.hs_object_source || ''))) return { skip: 'automated note (only notes a person writes are kept)' };
+  const body = strip(p.hs_note_body);
+  if (!body) return { skip: 'empty note' };
+  return { row: { kind: 'note', user_id: ownerUser(p.hubspot_owner_id), occurred_at: iso(p.hs_timestamp), body, needs_review: false, source: 'import', external_id: 'hubspot:note:' + id } };
+}
+function taskRow(id, p) {
+  const done = p.hs_task_status === 'COMPLETED';
+  return { row: { id: uid('task:' + id), assignee_id: ownerUser(p.hubspot_owner_id), title: orNull(p.hs_task_subject), body: strip(p.hs_task_body),
+    kind: { CALL: 'call', EMAIL: 'email' }[p.hs_task_type] || 'todo', due_at: iso(p.hs_timestamp), status: done ? 'done' : 'open', completed_at: done ? iso(p.hs_task_completion_date) : null,
+    source: /Automation/.test(p.hs_object_source_detail_1 || '') ? 'system' : 'manual', created_at: iso(p.hs_createdate) || new Date().toISOString() } };
+}
+// HubSpot contacts Pulse never takes from the sync: Quo makes no contacts (owner 2026-10-23); staff and test records.
+function contactSkip(p) {
+  const src = String(p.hs_object_source_label || p.hs_object_source || '') + ' ' + String(p.hs_object_source_detail_1 || '');
+  if (/openphone|quo/i.test(src)) return 'created by Quo (Quo never makes contacts)';
+  if (/@renellence\.com$/i.test(s(p.email))) return 'staff';
+  if (/test|demo/i.test(s(p.firstname) + ' ' + s(p.lastname)) && /test|demo|example/i.test(s(p.email))) return 'test record';
+  if (!s(p.email) && !s(p.phone) && !s(p.mobilephone) && !s(p.firstname) && !s(p.lastname)) return 'empty';
+  return null;
+}
+
 // What an n8n HubSpot write was, from its method and URL. -> { kind, ids, props } or { kind: 'skip', why }
 function classify(hs) {
   const method = s(hs.method).toUpperCase(), url = s(hs.url).replace(/^https?:\/\/api\.hubapi\.com/, '').replace(/\?.*$/, '');
@@ -180,4 +235,5 @@ function classify(hs) {
   return { kind: 'unknown', why: method + ' ' + url };
 }
 
-module.exports = { uid, ownerUser, repFromName, contactRow, clinicRow, orderRows, classify, columnsFor, CONTACT_PROPS, COMPANY_PROPS, e164, email, STAFF, titleDesignation };
+module.exports = { uid, ownerUser, repFromName, contactRow, clinicRow, orderRows, classify, columnsFor, CONTACT_PROPS, COMPANY_PROPS, e164, email, STAFF, titleDesignation,
+  callRow, meetingRow, noteRow, taskRow, contactSkip, intId, strip };

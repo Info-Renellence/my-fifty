@@ -34,6 +34,8 @@ module.exports = route(async (req, res) => {
   const started = Date.now();
   const sql = db();
   const out = { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) };
+  // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
+  out.hubspot = await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
