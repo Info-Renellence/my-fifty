@@ -243,9 +243,8 @@ Code: `renellence-edge/supabase/functions/_shared/guard.ts` + `ingest.ts` (signa
 
 Edge's Expenses page asks who was at a meal (Lunch, Dinner, Snacks/Beverages; never Parking): customers picked from the
 book, or a name typed in with a role. The owner chose one table for event and expense attendees ("option 1") over a
-separate `expense_attendees`. **Status: applied to v1 2026-10-27; v2 waiting** (the apply was blocked by a permission
-check in the session; run `node renellence-ops/ops/attendees/apply-v2-013.js v2` after `backup-v2.js`, then push the
-held Edge and Compass commits that read the new name).
+separate `expense_attendees`. **Status: applied to v1 and v2 2026-10-27** (v2 run by Yousef after a backup that day; 114 rows kept; Edge and Compass
+pushed right after; check.js: only the 4 known fix-staff-rls policies differ).
 
 | # | Change | Why |
 |---|---|---|
