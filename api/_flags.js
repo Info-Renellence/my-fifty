@@ -15,7 +15,9 @@
 //   friday_checkin      Edge's Friday Check In tab (read by Edge; listed so both apps agree)              live -> on
 'use strict';
 
-const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true });
+//   hubspot_pull        the timer's HubSpot -> v2 read (api/intake.js sync): the safety net while live Edge's own
+//                       copies (renellence-edge main api/_mirror.js) are proven; off once they are             on
+const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true });
 const TTL_MS = 30 * 1000;   // a switch flipped in the database is seen within 30 seconds
 
 let cache = null;   // { at, flags }

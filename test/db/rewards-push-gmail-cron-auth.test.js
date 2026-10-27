@@ -319,7 +319,7 @@ describe('cron', () => {
       const ok = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=tick', headers: { 'x-cron-key': 'test-cron-key' } }, ok);
       assert.equal(ok.statusCode, 200);
-      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'hubspot', 'leads', 'morning', 'orders']);   // + the HubSpot sync (2026-10-27)
+      assert.deepEqual(Object.keys(ok.json()).sort(), ['gmail', 'hubspot', 'leads', 'meta', 'morning', 'orders']);   // + the HubSpot sync (2026-10-27)
       const bad = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=other', headers: { 'x-cron-key': 'test-cron-key' } }, bad);
       assert.equal(bad.statusCode, 400);

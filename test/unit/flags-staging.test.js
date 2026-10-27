@@ -26,7 +26,7 @@ function fakeSql(value, opts) {
 describe('flags: defaults', () => {
   beforeEach(F.clear);
   test('live features are on and the unbuilt one is off', () => {
-    assert.deepEqual({ ...F.DEFAULTS }, { week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true });
+    assert.deepEqual({ ...F.DEFAULTS }, { week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true });
   });
   test('no row: the defaults', async () => assert.deepEqual(await F.all(fakeSql(undefined)), { ...F.DEFAULTS }));
   test('a database error: the defaults, never a crash', async () => assert.deepEqual(await F.all(fakeSql(null, { throws: true })), { ...F.DEFAULTS }));

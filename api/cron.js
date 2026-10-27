@@ -33,9 +33,11 @@ module.exports = route(async (req, res) => {
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
   const sql = db();
-  const out = { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) };
+  // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
+  const out = { meta: await require('./_meta').sync(sql).catch((e) => ({ error: e.message })) };
+  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) });
   // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
-  out.hubspot = await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
+  out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
