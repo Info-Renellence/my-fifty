@@ -198,6 +198,12 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
       await click('[data-me]'); await evaluate("(function(){ var b=document.querySelector('#sheet [data-signout]'); b.click(); b.click(); })()"); await wait(1200);
       note('ME after double sign out: ' + oneLine((await txt()).slice(0, 60)) + ' errors above? none expected');
     }
+    else if (SCEN === 'routes') {
+      for (const p of ['/person/%3Cimg%20src=x%20onerror=window.__x=1%3E', '/people/leads/%3Cb%3Ex', '/order/%22%3E%3Cscript%3Ewindow.__x=1%3C/script%3E/review', '/orders/../../etc', '/people/fifty/extra', '//evil.example/x', '/person/00000000-0000-0000-0000-000000000000/history', '/order/00000000-0000-0000-0000-000000000000/review', '/rewards/x', '/%E0%A4%A']) {
+        await go(p);
+        note('ROUTE ' + p.slice(0, 50) + ' -> ' + await path_() + ' | ' + oneLine((await txt()).slice(0, 60)) + ' | injected=' + await evaluate('!!window.__x'));
+      }
+    }
   } catch (e) { note('SCRIPT ERROR ' + e.message); }
   note('blocked outside requests: ' + blocked.length + ' (' + [...new Set(blocked.map((u) => new URL(u).host))].join(', ') + ')');
   fs.writeFileSync(path.join(OUT, SCEN + '-log.txt'), log.join('\n') + '\n');
