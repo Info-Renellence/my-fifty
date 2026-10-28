@@ -163,14 +163,15 @@ describe('book', () => {
     await h.touch(sql, c, me.id, { status: 'scheduled' });
     assert.equal((await B.book(sql, me)).people[0].isNew, true);
   }));
-  test('touched today means I called, texted, emailed or visited them today', () => h.withDb(async (sql) => {
+  test('touched today means I called or visited them today; a text doesn\'t count', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
-    const a = await h.contact(sql, me), b = await h.contact(sql, me), c = await h.contact(sql, me);
+    const a = await h.contact(sql, me), b = await h.contact(sql, me), c = await h.contact(sql, me), d = await h.contact(sql, me);
     await h.touch(sql, a, me.id, { at: new Date() });
     await h.touch(sql, b, other.id, { at: new Date() });
     await h.touch(sql, c, me.id, { days: 1 });
+    await h.touch(sql, d, me.id, { at: new Date(), kind: 'text' });   // texts never show on Today (owner 2026-10-28)
     const by = Object.fromEntries((await B.book(sql, me)).people.map((p) => [p.id, p]));
-    assert.deepEqual([by[a].touchedToday, by[b].touchedToday, by[c].touchedToday], [true, false, false]);
+    assert.deepEqual([by[a].touchedToday, by[b].touchedToday, by[c].touchedToday, by[d].touchedToday], [true, false, false, false]);
   }));
   test('the follow-up is my earliest open task for them', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);

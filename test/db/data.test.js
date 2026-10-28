@@ -78,6 +78,16 @@ describe('today', () => {
     assert.deepEqual(t.fifty, { count: 6, next: 10, goal: 50 });
     assert.equal(t.list[0].why, 'lead');
   }));
+  test('done lists who I called or visited today; someone I only texted is not there', () => h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const called = await h.contact(sql, me), texted = await h.contact(sql, me);
+    await h.touch(sql, called, me.id, { at: new Date() });                  // the default kind is a call
+    await h.touch(sql, texted, me.id, { at: new Date(), kind: 'text' });    // texts never show on Today (owner 2026-10-28)
+    const { done } = await D.today(sql, me);
+    const ids = done.map((x) => x.id);
+    assert.deepEqual([ids.includes(called), ids.includes(texted)], [true, false]);
+    assert.equal(done.find((x) => x.id === called).kind, 'call');
+  }));
 });
 
 describe('people', () => {

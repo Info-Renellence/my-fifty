@@ -116,7 +116,7 @@ async function book(sql, me, opts) {
              max(i.occurred_at) filter (where i.kind = 'meeting' and i.mode in ('in_person', 'video') and i.status is distinct from 'cancelled'
                                          and ${REACHED(sql)}) as last_visit_at,   -- a video call counts as a visit; a no-show does not (S1, Yousef 2026-10-22)
              count(*) filter (where i.kind <> 'note' and not ${INBOUND(sql)}) as touches,
-             bool_or(i.user_id = ${me.id} and not ${INBOUND(sql)} and (i.kind = 'text' or (i.kind in ('call', 'meeting') and ${REACHED(sql)}))
+             bool_or(i.user_id = ${me.id} and not ${INBOUND(sql)} and i.kind in ('call', 'meeting') and ${REACHED(sql)}   -- a text doesn't take them off Today (owner 2026-10-28)
                      and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date) as touched_today
         from interactions i
        where i.contact_id = any(${ids}) and i.deleted_at is null and i.status is distinct from 'scheduled' and i.status is distinct from 'cancelled'

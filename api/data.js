@@ -81,13 +81,13 @@ const OPS = {
     day.week = await weekStrip(sql, me, cfg);
     // Nell's Nudge (Final Mockup (3) N4) only on workdays: never weekends or holidays.
     day.workday = T.isBusinessDay(T.ymd(), cfg.holidays);
-    // Logged today (the "done" fold under the list, Pulse UI 2026-10-27): the rep's latest reached call, visit or text per person.
+    // Logged today (the "done" fold under the list, Pulse UI 2026-10-27): the rep's latest reached call or visit per person; texts never show on Today, only in the person's history (owner 2026-10-28).
     const byId = Object.fromEntries(people.map((p) => [p.id, p]));
     const doneRows = await sql`
       select distinct on (i.contact_id) i.contact_id, i.kind::text as kind, i.mode::text as mode, i.occurred_at
         from interactions i
        where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-         and not ${B.INBOUND(sql)} and ${B.REACHED(sql)} and i.kind in ('call', 'meeting', 'text')
+         and not ${B.INBOUND(sql)} and ${B.REACHED(sql)} and i.kind in ('call', 'meeting')
          and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date
        order by i.contact_id, i.occurred_at desc`;
     const done = doneRows.filter((r) => byId[r.contact_id]).sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
