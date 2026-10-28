@@ -874,7 +874,7 @@
         return '<button type="button" ' + attr + ' class="act4"><span class="' + (main ? 'main' : '') + '">' + ic(icon, 20, 1.6) + '</span>' + label + '</button>';
       }
       h += '<div class="acts">' + act4('data-quo="call"', 'phone', 'Call', true) + act4('data-log="' + p.id + '" data-kind="visit"', 'pin', 'Visit')
-        + act4('data-quo="text"', 'text', 'Text') + act4('data-email', 'mail', 'Email') + '</div>';
+        + act4('data-quo="text"', 'text', 'Text') + '</div>';
       if (p.status) {
         var s = p.status, href = s.kind === 'onboarding' ? '/person/' + p.id + '/onboarding' : s.kind === 'send' ? '/order/' + p.id : '/orders/' + s.id;
         var bars = [0, 1, 2].map(function (i) {
@@ -917,7 +917,6 @@
     if (!current) return;
     var b = e.target.closest('[data-quo]');
     if (b) { callOrText(current.id, b.getAttribute('data-quo')); return; }
-    if (e.target.closest('[data-email]')) { openEmail(current); return; }
     if (e.target.closest('[data-followup]')) {
       var inp = $app.querySelector('[data-followup-input]');
       if (inp.showPicker) { try { inp.showPicker(); return; } catch (x) { /* fall through */ } }
@@ -933,14 +932,15 @@
     act('set_follow_up', { contactId: current.id, date: inp.value }).then(function (r) { toast('Next follow-up: ' + r.label); screenPerson(current.id); }, function (err) { toast(errText(err)); });
   });
 
-  // Call and Text open the Quo app (Yousef 2026-10-20: "Quo app + Gmail"), then the Log sheet is ready for when they
-  // come back. Quo's links: openphone://dial?number=…&action=call and openphone://message?number=….
+  // Call and Text open the Quo app (Yousef 2026-10-20: "Quo app + Gmail"). The Log sheet is only readied after a call,
+  // not a text (owner 2026-10-28). Quo's links: openphone://dial?number=…&action=call and openphone://message?number=….
   function callOrText(contactId, what, ctx) {
     read('person', { id: contactId }).then(function (p) {
       if (!p.phone) { toast('No phone number for ' + (p.first || p.name) + ' yet.'); return; }
       var n = encodeURIComponent(p.phone);
       location.href = what === 'text' ? 'openphone://message?number=' + n : 'openphone://dial?number=' + n + '&action=call';
-      setTimeout(function () { logSheet(p, what === 'text' ? 'text' : 'call', ctx || {}); }, 700);
+      if (what === 'text') return;
+      setTimeout(function () { logSheet(p, 'call', ctx || {}); }, 700);
     }, function (err) { toast(errText(err)); });
   }
 
