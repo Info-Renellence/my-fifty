@@ -320,3 +320,31 @@ workflow never told Pulse. The three orders (1f012f3a…, 99e0d0a6…, 8ded53df�
 Owner: "delete all of those ones that got disapproved". Orders 1f012f3a…, 99e0d0a6…, 8ded53df…, 7cdd966c… (all the
 owner's own Pulse tests at one customer, all `rejected`) were soft-deleted (`deleted_at` set, SOP: never hard-delete), like
 the first test order b4bcf978 on 2026-10-27. Nothing else changed. No schema change.
+
+## 26. Leigh Bishop moved from Emily to Lucas (data only), 2026-10-28, asked by Yousef
+
+Owner: "if its not lucas change it to lucas". Contact 47114c8b… (Leigh Bishop) had `owner_id` = Emily (8e7b8b7d…); set to
+Lucas (d8b51a6c…) with `updated_at`. Only the contact's owner changed: past interactions, orders and tasks keep who did
+them (Emily had no open tasks on her). No schema change.
+
+## 27. Claude job run log and result kinds (`renellence-edge/db/v2-016-ai-runs.sql`), 2026-10-28, approved by Yousef
+
+The owner approved the Claude API system (2026-10-28: one Supabase function `claude-jobs` runs every job; prompts from the
+Data Map page). **Status: applied to v2 2026-10-28** (`renellence-ops/ops/fixes/apply-v2-016.js`, dry run first: change,
+checks and a test write, rolled back). **Not on v1**: its login (test_runner) doesn't own the enum types, so v1 has neither
+this nor v2-015 yet; it needs the v1 owner login.
+
+| # | Change | Why |
+|---|---|---|
+| 85 | New table `ai_runs` (one row per Claude run: job, prompt version and hash, models planned and used, result claude/rules/none, attempts, fallbacks, tokens, cost_usd, validation, blocked, stopped, cap, month spend before/after, output, ms; RLS on, admins read; append-only, no triggers) | The run log and the $100/month cost cap (`ops/claude` ledger, moved from a local file into v2 so the Supabase function can use it) |
+| 86 | `ai_outputs_kind` gains `data_health`, `enrichment`, `gap_ranking`, `monday_prep`, `focus_actions`, `meeting_notes` | Where each job's result is kept (call summaries, voice notes and lead clean-up already had kinds) |
+
+Add `ai_runs` to the SOP (System section).
+
+## 28. City location cache for the Territory map (data only), 2026-10-28
+
+No schema change. renellence-admin's Territory map keeps the coordinates of each CITY (never a clinic or a person's address),
+looked up on OpenStreetMap's Nominatim, in a new `settings` row `geo_cities` (`{"ON|toronto": [lat, lng]}`, or `0` for no such
+place). The row is created the first time an admin opens Territory on v2; each save goes through `asUser`, so `change_logs`
+records it. Reassign (same app) changes `contacts.owner_id`, open `tasks.assignee_id` and `forecasts.rep_id` from this month on,
+one `change_logs` batch per reassign; nothing else.
