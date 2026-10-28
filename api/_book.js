@@ -293,7 +293,7 @@ function todayList(people, me, cfg, parked) {
   people.filter((p) => p.stage === 'fifty' && p.goingCold).sort((a, b) => b.coldDays - a.coldDays)
     .forEach((p) => push(p, { why: 'going_cold', action: 'visit', detail: 'going cold · ' + p.coldDays + ' days' }));
   people.filter((p) => p.stage === 'candidate' && p.samplesAt && !p.touchedSinceSamples).sort((a, b) => b.sampleDays - a.sampleDays)
-    .forEach((p) => push(p, { why: 'candidate', action: 'visit', detail: 'samples ' + p.sampleDays + ' days ago' }));
+    .forEach((p) => push(p, { why: 'candidate', action: 'visit', detail: 'samples ' + p.sampleDays + (p.sampleDays === 1 ? ' day ago' : ' days ago') }));
   return out;
 }
 
