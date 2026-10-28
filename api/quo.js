@@ -2,7 +2,7 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 // Quo -> v2 (owner 2026-10-27). Quo's webhooks post every call, text and AI call summary here:
 //   POST /api/quo?key=<N8N_INTAKE_SECRET>          (+ Quo's 'openphone-signature', checked when QUO_WEBHOOK_SECRET is set)
 // Each event is kept once in ingest_events (source quo). Then, by the outside number:
-//   - a contact has it   -> the call or text goes on that contact's history (interactions, source quo, external_id = Quo's
+//   - a contact has it   -> the call or text goes on that contact's history (a shared number: one contact, see contactsFor) (interactions, source quo, external_id = Quo's
 //                           id, the same rows the Oct 22 load made), and a call's AI summary into ai_outputs
 //   - nobody has it      -> it waits in quo_unmatched, never shown to reps; the database attaches it when a contact gets
 //                           that number (v2-014). Quo never creates a contact (owner 2026-10-23, option 2).
@@ -67,8 +67,12 @@ async function handle(sql, ev) {
 }
 
 const outside = (o) => { const pick = /^in/i.test(s(o.direction)) ? o.from : o.to; return s(Array.isArray(pick) ? pick[0] : pick) || s((o.participants || [])[0]); };
-const contactsFor = (sql, p) => sql`select id from contacts where deleted_at is null and merged_into_contact_id is null
-  and (right(regexp_replace(coalesce(phone, ''), '\D', '', 'g'), 10) = ${digits10(p)} or right(regexp_replace(coalesce(mobile_phone, ''), '\D', '', 'g'), 10) = ${digits10(p)})`;
+// A shared number goes on one contact only (owner 2026-10-28): the line rep's own contact, then not the medical director,
+// then the one with the most history, then the oldest.
+const contactsFor = (sql, p, rep) => sql`select c.id from contacts c where c.deleted_at is null and c.merged_into_contact_id is null
+  and (right(regexp_replace(coalesce(c.phone, ''), '\D', '', 'g'), 10) = ${digits10(p)} or right(regexp_replace(coalesce(c.mobile_phone, ''), '\D', '', 'g'), 10) = ${digits10(p)})
+  order by (c.owner_id is not distinct from ${rep}::uuid and ${rep}::uuid is not null) desc, coalesce(c.is_medical_director, false),
+    (select count(*) from interactions i where i.contact_id = c.id and i.deleted_at is null) desc, c.created_at limit 1`;
 
 // A call or text as the interactions row it becomes (the Oct 22 load's shape).
 function rowOf(type, o) {
@@ -92,7 +96,7 @@ async function apply(sql, ev) {
   r.participants.other = M.e164(phone) || phone;
   return sql.begin(async (tx) => {
     await tx`select set_config('app.source', 'quo_webhook', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
-    const cs = await contactsFor(tx, phone);
+    const cs = await contactsFor(tx, phone, r.user_id);
     if (!cs.length) {
       await tx`insert into quo_unmatched (phone, kind, direction, quo_id, line_id, occurred_at, payload)
                values (${r.participants.other}, ${r.kind}, ${r.direction}, ${r.external_id}, ${r.participants.line}, ${r.occurred_at}, ${tx.json(r)})

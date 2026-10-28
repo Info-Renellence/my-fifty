@@ -485,3 +485,21 @@ A read-only audit of all 37 tables, then the owner said "make the safe fixes". `
 each every 5 minutes with the same Vault key: `my-fifty-tick` (`part=core`: Meta, pushes, nudge, snapshot, order resends, Stripe
 retries, alarms), `my-fifty-tick-hubspot` (`part=hubspot`: the HubSpot pull, the bridge) and `my-fifty-tick-sync`
 (`part=sync`: SignatureAPI, Gmail). Undo: re-run `db/003-cron.sql`.
+
+## 36. Shared Quo numbers on one contact, MD flags from the onboarding form (data + code), 2026-10-28, asked by Yousef
+
+Owner's answers to the #34 audit questions: shared numbers "one contact only, let Claude decide"; medical directors "whichever is
+pulled from the onboarding form is the source of truth"; old paperwork and the smaller items left as they are. No schema change.
+- Quo, existing rows: `renellence-ops/ops/fixes/quo-shared-numbers-2026-10-28.js` soft-deleted the second copy of 45 calls/texts
+  (backup `data/backups/quo-shared-v2-2026-10-28T22-17-54-137Z.json`, source 'import', batch 51522d1b-5cec-4031-ae07-bcc90bcb74d7).
+  Kept on: Gina Maalouf (9, not Ireen Girgis), Ladan Koupaei (14, Emily's line and contact, not Ireen), Kazimir Duclervil (3, not
+  Monica), Kendaeya Daniel (5, not Rita Tamas), Elvira Soloman (13, not Elizabeth Broniek), Naghmeh Badiei (1, not Elham Hajebi).
+  None left on two contacts.
+- Quo, from now on (`api/quo.js` contactsFor): a number two contacts share goes on one only: the line rep's own contact, then
+  not the medical director, then the most history, then the oldest. Test `test/db/quo.test.js` (shared number).
+- MD flags: `renellence-ops/ops/fixes/md-from-onboarding-2026-10-28.js` (backup `data/backups/md-from-onboarding-v2-2026-10-28T22-20-54-783Z.json`,
+  batch b4299929-6990-4934-b68f-4eefc59c9815). The form makes someone an MD when its MD section names them, or when the injector
+  ticks MD and names no other MD. MD flag on: Chelan Schwindt, Christine Paggos, Liat Skribovski, Nima Naghshgar, S. Blesko, Ireen
+  Girgis, Loredana Litoiu, Olga Gaponenko, Rana Elsabbagh, Tiffany Liu. Designation md and role physician: Loredana, Olga, Rana,
+  Tiffany, Neel Bector, Rita Tamas. Stevie Blanchard designation rn. Contacts the form says nothing about were left alone.
+- Left flagged (the form names no MD for them): Bimpe Ayeni (RN), Marlon Navarro (RPN), Samira Rafiei (NP).

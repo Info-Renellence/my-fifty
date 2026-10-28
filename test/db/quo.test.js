@@ -26,6 +26,18 @@ test('a call from a known number goes on that person\'s history; its AI summary 
   });
 });
 
+test('a number two contacts share goes on one only: not the medical director (owner 2026-10-28)', async () => {
+  await h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const md = await h.contact(sql, me, { phone: '+15550100104', md: true });
+    const injector = await h.contact(sql, me, { phone: '+15550100104' });
+    await Q.handle(sql, ev('EVe', 'call.completed', { id: 'ACshared' + t, direction: 'outgoing', from: '+13657005795', to: '+15550100104', status: 'completed', duration: 30 }));
+    const rows = await sql`select contact_id from interactions where external_id = ${'ACshared' + t}`;
+    assert.deepEqual(rows.map((r) => r.contact_id), [injector]);
+    assert.notEqual(rows[0].contact_id, md);
+  });
+});
+
 test('an unknown number is held (no contact is made) and attaches when a contact gets that number', async () => {
   await h.withDb(async (sql) => {
     const me = await h.user(sql);
