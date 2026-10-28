@@ -439,3 +439,18 @@ one kept, except change_logs; a row the kept one already has is kept once and th
 - Rana Zeineddine merged into Rana Majed-Zeineddine (same phone; her Oct 27 order moved to the onboarded record).
 - Pinkal Ghindi (event, misspelt) merged into Pinkal Gandhi.
 - Lucas's Leads after: Events and Training 28 (14 new), Other Warm 55 (16 new), Onboarded 6.
+
+## 33. Messy names from the Pulse test pass (data only), 2026-10-28, asked by Yousef
+
+Owner: "edit the ones you have high confidence for, and mark the rest". `renellence-ops/ops/fixes/messy-names-2026-10-28.js`
+(dry run first; each edit checks the old value; backup `data/backups/messy-names-v2-2026-10-28T20-58-07-701Z.json`; source
+'import', batch 7de757c0-e0b1-4d99-9e7c-c44bbdbb9372, 9 `change_logs` rows). No schema change.
+- aab0120b… "Service Thelaserclinic.ca" -> "Front Desk" (The Laser Clinic's service@ inbox; owner rule for shared lines).
+- 4d8cedfc… "Patel" moved from first to last name (Ibody, designation md, shows as "Dr. Patel").
+- cae00e7e… "Atlas Atlas" -> "Allahyar Atlas" (his email allahyar.atlas1@).
+- d11f37e0… Hasti unlinked from the placeholder clinic "Just an Injector Not Owner", which was soft-deleted (no other links).
+- Clinic typos: "Vita Cosmetic and Laser CLinic" -> "Clinic", "Tara Comsmetic Clinic" -> "Tara Cosmetic Clinic".
+- Left for the owner (not sure enough): 625bed0a… "Northern" (director@northernlightswomensclinic.com, no person name),
+  15715d1f… Bita's clinic "Elite Medical Clo" (cut off; no website) and no owner, the three nameless contacts (YS Cosmetic,
+  Gates Beauty, Cesthetique; web search in #31 found no person), and 41 first-name-only contacts (#29 found no last name at
+  high confidence).
