@@ -42,6 +42,9 @@ module.exports = route(async (req, res) => {
   // Decision 1 (owner 2026-10-28): the sales form asks here before it starts on an order Pulse sent, so a resend of the
   // same order (a retry after a lost answer) never makes a second invoice or charge.
   if (op === 'ping_rsvp' && req.method === 'POST' && isfKey(req)) return send(res, 200, await pingRsvp(db(), await require('./_http').body(req)));
+  // The ad-leads feed for n8n "[DIGEST] Leads Master: Meta Leads" (owner 2026-10-28: Pulse reads Meta directly; repoint the
+  // node here from Edge's /api/reports?kind=adleads-feed at the switch). Same answer and since / sinceMs as Edge's.
+  if (op === 'adleads_feed' && req.method === 'GET' && isfKey(req)) return send(res, ...(await adleadsFeed(req)));
   if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
@@ -135,6 +138,20 @@ async function appAlerts(sql) {
     }
   }
   return out;
+}
+
+// n8n's ad-leads feed (op=adleads_feed): every Meta lead since a day (since=YYYY-MM-DD, Toronto midnight) or an exact moment
+// (sinceMs). A date that can't be read is a 400, never "every lead ever". Meta not set up is a 503.
+async function adleadsFeed(req) {
+  const q = query(req);
+  const ms = Number(q.get('sinceMs'));
+  const day = String(q.get('since') || '').slice(0, 10);
+  if (day && !/^\d{4}-\d{2}-\d{2}$/.test(day)) return [400, { error: 'bad_since' }];
+  const since = ms > 0 ? ms : Date.parse((day || '2026-10-05') + 'T00:00:00-04:00');
+  if (!isFinite(since)) return [400, { error: 'bad_since' }];
+  const M = require('./_metaleads');
+  if (!M.ready()) return [503, { error: 'meta_not_connected' }];
+  try { return [200, await M.leadsSince(since)]; } catch (e) { console.error('ADLEADS_FEED', e.message); return [502, { error: e.message }]; }
 }
 
 // The instant RSVP ping n8n sends after a launch-event form (live Edge's POST /api/me?ping=rsvp, the "[REG] Liberty Grand

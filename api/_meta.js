@@ -8,6 +8,8 @@
 //   - anyone else becomes a contact: lead_source social (one of the four sources), owned by the rep Edge found, or by
 //     nobody when Edge says two reps share the area ("Lucas or Sam": an admin assigns them, as Edge shows it)
 // The new-lead push (api/cron.js newLeads) then tells the rep. Bookmark: settings 'meta_sync' { sinceMs }.
+// Since 2026-10-28 (owner: "pulse reads meta directly") the leads come from Meta itself (api/_metaleads.js) once Pulse has
+// META_ADS_TOKEN; until then from Edge's feed as before, so nothing stops in between.
 'use strict';
 const M = require('./_hsmap');
 const FEED = 'https://edge.renellence.com/api/reports?kind=adleads-feed';
@@ -25,10 +27,18 @@ const digits10 = (p) => { const d = s(p).replace(/\D/g, ''); return d.length >= 
 const postal = (v) => { const x = s(v).toUpperCase().replace(/\s+/g, ''); return /^[A-Z]\d[A-Z]\d[A-Z]\d$/.test(x) ? x.slice(0, 3) + ' ' + x.slice(3) : s(v) || null; };
 
 async function sync(sql) {
+  const direct = require('./_metaleads');
   const key = process.env.N8N_INTAKE_SECRET;
-  if (!key) return { skipped: 'not_set_up' };
+  if (!direct.ready() && !key) return { skipped: 'not_set_up' };
   const [row] = await sql`select value from settings where key = 'meta_sync'`;
   const since = Number(row && row.value && row.value.sinceMs) || START_MS;
+  const feed = direct.ready() ? await direct.leadsSince(since).catch((e) => ({ error: e.message })) : await fromEdge(key, since);
+  if (feed.error) return { error: feed.error, from: direct.ready() ? 'meta' : 'edge' };
+  return Object.assign(await save(sql, feed, since), { from: direct.ready() ? 'meta' : 'edge' });
+}
+
+// The old way: live Edge's ad-leads feed (until Pulse has META_ADS_TOKEN).
+async function fromEdge(key, since) {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 20000);
   let feed;
@@ -37,6 +47,10 @@ async function sync(sql) {
     if (!r.ok) return { error: 'feed_' + r.status };
     feed = await r.json();
   } catch (e) { return { error: e.name === 'AbortError' ? 'feed_timeout' : 'feed_unreachable' }; } finally { clearTimeout(t); }
+  return feed || {};
+}
+
+async function save(sql, feed, since) {
   const out = { seen: 0, added: 0, matched: 0, known: 0 };
   let latest = since;
   for (const l of (feed && feed.leads) || []) {
