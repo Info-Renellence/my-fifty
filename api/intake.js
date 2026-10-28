@@ -323,6 +323,25 @@ async function sync(sql, budgetMs) {
       after = page.after;
     }
   }
+  // Orders from the last 14 days that still have no products (read before their line items were found): read again, ten a
+  // tick, until HubSpot gives them (owner check 2026-10-28).
+  const empty = await sql`select o.legacy_id from orders o where o.legacy_id is not null and o.deleted_at is null and o.created_at > now() - interval '14 days'
+    and not exists (select 1 from order_lines l where l.order_id = o.id) order by o.created_at desc limit 10`;
+  if (empty.length) {
+    const res = (out.orderLines = { tried: 0, filled: 0 });
+    for (const e of empty) {
+      if (Date.now() > until + 5000) break;
+      res.tried++;
+      try {
+        await sql.begin(async (tx) => {
+          await tx`select set_config('app.source', 'import', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
+          await syncOrder(tx, e.legacy_id);
+        });
+        const [n] = await sql`select count(*)::int n from order_lines l join orders o on o.id = l.order_id where o.legacy_id = ${e.legacy_id}`;
+        if (n.n) res.filled++;
+      } catch (err) { console.error('HUBSPOT_ORDER_LINES', e.legacy_id, err.message); }
+    }
+  }
   return out;
 }
 

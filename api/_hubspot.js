@@ -49,6 +49,11 @@ async function contactsOf(type, ids) {
 }
 // One call, meeting, note or task with its contacts.
 const activity = (type, id, properties) => call('GET', `/crm/v3/objects/${type}/${encodeURIComponent(id)}?properties=${properties.join(',')}&associations=contacts`);
-const assocIds = (rec, type) => (((rec && rec.associations && rec.associations[type]) || {}).results || []).map((x) => String(x.id));
+// HubSpot names some associations with a space in the reply ("line items" for associations=line_items): read either, or an
+// order's products are never found (owner check 2026-10-28: every order since Oct 27 came in with no products).
+const assocIds = (rec, type) => {
+  const a = (rec && rec.associations) || {};
+  return ((a[type] || a[type.replace(/_/g, ' ')] || {}).results || []).map((x) => String(x.id));
+};
 
 module.exports = { contact, company, order, lineItems, assocIds, call, changedSince, contactsOf, activity, CONTACT_PROPS, ORDER_PROPS };
