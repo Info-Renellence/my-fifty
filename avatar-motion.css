@@ -20,7 +20,12 @@
 /* 2. Status */
 /* Going cold: a cooler tint and a shiver now and then */
 .av-motion .av.st-cold.av-on > svg { filter: saturate(0.6) hue-rotate(18deg) brightness(1.05); }
-.av-motion .av.st-cold.av-on .av-head { animation: avShiver 4.2s linear var(--av-d, 0s) infinite, avBreathe 3.6s ease-in-out var(--av-d, 0s) infinite; }
+.av-motion .av.st-cold.av-on .av-head { animation: avShiver 2.4s linear var(--av-d, 0s) infinite, avBreathe 3.6s ease-in-out var(--av-d, 0s) infinite; }
+/* ... and it snows in their circle (owner 2026-10-28), behind the head; flakes drift as they fall */
+.av-motion .av svg g.av-snow circle { transform-box: view-box; opacity: 0; animation: avSnow var(--sd, 3.5s) linear var(--sdl, 0s) infinite; animation-play-state: paused; }
+.av-motion .av.av-on svg g.av-snow circle { animation-play-state: running; }
+@keyframes avSnow { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.95; } 50% { transform: translate(var(--sx, 3px), 34px); }
+  90% { opacity: 0.9; } 100% { transform: translate(0, 70px); opacity: 0; } }
 @keyframes avShiver { 0%, 82%, 100% { rotate: 0deg; } 84% { rotate: -4deg; } 86% { rotate: 4deg; } 88% { rotate: -3deg; } 90% { rotate: 3deg; } 92% { rotate: -1.5deg; } 94% { rotate: 0deg; } }
 /* My Fifty: a slow gold light around the avatar (gold is for My Fifty and wins only) */
 .av-motion .av.st-fifty::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; pointer-events: none;

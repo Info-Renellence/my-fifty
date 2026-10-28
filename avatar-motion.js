@@ -34,6 +34,7 @@
     if (io) io.observe(el); else el.classList.add('av-on');
     // A person's page: they wave hello with a real hand (owner 2026-10-28: "I said they're waving, you just made them
     // shake"). The avatars have no arm, so one is added in the person's own skin and sleeve colours.
+    if (el.classList.contains('st-cold')) addSnow(el);
     if (el.classList.contains('card')) { addHand(el); setTimeout(function () { play(el, 'av-wave', 2700); }, 450); }
     if (nodId && el.getAttribute('data-pid') === nodId) setTimeout(function () { play(el, 'av-nod', 1600); }, 300);
     if (el.classList.contains('jump')) confetti(el);
@@ -56,6 +57,23 @@
       + ' fill="' + skin + '" stroke="#0B1530" stroke-width="1.6" stroke-linejoin="round"/>';
     wrap.appendChild(g);
     svg.appendChild(wrap);
+  }
+  // Going cold: it snows inside their circle, behind the head (owner 2026-10-28: "snowing in their frame and they're
+  // shivering"). Each flake has its own speed, drift and start, so it never looks like a loop.
+  function addSnow(el) {
+    var svg = el.querySelector('svg');
+    if (!svg || svg.querySelector('.av-snow')) return;
+    var ns = 'http://www.w3.org/2000/svg', clip = svg.querySelector('clipPath'), g = document.createElementNS(ns, 'g');
+    if (clip && clip.id) g.setAttribute('clip-path', 'url(#' + clip.id + ')');
+    g.setAttribute('class', 'av-snow');
+    var html = '';
+    for (var i = 0; i < 11; i++) {
+      html += '<circle cx="' + rnd(4, 60).toFixed(1) + '" cy="-4" r="' + rnd(0.7, 1.6).toFixed(2) + '" fill="#FFFFFF" style="--sd:'
+        + rnd(2.6, 4.6).toFixed(2) + 's;--sdl:-' + rnd(0, 4.6).toFixed(2) + 's;--sx:' + rnd(-5, 5).toFixed(1) + 'px"/>';
+    }
+    g.innerHTML = html;
+    var head = svg.querySelector('.av-head');
+    if (head) svg.insertBefore(g, head); else svg.appendChild(g);
   }
   function scan(node) {
     if (!node || node.nodeType !== 1) return;
