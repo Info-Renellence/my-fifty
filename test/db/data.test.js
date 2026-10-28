@@ -251,7 +251,10 @@ describe('history', () => {
     assert.equal(entries.find((e) => e.kind === 'meeting').next, 'Check back in a week', 'the follow-up made from the visit');
     assert.equal(by('note')[0].title, 'Note from Robin');
     assert.equal(entries.find((e) => e.kind === 'email').editable, false);
-    assert.equal(entries.find((e) => e.kind === 'email').body, 'Pricing — Here it is');
+    assert.equal(entries.find((e) => e.kind === 'email').body, 'Here it is', 'only what was written this time (60f7909)');
+    assert.equal(entries.find((e) => e.kind === 'email').subject, 'Pricing');
+    // The Notes tab: notes and written call or visit notes; never an email or text itself.
+    assert.deepEqual([callE.noted, entries.find((e) => e.kind === 'meeting').noted, entries.find((e) => e.kind === 'email').noted], [true, true, false]);
     assert.equal(by('order')[0].title, 'Order · $2,025');
     assert.equal(by('order')[0].body, '6 filler · 3 lips');
     assert.deepEqual([by('order')[0].status, by('order')[0].tone], ['Shipped', 'green']);
@@ -297,8 +300,8 @@ describe('history', () => {
     assert.equal(await last(s), 'Came from a Meta ad');
     assert.equal(await last(fb), 'Came from a Meta ad');
     assert.equal(await last(plain), 'Came from a Meta ad');
-    assert.equal(await last(w), 'Added to My Fifty');
-    assert.equal(await last(c), 'Added to My Fifty');
+    assert.equal(await last(w), 'Added as a contact');
+    assert.equal(await last(c), 'Added as a contact');
   }));
 });
 

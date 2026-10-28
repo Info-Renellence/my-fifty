@@ -8,7 +8,7 @@ const D = require('../../api/data')._;
 const placed = new Date('2026-08-07T16:37:00Z');
 test('a delivered order with no step times shows every step done (L19)', () => {
   const steps = D.orderSteps({ submitted_at: placed, status: 'delivered', payment_method: 'card_on_file' }, { paid_flag: true }, []);
-  assert.deepEqual(steps.map((s) => s.done), [true, true, true, true, true]);
+  assert.deepEqual(steps.map((s) => s.done), [true, true, true, true, true, true]);
   assert.ok(!steps.some((s) => s.current), 'nothing is waiting');
   assert.equal(steps[1].when, '', 'no made-up date');
 });
@@ -18,7 +18,7 @@ test('a delivered sample order with no step times shows every step done (L21)', 
 });
 test('a delivered wire order not marked received shows every step done (owner 2026-10-28: wires show as paid)', () => {
   const steps = D.orderSteps({ submitted_at: placed, status: 'delivered', payment_method: 'wire' }, { paid_flag: false }, [], { text: 'Wire · 3 days overdue' });
-  assert.deepEqual(steps.map((s) => s.done), [true, true, true, true, true]);
+  assert.deepEqual(steps.map((s) => s.done), [true, true, true, true, true, true]);
 });
 test('an approved order with no approval time is approved; a submitted one still waits', () => {
   assert.equal(D.orderSteps({ submitted_at: placed, status: 'approved' }, { paid_flag: false }, [])[1].done, true);

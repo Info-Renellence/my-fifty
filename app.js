@@ -1136,7 +1136,7 @@
   function screenHistory(id) {
     return paint(read('history', { id: id }), function (d) {
       var entries = d.entries.filter(function (e) {
-        return historyTab === 'all' || (historyTab === 'notes' ? (e.type === 'touch' || e.type === 'note') : (e.type === 'order' || e.type === 'samples'));
+        return historyTab === 'all' || (historyTab === 'notes' ? (e.type === 'note' || (e.type === 'touch' && e.noted)) : (e.type === 'order' || e.type === 'samples'));
       });
       var h = '<div class="scr">' + backLink('/person/' + d.id, d.name) + '<div class="head"><h1 class="h1">History</h1></div>'
         + '<div class="seg flat" role="tablist" style="margin-bottom:6px">'
@@ -1491,6 +1491,8 @@
       var sum = L.draftSummary(d.products, dft), samples = sum.samples, who = d.person;
       function info(label, value, first) { return '<div class="kv" style="min-height:48px' + (first ? '' : '') + '"><span class="k">' + label + '</span><span class="v">' + value + '</span></div>'; }
       var noShip = dft.noShip = !(who.shipping.street && who.shipping.city);
+      // No email at all: the pay link or wire invoice would have nowhere to go (samples and a saved card don't need one).
+      dft.emailless = !(who.email || who.secondaryEmail); dft.samplesOnly = !!samples; dft.cardSaved = !!(d.card && d.card.saved);
       var h = '<div class="scr">' + backLink('/order/' + contactId, 'Edit order')
         + '<h1 class="display" style="font-size:30px;font-weight:800;letter-spacing:-1.1px;padding:0 4px 8px">Review</h1>'
         + '<div class="sect" style="padding:6px 4px"><span class="label">' + esc(who.name + (who.clinic ? ' · ' + who.clinic : '')) + '</span></div>'
@@ -1574,6 +1576,7 @@
     if ((b = e.target.closest('[data-send-order]'))) {
       if (b.disabled) return;
       if (draft.noShip) { toast(errText({ message: 'no_shipping_address' })); shippingSheet(draft.contactId); return; }
+      if (draft.emailless && !draft.samplesOnly && (draft.payment === 'wire' || !draft.cardSaved)) { toast(errText({ message: 'no_invoice_email' })); invoiceEmailSheet(draft.contactId); return; }
       b.disabled = true; b.textContent = 'Sending…';
       var d = draft, samples = L.draftSummary(d.products.products, d).samples;
       act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,

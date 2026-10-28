@@ -123,7 +123,7 @@ describe('data: order words and steps', () => {
   test('orderSteps: waiting on a pay link', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: new Date('2026-10-20T13:12:00Z') }, { paid_flag: false },
       [{ method: 'pay_link', status: 'pending', created_at: new Date('2026-10-20T14:05:00Z') }]);
-    assert.deepEqual(steps.map((s) => s.label), ['Order placed', 'Approved', 'Payment', 'Preparing to ship', 'Shipped']);
+    assert.deepEqual(steps.map((s) => s.label), ['Order placed', 'Approved', 'Payment', 'Preparing to ship', 'Shipped', 'Delivered']);
     assert.equal(steps[0].when, 'Today 8:47');
     assert.equal(steps[2].current, true);
     assert.equal(steps[2].when, 'No card on file · link sent 10:05');
@@ -141,8 +141,10 @@ describe('data: order words and steps', () => {
   });
   test('orderSteps: shipped with tracking', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, sent_to_warehouse_at: placed, shipped_at: placed, tracking_number: '1Z9' }, { paid_flag: true }, [{ status: 'succeeded', paid_at: placed }]);
-    assert.ok(steps.every((s) => s.done));
+    assert.ok(steps.slice(0, 5).every((s) => s.done));
     assert.match(steps[4].when, /1Z9$/);
+    assert.equal(steps[5].label, 'Delivered');
+    assert.equal(steps[5].current, true, 'shipped, not delivered yet');
   });
   test('orderSteps: not approved yet', () => {
     const steps = D.orderSteps({ submitted_at: placed }, { paid_flag: false }, []);
@@ -151,7 +153,7 @@ describe('data: order words and steps', () => {
   });
   test('sampleSteps: waiting on the MD names them', () => {
     const steps = D.sampleSteps({ submitted_at: placed, approved_at: placed }, { first_name: 'Lee', last_name: 'Sample', designation: 'MD' }, { sent_at: new Date('2026-10-20T13:12:00Z') });
-    assert.deepEqual(steps.map((s) => s.label), ['Order placed', 'Approved', 'MD signature', 'Preparing to ship', 'Shipped']);
+    assert.deepEqual(steps.map((s) => s.label), ['Order placed', 'Approved', 'MD signature', 'Preparing to ship', 'Shipped', 'Delivered']);
     assert.equal(steps[2].when, 'Sent to Dr. Lee Sample 9:12');
     assert.equal(steps[2].current, true);
   });
@@ -159,6 +161,10 @@ describe('data: order words and steps', () => {
     const steps = D.sampleSteps({ submitted_at: placed, approved_at: placed, medical_director_signed_at: placed, shipped_at: placed }, null, null);
     assert.equal(steps[2].done, true);
     assert.equal(steps[4].done, true);
+  });
+  test('orderSteps: delivered shows its date', () => {
+    const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, shipped_at: placed, delivered_at: placed }, { paid_flag: true }, []);
+    assert.deepEqual([steps[5].label, steps[5].done, steps[5].when], ['Delivered', true, 'Today 8:47']);
   });
   test('sampleSteps: no MD envelope yet', () => assert.equal(D.sampleSteps({ submitted_at: placed, approved_at: placed }, null, null)[2].when, 'Waiting'));
 });

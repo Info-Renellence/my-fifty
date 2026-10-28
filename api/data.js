@@ -107,9 +107,13 @@ const OPS = {
     const cands = people.filter((p) => p.stage === 'candidate')
       .sort((a, b) => (b.sampleDays == null ? -1 : b.sampleDays) - (a.sampleDays == null ? -1 : a.sampleDays));
     const leads = people.filter((p) => p.stage === 'lead');
+    // Onboarded counts "new" the way its own page does: signed in the last 7 days (the other groups: nobody has reached out yet).
+    const onbIds = leads.filter((p) => p.leadGroup === 'onboarded').map((p) => p.id);
+    const signed = onbIds.length ? await signedAt(sql, onbIds) : {};
     const groups = Object.keys(LEAD_GROUPS).map((k) => {
       const g = leads.filter((p) => p.leadGroup === k);   // someone who left the Fifty is a warm lead
-      return { key: k, label: LEAD_GROUPS[k] === 'Events and training' ? 'Event and training leads' : k === 'social' ? 'Social media leads' : LEAD_GROUPS[k], count: g.length, fresh: g.filter((p) => p.isNew).length };
+      const fresh = k === 'onboarded' ? g.filter((p) => signedThisWeek(signed[p.id], p.createdAt)).length : g.filter((p) => p.isNew).length;
+      return { key: k, label: LEAD_GROUPS[k] === 'Events and training' ? 'Event and training leads' : k === 'social' ? 'Social media leads' : LEAD_GROUPS[k], count: g.length, fresh };
     });
     const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub, role: p.role, initials: initials(p.name), mood: moodOf(p, cfg) });
     // New this week (the Leads tab's story strip, Pulse UI 2026-10-27): leads added in the last 7 days, newest first.
@@ -133,15 +137,13 @@ const OPS = {
     const { people } = await B.book(sql, me, scope(me));
     const leads = people.filter((p) => p.stage === 'lead' && p.leadGroup === group).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     const added = group === 'cold' || group === 'warm' ? await addedBy(sql, leads.map((p) => p.id), me) : {};
-    // Onboarded: when they signed (the onboarding agreement completed).
-    const signed = group === 'onboarded' && leads.length ? Object.fromEntries((await sql`
-      select ob.primary_contact_id as id, max(coalesce(ob.completed_at, a.completed_at)) as at from onboardings ob join agreements a on a.id = ob.agreement_id
-       where ob.primary_contact_id = any(${leads.map((p) => p.id)}) group by 1`).map((r) => [r.id, r.at])) : {};
-    const weekAgo = Date.now() - 7 * 86400000;
+    // Onboarded: when they signed (the onboarding agreement completed), newest signature first.
+    const signed = group === 'onboarded' && leads.length ? await signedAt(sql, leads.map((p) => p.id)) : {};
+    if (group === 'onboarded') leads.sort((a, b) => new Date(signed[b.id] || b.createdAt) - new Date(signed[a.id] || a.createdAt));
     const cfg = await B.settings(sql);
     return { group, title: LEAD_GROUPS[group], leads: leads.map((p) => ({
       id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt), role: p.role, phone: !!p.phone, mood: moodOf(p, cfg),
-      lastKind: p.lastTouchKind || '', signed: signed[p.id] ? T.short(signed[p.id]) : '', newThisWeek: new Date(signed[p.id] || p.createdAt) > weekAgo,
+      lastKind: p.lastTouchKind || '', signed: signed[p.id] ? T.short(signed[p.id]) : '', newThisWeek: signedThisWeek(signed[p.id], p.createdAt),
       sub: [p.clinic, sourceText(p, added[p.id])].filter(Boolean).join(' · '),
       last: p.lastTouchKind ? (TOUCH_WORD[p.lastTouchKind] || 'Touched') + ' ' + T.short(p.lastTouchAt) : '',
     })) };
@@ -159,13 +161,14 @@ const OPS = {
       lastPaid: bought.length ? bought.reduce((a, o) => (B.paidAt(o) > B.paidAt(a) ? o : a)) : null });
     const since = (at) => (at ? T.daysBetween(at, Date.now()) + (T.daysBetween(at, Date.now()) === 1 ? ' day' : ' days') : 'None');
     const lastContact = [p.lastTouchAt, p.lastOrderAt].filter(Boolean).reduce((a, x) => (!a || x > a ? x : a), null);
-    const SOURCE = { social: 'Social', event: 'Event', warm: 'Warm', cold: 'Cold', onboarded: 'Onboarding' };
+    // Where they came from is the lead source; the group is only the fallback ("Onboarding" didn't fit and isn't a source).
+    const SOURCE = { social: 'Social', event: 'Event', warm: 'Warm', cold: 'Cold', onboarded: 'Sign-up' };
     const sampleLines = p.sampleOrder ? (p.sampleOrder.summary || []).map((l) => ({ name: shortProduct(l.name), qty: l.qty, sku: l.sku })) : [];
     const stats = p.stage === 'fifty'
       ? [[money(p.totalBought), 'Total bought'], [p.lastPaid ? money(p.lastPaid.total) : '$0', p.lastPaid ? T.short(B.paidAt(p.lastPaid)) + ' order' : 'Last order'], [since(lastContact), 'Since contact']]
       : p.stage === 'candidate'
         ? [[String(sampleLines.reduce((a, l) => a + (Number(l.qty) || 0), 0)), 'Samples sent'], [p.sampleDays == null ? 'On the way' : since(p.samplesAt), 'Since samples'], [since(lastContact), 'Since contact']]
-        : [[p.sourceKind === 'event' && p.eventName ? p.eventName : SOURCE[p.leadGroup] || SOURCE[p.sourceKind] || 'Unknown', 'Came from'], [B.ago(p.createdAt).replace(' ago', ''), 'Since added'], [String(p.touches), 'Contacts']];
+        : [[p.sourceKind === 'event' && p.eventName ? p.eventName : SOURCE[p.sourceKind] || SOURCE[p.leadGroup] || 'Unknown', 'Came from'], [B.ago(p.createdAt).replace(' ago', ''), 'Since added'], [String(p.touches), 'Contacts']];
     return {
       role: p.role, leadGroup: p.leadGroup, stats, samples: sampleLines.length ? { lines: sampleLines, sent: T.short(B.placedAt(p.sampleOrder)) } : null,
       id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold,
@@ -305,11 +308,19 @@ async function weekStrip(sql, me, cfg) {
 
 const initials = (name) => String(name || '').replace(/^Dr\.?\s+/i, '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
+// When each onboarded lead signed: the onboarding agreement completed.
+async function signedAt(sql, ids) {
+  return Object.fromEntries((await sql`
+    select ob.primary_contact_id as id, max(coalesce(ob.completed_at, a.completed_at)) as at from onboardings ob join agreements a on a.id = ob.agreement_id
+     where ob.primary_contact_id = any(${ids}) group by 1`).map((r) => [r.id, r.at]));
+}
+const signedThisWeek = (at, createdAt) => new Date(at || createdAt) > Date.now() - 7 * 86400000;
+
 // Product names as the mockup writes them: "saypha® filler", "Magic Needle 25G 50mm", "Mesbio needle 30G 12mm".
 function shortProduct(name) {
   const s = String(name || '');
   let m = s.match(/^(saypha®?\s+(?:lips|filler|volume plus|volume))\b/i);
-  if (m) return m[1];
+  if (m) return m[1].toLowerCase();   // saypha and its products are always lower case, whatever the order line says
   m = s.match(/^Magic Needle Cannula\s+(\d+G)\s+(\d+)MM/i);
   if (m) return 'Magic Needle ' + m[1] + ' ' + m[2] + 'mm';
   m = s.match(/^Mesbio .*?Needle\s+(\d+G)\s+(\d+)MM/i);
@@ -511,7 +522,9 @@ async function historyOf(sql, me, p) {
       title: [(KIND_WORD[kind] || 'Note') + (inbound ? ' from ' + who : ''), outcomeWord(i)].filter(Boolean).join(' · '),
       body: mail ? mail.body.slice(0, 4000) : (i.body || i.ai_summary || ''),
       ...(mail ? { subject: mail.subject, full: mail.full } : {}),
-      next: mail ? '' : next, by: who });
+      next: mail ? '' : next, by: who,
+      // History's Notes tab: something a person wrote down (a note, or a call or visit note); never a text or email itself.
+      noted: kind === 'note' || (!!String(i.body || '').trim() && !['text', 'email'].includes(i.kind)) });
   }
   // Rejected and cancelled orders are left out of everything else (they never count), but History shows them, so
   // the rep sees what happened (Yousef 2026-10-21, Q7).
@@ -536,7 +549,7 @@ async function historyOf(sql, me, p) {
      order by l.changed_at desc`;
   for (const m of moves) out.push({ type: 'event', at: m.at, title: 'Moved to you from ' + m.name });
   const origin = p.sourceKind === 'event' && p.eventName ? 'Met at ' + p.eventName
-    : p.sourceKind === 'social' ? 'Came from a Meta ad' : 'Added to My Fifty';
+    : p.sourceKind === 'social' ? 'Came from a Meta ad' : 'Added as a contact';   // the day the contact was created, not the day they joined the Fifty
   out.push({ type: 'origin', at: p.createdAt, title: origin });
   out.sort((a, b) => new Date(b.at) - new Date(a.at));
   return out.map((e) => Object.assign(e, { month: LONG_MONTHS[+T.ymd(e.at).slice(5, 7) - 1], year: T.ymd(e.at).slice(0, 4), when: when(e.at).replace(/^today$/, 'Today') }));
@@ -558,6 +571,8 @@ function markCurrent(steps, waitingText) {
 // approved / warehouse / shipped times (real-data run 2026-10-22, RD6): the status still counts, the step just has no date.
 const STATUS_RANK = { submitted: 0, awaiting_md: 0, approved: 1, invoiced: 1, paid: 1, sent_to_warehouse: 2, shipped: 3, delivered: 3 };
 const reached = (o, status) => (STATUS_RANK[o.status] || 0) >= STATUS_RANK[status];
+// The last step, so the timeline ends where the history's "Delivered" does.
+const delivered = (o) => ({ label: 'Delivered', when: o.delivered_at ? fmtTime(o.delivered_at) : '', done: !!o.delivered_at || o.status === 'delivered' });
 function orderSteps(o, x, pays, wire) {
   const paid = x && shownPaid(Object.assign({}, x, { payment_method: o.payment_method }));
   const pay = pays[0];
@@ -573,6 +588,7 @@ function orderSteps(o, x, pays, wire) {
     { label: 'Payment', when: payWhen, done: !!paid },
     { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) || reached(o, 'sent_to_warehouse') },
     { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) + (o.tracking_number ? ' · ' + o.tracking_number : '') : '', done: !!o.shipped_at || reached(o, 'shipped') },
+    delivered(o),
   ];
   return markCurrent(steps, () => 'Waiting');
 }
@@ -585,6 +601,7 @@ function sampleSteps(o, md, ag) {
     { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at || reached(o, 'sent_to_warehouse') },
     { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) || reached(o, 'sent_to_warehouse') },
     { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) : '', done: !!o.shipped_at || reached(o, 'shipped') },
+    delivered(o),
   ];
   return markCurrent(steps, () => 'Waiting');
 }

@@ -386,7 +386,7 @@ button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { trans
 .padd > span { width: 28px; height: 28px; border-radius: 50%; background: var(--raised); color: var(--sky); font-size: 18px; font-weight: 600; display: flex; align-items: center; justify-content: center; pointer-events: none; }
 .padd:active > span { transform: scale(0.9); }
 .orderbar { position: fixed; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; bottom: calc(var(--safe-bottom) + 72px); padding: 0 16px 10px; z-index: 15; display: flex; flex-direction: column; }
-.clearorder { align-self: flex-end; color: var(--danger); font-size: 14px; font-weight: 600; padding: 8px 6px 0; min-height: 36px; }
+.clearorder { align-self: flex-end; color: var(--danger); font-size: 14px; font-weight: 600; padding: 0 12px; min-height: 32px; border-radius: 12px; background: var(--raised); box-shadow: 0 6px 14px rgba(0,0,0,0.4); }   /* its own chip, so it never sits on a product name */
 .sumbar { height: 62px; border-radius: 20px; background: var(--raised); color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 8px 0 18px; margin-top: 4px; box-shadow: 0 10px 22px rgba(0,0,0,0.48); }
 .sumbar .go { height: 46px; padding: 0 18px; border-radius: 15px; background: var(--blue); font-size: 16px; font-weight: 700; display: flex; align-items: center; }
 .sumbar.off .go { background: #3A4769; color: #8C98B2; }
