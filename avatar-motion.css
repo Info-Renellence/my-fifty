@@ -87,6 +87,36 @@
 }
 @keyframes avWaveLean { 0%, 100% { transform: rotate(0); } 15%, 80% { transform: rotate(5deg) translateY(-0.5px); } }
 
+/* Moods (owner 2026-10-28; api/data.js moodOf, avatar-motion.js) */
+/* After an order: coins rain once, with a happy bounce */
+.av-motion .av svg g.av-coins > g { transform-box: view-box; animation: avCoin 1.5s cubic-bezier(.4, 0, .7, 1) var(--cd, 0s) both; }
+@keyframes avCoin { 0% { transform: translate(var(--cx), -6px) rotate(0); opacity: 0; } 12% { opacity: 1; }
+  85% { opacity: 1; } 100% { transform: translate(var(--cx), 70px) rotate(var(--cr)); opacity: 0; } }
+.av-motion .av.av-rich .av-head { animation: avNod 0.5s ease-in-out 3; }
+/* Back from cold: the sun rises in the corner and shines, the cool tint lifts, and they jump for joy */
+.av-motion .av svg g.av-sun .av-sun-in > * { transform-box: view-box; }
+.av-motion .av svg g.av-sun { animation: avSunRise 3.4s ease-out both; }
+.av-motion .av svg g.av-sun .av-rays { transform-box: fill-box; transform-origin: 50% 50%; animation: avSpin 3.4s linear; }
+@keyframes avSunRise { 0% { transform: translateY(20px); opacity: 0; } 20%, 80% { transform: translateY(0); opacity: 1; } 100% { opacity: 0; } }
+@keyframes avSpin { to { transform: rotate(90deg); } }
+.av-motion .av.av-thaw { animation: avJump 0.9s cubic-bezier(.3, 1.5, .5, 1) 0.6s 2 both; transform-origin: 50% 100%; }
+.av-motion .av.av-thaw > svg { filter: saturate(1.15) brightness(1.06); transition: filter 1.2s; }
+/* Asleep: eyes shut, slow breath, Zzz floating up; on their page they wake with a jolt */
+.av-motion .av.st-asleep:not(.av-woke) .av-eyes circle { animation: none; transform-box: fill-box; transform-origin: 50% 50%; transform: scaleY(0.14); }
+.av-motion .av.st-asleep:not(.av-woke) .av-head { animation: avBreathe 5.5s ease-in-out var(--av-d, 0s) infinite; rotate: -6deg; }
+.av-motion .av svg g.av-zzz text { transform-box: view-box; opacity: 0; animation: avZzz 2.7s ease-out var(--zd, 0s) infinite; animation-play-state: paused; }
+.av-motion .av.av-on:not(.av-woke) svg g.av-zzz text { animation-play-state: running; }
+.av-motion .av.av-woke svg g.av-zzz { display: none; }
+@keyframes avZzz { 0% { transform: translate(0, 0) scale(0.6); opacity: 0; } 20% { opacity: 1; } 100% { transform: translate(9px, -16px) scale(1.15); opacity: 0; } }
+.av-motion .av.av-jolt { animation: avJolt 0.7s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes avJolt { 0% { transform: translateY(0) scale(1); } 25% { transform: translateY(-7px) scale(1.08, 0.94); } 45% { transform: translateY(0) rotate(-4deg); }
+  65% { transform: rotate(4deg); } 100% { transform: none; } }
+/* Waiting on a signature: holds a pen up and taps it (instead of the head tap) */
+.av-motion .av.st-wait.av-on .av-head { animation: avBreathe 3.6s ease-in-out var(--av-d, 0s) infinite; }
+.av-motion .av svg g.av-pen .av-pen-tip { transform-box: view-box; transform-origin: 47px 41px; }
+.av-motion .av.av-on svg g.av-pen .av-pen-tip { animation: avPenTap 2.8s ease-in-out var(--av-d, 0s) infinite; }
+@keyframes avPenTap { 0%, 62%, 100% { transform: rotate(0); } 68% { transform: rotate(16deg); } 74% { transform: rotate(0); } 80% { transform: rotate(16deg); } 86% { transform: rotate(0); } }
+
 /* 5. Big moments: the person who joined your Fifty jumps, with confetti */
 .joinav { display: flex; justify-content: center; position: relative; }
 .av-motion .av.jump { animation: avJump 0.9s cubic-bezier(.3, 1.5, .5, 1) 0.2s 3 both; transform-origin: 50% 100%; }

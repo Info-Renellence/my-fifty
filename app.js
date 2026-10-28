@@ -29,6 +29,7 @@
     if (o.stage === 'candidate') s.push('st-cand');
     if (o.isNew || o.newThisWeek || o.fresh) s.push('st-new');
     if (o.status && /^Waiting/.test(o.status.label || '')) s.push('st-wait');
+    if (/^(ordered|thawed|asleep)$/.test(o.mood || '')) s.push('st-' + o.mood);   // api/data.js moodOf (owner 2026-10-28)
     return s.join(' ');
   }
   // A plain toast, or Today's "+1" toast with the gold chip (F2).

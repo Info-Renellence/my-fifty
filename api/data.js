@@ -77,7 +77,7 @@ const OPS = {
     const list = B.todayList(people, me, cfg, parked);
     // Role for the avatars, and the stage (Pulse UI 2026-10-27). Kept here, not in the shared _book.js.
     const roleOf = Object.fromEntries(people.map((p) => [p.id, p]));
-    list.forEach((x) => { if (roleOf[x.id]) { x.role = roleOf[x.id].role; x.stage = roleOf[x.id].stage; } });
+    list.forEach((x) => { if (roleOf[x.id]) { x.role = roleOf[x.id].role; x.stage = roleOf[x.id].stage; x.mood = moodOf(roleOf[x.id], cfg); } });
     day.week = await weekStrip(sql, me, cfg);
     // Nell's Nudge (Final Mockup (3) N4) only on workdays: never weekends or holidays.
     day.workday = T.isBusinessDay(T.ymd(), cfg.holidays);
@@ -109,7 +109,7 @@ const OPS = {
       const g = leads.filter((p) => p.leadGroup === k);   // someone who left the Fifty is a warm lead
       return { key: k, label: LEAD_GROUPS[k] === 'Events and training' ? 'Event and training leads' : k === 'social' ? 'Social media leads' : LEAD_GROUPS[k], count: g.length, fresh: g.filter((p) => p.isNew).length };
     });
-    const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub, role: p.role, initials: initials(p.name) });
+    const row = (p, sub) => ({ id: p.id, name: p.name, clinic: p.clinic, sub, role: p.role, initials: initials(p.name), mood: moodOf(p, cfg) });
     // New this week (the Leads tab's story strip, Pulse UI 2026-10-27): leads added in the last 7 days, newest first.
     const weekAgo = Date.now() - 7 * 86400000;
     const newWeek = leads.filter((p) => new Date(p.createdAt) > weekAgo).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
@@ -136,8 +136,9 @@ const OPS = {
       select ob.primary_contact_id as id, max(coalesce(ob.completed_at, a.completed_at)) as at from onboardings ob join agreements a on a.id = ob.agreement_id
        where ob.primary_contact_id = any(${leads.map((p) => p.id)}) group by 1`).map((r) => [r.id, r.at])) : {};
     const weekAgo = Date.now() - 7 * 86400000;
+    const cfg = await B.settings(sql);
     return { group, title: LEAD_GROUPS[group], leads: leads.map((p) => ({
-      id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt), role: p.role, phone: !!p.phone,
+      id: p.id, name: p.name, initials: initials(p.name), isNew: p.isNew, age: B.ago(p.createdAt), role: p.role, phone: !!p.phone, mood: moodOf(p, cfg),
       lastKind: p.lastTouchKind || '', signed: signed[p.id] ? T.short(signed[p.id]) : '', newThisWeek: new Date(signed[p.id] || p.createdAt) > weekAgo,
       sub: [p.clinic, sourceText(p, added[p.id])].filter(Boolean).join(' · '),
       last: p.lastTouchKind ? (TOUCH_WORD[p.lastTouchKind] || 'Touched') + ' ' + T.short(p.lastTouchAt) : '',
@@ -167,7 +168,7 @@ const OPS = {
       totalBought: p.stage === 'fifty' ? money(p.totalBought) : null,
       lastOrder: p.lastPaid ? { total: money(p.lastPaid.total), date: T.short(B.paidAt(p.lastPaid)) } : null,
       status, followUp: p.followUp ? { id: p.followUp.id, date: T.ymd(p.followUp.due_at), label: T.short(p.followUp.due_at), title: p.followUp.title } : null,
-      fillers: p.fillers, prp: p.prp, last,
+      fillers: p.fillers, prp: p.prp, last, mood: moodOf(p, await B.settings(sql)),
     };
   },
 
@@ -412,6 +413,23 @@ async function statusRow(sql, p) {
 }
 
 const LONG_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+// The avatar's mood (owner 2026-10-28), for Pulse's animations only:
+//   thawed  an order in the last 3 days that came after the account had gone cold (no order or visit for longer than
+//           settings going_cold_days before it): the snow melts and the sun comes out
+//   ordered an order in the last 3 days: coins rain once
+//   asleep  a lead nobody has touched in 60 days or more (or never, and added 60+ days ago): eyes shut, Zzz
+function moodOf(p, cfg) {
+  if (!p) return '';
+  const day = 864e5, t = (d) => new Date(d).getTime(), now = Date.now();
+  if (p.lastOrderAt && now - t(p.lastOrderAt) <= 3 * day) {
+    const before = (p.orders || []).filter(B.isOrder).map((o) => t(B.placedAt(o))).filter((x) => x < t(p.lastOrderAt));
+    if (p.lastVisitAt && t(p.lastVisitAt) < t(p.lastOrderAt)) before.push(t(p.lastVisitAt));
+    const prev = before.length ? Math.max(...before) : null;
+    return prev && t(p.lastOrderAt) - prev > ((cfg && cfg.going_cold_days) || 30) * day ? 'thawed' : 'ordered';
+  }
+  if (p.stage === 'lead' && now - t(p.lastTouchAt || p.createdAt) >= 60 * day) return 'asleep';
+  return '';
+}
 const KIND_WORD = { call: 'Call', meeting: 'Visit', text: 'Text', email: 'Email', note: 'Note' };
 function outcomeWord(i) {
   if (i.kind === 'note' || i.kind === 'email') return '';

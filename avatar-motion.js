@@ -34,7 +34,13 @@
     if (io) io.observe(el); else el.classList.add('av-on');
     // A person's page: they wave hello with a real hand (owner 2026-10-28: "I said they're waving, you just made them
     // shake"). The avatars have no arm, so one is added in the person's own skin and sleeve colours.
-    if (el.classList.contains('st-cold')) addSnow(el);
+    if (el.classList.contains('st-cold') && !el.classList.contains('st-thawed')) addSnow(el);
+    // Moods (owner 2026-10-28; api/data.js moodOf): coins after an order, the sun after a cold account orders again,
+    // a sleeping lead, and a pen for someone waiting on a signature.
+    if (el.classList.contains('st-thawed')) once(el, 'thaw', 3 * 864e5, function () { addSun(el); setTimeout(function () { play(el, 'av-thaw', 3200); }, 350); });
+    else if (el.classList.contains('st-ordered')) once(el, 'coins', 3 * 864e5, function () { coins(el); });
+    if (el.classList.contains('st-asleep')) { addZzz(el); if (el.classList.contains('card')) setTimeout(function () { wake(el); }, 1100); }
+    if (el.classList.contains('st-wait')) addPen(el);
     if (el.classList.contains('card')) { addHand(el); setTimeout(function () { play(el, 'av-wave', 2700); }, 450); }
     if (nodId && el.getAttribute('data-pid') === nodId) setTimeout(function () { play(el, 'av-nod', 1600); }, 300);
     if (el.classList.contains('jump')) confetti(el);
@@ -74,6 +80,71 @@
     g.innerHTML = html;
     var head = svg.querySelector('.av-head');
     if (head) svg.insertBefore(g, head); else svg.appendChild(g);
+  }
+  // A moment that should play once per person on this phone for a while (e.g. coins only the first time you see them
+  // after an order). Remembered in localStorage; plays every time in private mode.
+  function once(el, what, ms, fn) {
+    var id = el.getAttribute('data-pid'), k = 'pulse-av-' + what + '-' + id;
+    try { var at = Number(localStorage.getItem(k) || 0); if (id && Date.now() - at < ms) return; localStorage.setItem(k, String(Date.now())); } catch (e) { /* private mode */ }
+    setTimeout(fn, 300);
+  }
+  function layer(el, cls, before) {
+    var svg = el.querySelector('svg');
+    if (!svg || svg.querySelector('.' + cls)) return null;
+    var ns = 'http://www.w3.org/2000/svg', clip = svg.querySelector('clipPath'), g = document.createElementNS(ns, 'g');
+    if (clip && clip.id) g.setAttribute('clip-path', 'url(#' + clip.id + ')');
+    g.setAttribute('class', cls);
+    var head = before && svg.querySelector('.av-head');
+    if (head) svg.insertBefore(g, head); else svg.appendChild(g);
+    return g;
+  }
+  // 1. After an order: gold coins rain through the circle, once.
+  function coins(el) {
+    var g = layer(el, 'av-coins', false);
+    if (!g) return;
+    var html = '';
+    for (var i = 0; i < 9; i++) {
+      html += '<g style="--cx:' + rnd(8, 56).toFixed(1) + 'px;--cd:' + rnd(0, 0.9).toFixed(2) + 's;--cr:' + Math.round(rnd(-200, 200)) + 'deg">'
+        + '<circle cx="0" cy="0" r="4.2" fill="#F7C948" stroke="#8A5A00" stroke-width="1.2"/><circle cx="0" cy="0" r="2.4" fill="none" stroke="#FFF1B8" stroke-width="0.9"/></g>';
+    }
+    g.innerHTML = html;
+    el.classList.add('av-rich');
+    setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); el.classList.remove('av-rich'); }, 2800);
+  }
+  // 2. Back from cold: a sun rises in the corner and shines while they jump; the cold tint lifts.
+  function addSun(el) {
+    var g = layer(el, 'av-sun', true);
+    if (!g) return;
+    var rays = '';
+    for (var a = 0; a < 360; a += 45) rays += '<path d="M0 -10.5V-14" transform="rotate(' + a + ')" stroke="#FFD447" stroke-width="2.2" stroke-linecap="round"/>';
+    g.innerHTML = '<g class="av-sun-in" transform="translate(50 13)"><g class="av-rays">' + rays + '</g><circle r="7.5" fill="#FFD447" stroke="#E08A00" stroke-width="1.4"/></g>';
+    setTimeout(function () { if (g.parentNode) g.parentNode.removeChild(g); }, 3600);
+  }
+  // 4. Asleep: eyes shut and Zzz floating up; opening their page wakes them with a jolt.
+  function addZzz(el) {
+    var g = layer(el, 'av-zzz', false);
+    if (!g) return;
+    g.innerHTML = [0, 1, 2].map(function (i) {
+      return '<text x="44" y="22" font-family="system-ui,sans-serif" font-weight="800" font-size="' + (8.5 + i * 2) + '" fill="#FFFFFF" stroke="#0B1530" stroke-width="0.6" style="--zd:' + (i * 0.9) + 's">Z</text>';
+    }).join('');
+  }
+  function wake(el) {
+    el.classList.add('av-woke');
+    play(el, 'av-jolt', 700);
+  }
+  // 7. Waiting on a signature: they hold up a pen and tap it now and then.
+  function addPen(el) {
+    var svg = el.querySelector('svg');
+    if (!svg || svg.querySelector('.av-pen')) return;
+    var head = svg.querySelector('.av-head circle'), shirt = svg.querySelector('.av-body path');
+    var skin = (head && head.getAttribute('fill')) || '#EEF2F8', sleeve = (shirt && shirt.getAttribute('fill')) || '#5B6884';
+    var g = layer(el, 'av-pen', false);
+    if (!g) return;
+    g.innerHTML = '<path d="M45.6 50L46.6 43.5" stroke="#0B1530" stroke-width="7.6" stroke-linecap="round"/>'
+      + '<path d="M44.2 60L46.6 43.5" stroke="' + sleeve + '" stroke-width="4.8" stroke-linecap="round"/>'
+      + '<g class="av-pen-tip"><path d="M47.5 40.5L54.5 26.5" stroke="#0B1530" stroke-width="4.2" stroke-linecap="round"/>'
+      + '<path d="M47.5 40.5L54.5 26.5" stroke="#62B2F7" stroke-width="2.2" stroke-linecap="round"/><path d="M54.5 26.5l1.2-2.5" stroke="#0B1530" stroke-width="1.6" stroke-linecap="round"/></g>'
+      + '<circle cx="47" cy="41.5" r="4.3" fill="' + skin + '" stroke="#0B1530" stroke-width="1.6"/>';
   }
   function scan(node) {
     if (!node || node.nodeType !== 1) return;
