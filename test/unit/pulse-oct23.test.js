@@ -84,3 +84,10 @@ test('head office gets reps_only; admins and reps still sign in', async () => {
     }
   } finally { global.fetch = realFetch; D.setDb(null); }
 });
+
+// 2026-10-28 (owner): the Race to Vienna podium shows 1st / 2nd / 3rd on fixed steps, not the reps' account counts.
+test('the Race to Vienna podium has fixed steps with the place, and no account counts', () => {
+  const at = app.indexOf('function podium'); const fn = app.slice(at, app.indexOf('function screenRewards', at));
+  assert.ok(/STEP = \{ 1: \d+, 2: \d+, 3: \d+ \}/.test(fn), 'fixed step heights');
+  assert.ok(!/x\.n\b/.test(fn), 'no account count shown or used for the height');
+});

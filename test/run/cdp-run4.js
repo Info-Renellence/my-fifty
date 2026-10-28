@@ -103,6 +103,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const oneLine = (s) => String(s || '').replace(/\n/g, ' | ');
   try {
     await go('/');
+    if (SCEN === 'podium') { await go('/rewards'); await shot('rewards-podium', true); }
     if (SCEN === 'nell') {   // 2026-10-28: the F2d panel and Nell's four moments (Final Mockup (3))
       await shot('nell-today');
       note('NELL panel: ' + oneLine(await evaluate("(document.querySelector('.tp-wrap')||{}).innerText")));
