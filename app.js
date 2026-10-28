@@ -1644,11 +1644,8 @@
               + '<span class="sub ellip">' + esc(m.kicker.charAt(0) + m.kicker.slice(1).toLowerCase()) + ' · ' + esc(m.when) + '</span></span></div>';
           }).join('') + '</section>';
       }
-      var pct = t.leader ? Math.round(t.mine / t.leader * 100) : 0;
       h += '<section class="hero race" style="background:var(--hero-deep)">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 class="h2">Race to Vienna ✈︎</h2><span class="glass">' + t.daysLeft + ' days left</span></span>'
-        + '<span style="display:flex;align-items:center;gap:10px;margin-top:10px"><span class="racebar"><span style="width:' + pct + '%"></span></span>'
-        + '<span style="font-size:13px;font-weight:700;color:#F7C948;white-space:nowrap">' + (t.toLead ? t.toLead + ' to take #1' : 'You’re #1') + '</span></span>'
         + podium(t) + '</section>';
       return h + '</div>';
     }, 'rewards');

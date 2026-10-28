@@ -311,6 +311,6 @@ nothing counted since noon) and `api/_nell.js`.
 
 ## 24. Two Pulse test orders marked disapproved (data only), 2026-10-28, asked by Yousef
 
-Aria disapproved both of the owner's Pulse test orders (sales-form runs 21342 and 21452, `approved: false`), but the
-workflow never told Pulse. The two orders (1f012f3a…, 99e0d0a6…) were set `submitted` → `rejected` (Pulse shows
+Aria disapproved three of the owner's Pulse test orders (sales-form runs 21342, 21452 and 21455, `approved: false`), but the
+workflow never told Pulse. The three orders (1f012f3a…, 99e0d0a6…, 8ded53df…) were set `submitted` → `rejected` (Pulse shows
 "Disapproved"). From now on the workflow's "Pulse: Order Decision" step does this (`api/cron.js` op=order_decision). No schema change.
