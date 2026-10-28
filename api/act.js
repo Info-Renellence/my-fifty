@@ -106,8 +106,11 @@ const OPS = {
     const cfg = await B.settings(sql);
     const [{ people }, day] = await Promise.all([B.book(sql, me, { cfg, everyone: isAdmin(me) }), B.dayStats(sql, me, cfg)]);
     const list = B.todayList(people, me, cfg, await B.parkedUntil(sql, people.map((p) => p.id)));
-    return Object.assign(out, { day, name: B.fullName(c), followUp: T.short(due),
-      counted: kind !== 'text' && !!b.reached, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
+    const counted = kind !== 'text' && !!b.reached;
+    // Nell (Final Mockup (3) N2 Cheer / N3 Jackpot): the moment this log earned, if any (api/_nell.js).
+    const nell = await require('./_nell').afterLog(sql, me, cfg, day, { counted, contactId: c.id, interactionId: out.interactionId, name: B.fullName(c), write: (fn) => asUser(me.id, fn) }).catch(() => null);
+    return Object.assign(out, { day, nell, name: B.fullName(c), followUp: T.short(due),
+      counted, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
   },
 
   async undo(me, b) {
@@ -344,6 +347,8 @@ const OPS = {
     const D = require('./_dispatch');
     // flags.order_dispatch (api/_flags.js) is a kill switch over it: off = the old send, whatever order_dispatch says.
     const dispatch = (await require('./_flags').on(sql, 'order_dispatch')) ? await D.enabled(sql, 'pulse') : null;
+    // Nell's Payday (Final Mockup (3) N1): the commission this order should earn once paid (api/_nell.js).
+    const paydayOf = () => require('./_nell').payday(sql, me, c.id, c.owner_id || me.id, total).catch(() => null);
     const orderId = await asUser(me.id, async (tx) => {
       let mdId = null;
       if (md) {
@@ -377,14 +382,14 @@ const OPS = {
     });
     if (dispatch) {
       const r = await D.attempt((fn) => asUser(me.id, fn), orderId, { from: 'pulse', source: 'my_fifty', actorId: me.id, cfg: dispatch });
-      return { ok: true, orderId, sentToN8n: !!r.sent, reason: r.sent ? undefined : r.error, queued: !r.sent && !r.failed };
+      return { ok: true, orderId, sentToN8n: !!r.sent, reason: r.sent ? undefined : r.error, queued: !r.sent && !r.failed, payday: await paydayOf() };
     }
     const sent = await require('./_n8n').call('order', { orderId });
     // Accepted by n8n: recorded so the timer never sends it again. Not accepted: the timer tries again (F22).
     if (sent.queued) await asUser(me.id, (tx) => tx`
       insert into change_logs (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
       values (${me.id}, 'user', 'my_fifty', 'send', 'orders', ${orderId}, ${c.id}, 'Sent for approval')`);
-    return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason };
+    return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason, payday: await paydayOf() };
   },
 
   async resend_pay_link(me, b) {

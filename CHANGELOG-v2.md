@@ -295,3 +295,16 @@ v2 2026-10-27** (`renellence-ops/ops/fixes/apply-v2-014.js`, dry runs first; the
 
 Code: Pulse `api/quo.js` (Quo webhook: known number -> interactions source quo; unknown -> quo_unmatched; summaries ->
 ai_outputs; the 647 automated line's outgoing texts skipped). Add `quo_unmatched` to the SOP (System section).
+
+## 23. Notification kind for the 3 pm streak nudge (`renellence-edge/db/v2-015-streak-nudge.sql`), 2026-10-28, approved by Yousef
+
+Owner (2026-10-28): Nell's Nudge (Final Mockup (3) N4) also goes to the phone at 3 pm on workdays. **Status: applied to v2
+2026-10-28** (`renellence-ops/ops/fixes/apply-v2-015.js`, dry run first). **Not on v1**: the test login there does not own
+the type; run the one line in v1's SQL editor (as postgres) so tests can store a nudge.
+
+| # | Change | Why |
+|---|---|---|
+| 85 | `notifications_kind` gets the value `streak_nudge` | The 3 pm push is logged once per rep per day like the other pushes (dedupe key `nudge:<user>:<day>`) |
+
+Code: Pulse `api/cron.js` (tick: workdays 3:00-3:30 pm Toronto, a rep with a phone connected, under the day goal and
+nothing counted since noon) and `api/_nell.js`.

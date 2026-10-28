@@ -79,6 +79,8 @@ const OPS = {
     const roleOf = Object.fromEntries(people.map((p) => [p.id, p]));
     list.forEach((x) => { if (roleOf[x.id]) { x.role = roleOf[x.id].role; x.stage = roleOf[x.id].stage; } });
     day.week = await weekStrip(sql, me, cfg);
+    // Nell's Nudge (Final Mockup (3) N4) only on workdays: never weekends or holidays.
+    day.workday = T.isBusinessDay(T.ymd(), cfg.holidays);
     // Logged today (the "done" fold under the list, Pulse UI 2026-10-27): the rep's latest reached call, visit or text per person.
     const byId = Object.fromEntries(people.map((p) => [p.id, p]));
     const doneRows = await sql`
@@ -257,7 +259,8 @@ const OPS = {
   },
 
   async rewards(sql, me) {
-    return R.rewards(sql, me);
+    // Plus Nell's jackpots (api/_nell.js), kept as the rep's wins.
+    return Object.assign(await R.rewards(sql, me), { moments: require('./_nell').wins(me) });
   },
 
   async search(sql, me, q) {

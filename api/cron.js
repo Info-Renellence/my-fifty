@@ -42,7 +42,7 @@ module.exports = route(async (req, res) => {
   const sql = db();
   // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
   const out = { meta: await require('./_meta').sync(sql).catch((e) => ({ error: e.message })) };
-  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), orders: await sendOrders(sql) });
+  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), orders: await sendOrders(sql) });
   // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
   out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27)
@@ -71,6 +71,34 @@ async function newLeads(sql) {
 
 // The morning notification's title: the streak in days, as the Today tile shows it (Yousef 2026-10-23).
 const morningTitle = (streak) => streak ? streak + (streak === 1 ? ' day' : ' days') + ' in a row' : 'Good morning';
+
+// Nell's 3 pm nudge (Final Mockup (3) N4, owner 2026-10-28): on a workday between 3:00 and 3:30 pm Toronto, a rep with a
+// phone connected who is under the day goal and has counted nothing since noon gets "2 more keeps your 12-day streak
+// alive". Once a day (notifications dedupe key). Pulse records no app opens, so "not opened since noon" is read as
+// "nothing logged since noon" (owner 2026-10-28).
+async function nudge(sql, now) {
+  now = now || new Date();
+  const today = T.ymd(now);
+  const cfg = await B.settings(sql);
+  if (!T.isBusinessDay(today, cfg.holidays) || now < T.atLocal(today, 15, 0) || now > T.atLocal(today, 15, 30)) return { skipped: 'not_now' };
+  const noon = T.atLocal(today, 12, 0);
+  const users = await sql`
+    select distinct u.id, u.full_name, u.preferences from users u join connections c on c.user_id = u.id and c.provider = 'push' and c.status = 'connected'
+     where u.is_active is not false and u.kind = 'rep'
+       and not exists (select 1 from notifications n where n.dedupe_key = 'nudge:' || u.id::text || ':' || ${today})
+       and not exists (select 1 from interactions i where i.user_id = u.id and i.deleted_at is null and i.occurred_at >= ${noon}
+                         and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)})`;
+  let sent = 0;
+  for (const u of users) {
+    const day = await B.dayStats(sql, { id: u.id }, cfg);
+    if (day.done >= day.goal) continue;
+    const left = day.goal - day.done;
+    const body = day.streak ? left + ' more keeps your ' + day.streak + '-day streak alive' : left + ' more ' + (left === 1 ? 'starts' : 'start') + ' a new streak';
+    const r = await push.notify(sql, u.id, { kind: 'streak_nudge', dedupeKey: 'nudge:' + u.id + ':' + today, title: 'Still time today', body, url: '/' });
+    sent += r.sent || 0;
+  }
+  return { users: users.length, sent };
+}
 
 async function morning(sql) {
   const now = new Date();
@@ -200,4 +228,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, morningTitle, wires, resendOrders, sendOrders };
+module.exports._ = { authorised, newLeads, morning, nudge, morningTitle, wires, resendOrders, sendOrders };
