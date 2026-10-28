@@ -314,3 +314,9 @@ nothing counted since noon) and `api/_nell.js`.
 Aria disapproved three of the owner's Pulse test orders (sales-form runs 21342, 21452 and 21455, `approved: false`), but the
 workflow never told Pulse. The three orders (1f012f3a…, 99e0d0a6…, 8ded53df…) were set `submitted` → `rejected` (Pulse shows
 "Disapproved"). From now on the workflow's "Pulse: Order Decision" step does this (`api/cron.js` op=order_decision). No schema change.
+
+## 25. The four disapproved Pulse test orders removed (data only), 2026-10-28, asked by Yousef
+
+Owner: "delete all of those ones that got disapproved". Orders 1f012f3a…, 99e0d0a6…, 8ded53df…, 7cdd966c… (all the
+owner's own Pulse tests at one customer, all `rejected`) were soft-deleted (`deleted_at` set, SOP: never hard-delete), like
+the first test order b4bcf978 on 2026-10-27. Nothing else changed. No schema change.
