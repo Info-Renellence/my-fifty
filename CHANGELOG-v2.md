@@ -368,3 +368,21 @@ From the owner's check of Emily's Leads page. `renellence-ops/ops/fixes/emily-cl
   Sunset Spa, email added), Jessie Tian ("Jessie Heos Toronto" merged in, its number as mobile), Leigh Bishop (Emily's "DrLeigh
   Bishop" merged into Lucas's, #26). PL Bastian left as is.
 - Emily's Leads after: Other Warm 43 (10 new), Social Media 51 (5 new), Events and Training 14 (3 new), Cold 0.
+
+## 29. Final data clean: clinic phones/addresses from the web (data only), 2026-10-28, asked by Yousef
+
+Owner's four rules: (1) fill missing addresses/numbers/names from Google, high confidence only; (2) delete @renellence,
+@accuristix, FedEx and Purolator accounts; (3) flag contacts named Yousef/Emily/Brittany/Aria/Lucas/Sam (not the staff
+users); (4) flag contacts with no name. No schema change.
+- **(1)** Web research (two Sonnet research agents, own sites first) on the 403 clinics missing an address part or phone and
+  the 37 contacts missing a last name. Only `high` values, only into blank fields, never overwriting:
+  117 clinics changed: 117 `main_phone`, 3 `street`, 4 `postal_code`, 1 `province` (125 `change_logs` rows, source `import`,
+  batch 61949005-892f-47c0-9763-d3b71bf77e2e). No last name reached high confidence, so none was written. "Mysite"
+  (fb7b3869…) was left out by hand (site-builder default name). Script `renellence-ops/ops/fixes/final-clean-2026-10-28.js`
+  (dry run first); backup `renellence-ops/data/backups/final-clean-v2-2026-10-28T20-14-19-404Z.json`. Still blank after:
+  285 clinic phones, 148 clinics with an address gap (mostly clinics with no website).
+- **(2)** 0 matches in v2 (contacts or clinics); nothing deleted.
+- **(3) and (4)** listed for the owner, nothing changed: 2 staff-name contacts ("Yousef" 49feb434…, "Brittany Houston"
+  74a1663d…) and 14 no-name contacts. Most came from the old Quo->HubSpot webhook creating phone-only HubSpot contacts for
+  unknown numbers, which the HubSpot pull copied into v2; that path is fixed in hubspot-automation cfb832a. The owner chose
+  to keep the 16 Quo-made contacts with only Quo activity (no soft-delete).
