@@ -407,3 +407,13 @@ The Quo-made contacts with more activity stay. The HubSpot records are untouched
   on both were kept once. The merged one: `merged_into_contact_id` + `deleted_at`. Its phone +1 416 200 3209 is only in the backup
   (the kept one already has a phone and a mobile).
 - Renamed three follow-ups imported with wrong titles: Angie, Amy Thompson and Michelle Osow are now "Follow up with <name>".
+
+## 31. Last nameless contacts: 2 removed, 4 named (data only), 2026-10-28, asked by Yousef
+
+Owner: "remove 6046691811, c153b3ed, the rest if ur sure or fairly sure edit it". Soft-deleted 3a21e6d1… (no name,
++16046691811, 2 Quo calls, requeued to `quo_unmatched`) and c153b3ed… (completely empty) with
+`remove-quo-made-2026-10-28.js --any-quo` (backup `remove-quo-made-v2-2026-10-28T20-21-32-322Z.json`). Named from their own
+emails / Quo call summaries (`renellence-ops/ops/fixes/name-nameless-2026-10-28.js`, blank fields only, backup first):
+9d510bcd… Taylor Wettlaufer (Rx Cosmetics), 5d6dc307… Louise (MD Skin Lab), 8b7482ed… Dorsa (Advanced Aesthetics),
+113cf1ae… Anna (Vita Cosmetic and Laser Clinic). Still nameless and left as they are: YS Cosmetic, Sasha Miracle Beauty
+Front Desk, Wellness Centre 4 You (x2), Gates Beauty, Cesthetique. No schema change.
