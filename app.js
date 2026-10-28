@@ -320,7 +320,7 @@
         if (todayShowDone) {
           done.forEach(function (x) {
             // A logged row opens the person (owner 2026-10-28), as the open rows do.
-            h += '<a href="/person/' + x.id + '" data-nav class="drow"><span class="grow"><span class="dn">' + esc(x.name) + '</span><span class="dw">' + (x.kind === 'visit' ? 'Visit' : x.kind === 'text' ? 'Text' : 'Call') + ' · ' + timeOf(x.at) + '</span></span><span class="logged">Logged</span></a>';
+            h += '<a href="/person/' + x.id + '" data-nav class="drow"><span class="grow"><span class="dn">' + esc(x.name) + '</span><span class="dw">' + (x.kind === 'visit' ? (x.video ? 'Video visit' : 'Visit') : x.kind === 'text' ? 'Text' : 'Call') + ' · ' + timeOf(x.at) + '</span></span><span class="logged">Logged</span></a>';
           });
           missed.forEach(function (p) {
             h += '<div class="drow"><a href="/person/' + p.contactId + '" data-nav class="grow"><span class="dn">' + esc(p.name) + '</span><span class="dw">Visit · missed' + (p.when ? ' ' + esc(p.when) : '') + '</span></a>'

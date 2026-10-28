@@ -9,7 +9,7 @@
 //   Payday   every order Pulse sends that has money on it (api/act.js place_order): the commission it is expected to earn,
 //            2% on a person's first paid order and 4% on every later one (owner 2026-10-28, as _rewards.js), and the
 //            rep's all-time paid commission. Counted once the order is paid, so it says "on the way".
-// Only real logs count: the same reached outbound calls and in-person visits as the day goal (_book.js dayStats).
+// Only real logs count: the same reached outbound calls and in-person or video visits as the day goal (_book.js dayStats).
 // Nudge (after 3 pm, under the goal) is decided on the phone from Today's numbers; the 3 pm push is api/cron.js.
 const B = require('./_book');
 const T = require('./_time');
@@ -24,7 +24,7 @@ async function perDay(sql, me) {
     select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
       from interactions i
      where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-       and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
+       and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode in ('in_person', 'video'))) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
      group by 1`;
   return Object.fromEntries(rows.map((r) => [r.day, r.n]));
 }

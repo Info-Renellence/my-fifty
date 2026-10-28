@@ -211,7 +211,7 @@ describe('book', () => {
 
 describe('dayStats: the day goal and the streak', () => {
   async function day(sql, me, date, n, o = {}) { for (let i = 0; i < n; i++) await h.touch(sql, (o.c), me.id, Object.assign({ at: new Date(+noon(date) + i * 60000) }, o)); }
-  test('today counts my calls and in-person visits only', () => h.withDb(async (sql) => {
+  test('today counts my calls and in-person or video visits only (video counts, owner 2026-10-28)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);
     const now = new Date();
     await h.touch(sql, c, me.id, { at: now });
@@ -226,7 +226,7 @@ describe('dayStats: the day goal and the streak', () => {
     await h.touch(sql, c, me.id, { at: now, kind: 'meeting', outcome: 'no_answer' });
     await h.touch(sql, c, me.id, { at: now, kind: 'meeting', status: 'no_show' });
     const s = await B.dayStats(sql, me, await B.settings(sql));
-    assert.equal(s.done, 2);
+    assert.equal(s.done, 3);
   }));
   test('a weekend or holiday never breaks the streak, and adds one when the goal was met on it (Q10)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);

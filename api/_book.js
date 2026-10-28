@@ -195,7 +195,7 @@ function addr(c, k) {
 function monthsAgo(n, now) { const d = new Date(now); d.setMonth(d.getMonth() - (Number(n) || 3)); return d; }
 function group(rows, key) { const out = {}; for (const r of rows) (out[r[key]] = out[r[key]] || []).push(r); return out; }
 
-// The day goal and streak: a touchpoint is a call or an in-person visit the person logged where they were reached
+// The day goal and streak: a touchpoint is a call or an in-person or video visit (owner 2026-10-28) the person logged where they were reached
 // (Yousef 2026-10-21, Q9: no-answer calls and no-show visits don't count; emails and texts never do). An inbound call is
 // not the rep's (RD3); a meeting with no type is a call (RD4).
 // The streak counts days in a row with at least the goal, ending yesterday, plus today once today's goal is met.
@@ -206,7 +206,7 @@ async function dayStats(sql, me, cfg) {
     select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
       from interactions i
      where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-       and (${CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${INBOUND(sql)} and ${REACHED(sql)}
+       and (${CALL(sql)} or (i.kind = 'meeting' and i.mode in ('in_person', 'video'))) and not ${INBOUND(sql)} and ${REACHED(sql)}
        and i.occurred_at > now() - interval '400 days'
      group by 1`;
   const by = Object.fromEntries(rows.map((r) => [r.day, r.n]));

@@ -207,7 +207,7 @@ async function nudge(sql, now) {
      where u.is_active is not false and u.kind = 'rep'
        and not exists (select 1 from notifications n where n.dedupe_key = 'nudge:' || u.id::text || ':' || ${today})
        and not exists (select 1 from interactions i where i.user_id = u.id and i.deleted_at is null and i.occurred_at >= ${noon}
-                         and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)})`;
+                         and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode in ('in_person', 'video'))) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)})`;
   let sent = 0;
   for (const u of users) {
     const day = await B.dayStats(sql, { id: u.id }, cfg);

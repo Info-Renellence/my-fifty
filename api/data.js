@@ -82,17 +82,19 @@ const OPS = {
     // Nell's Nudge (Final Mockup (3) N4) only on workdays: never weekends or holidays.
     day.workday = T.isBusinessDay(T.ymd(), cfg.holidays);
     // Logged today (the "done" fold under the list, Pulse UI 2026-10-27): the rep's latest reached call or visit per person; texts never show on Today, only in the person's history (owner 2026-10-28).
+    // The same touches as the day ring (dayStats), so the fold and the ring always agree; a video meeting is a visit (owner 2026-10-28).
     const byId = Object.fromEntries(people.map((p) => [p.id, p]));
     const doneRows = await sql`
       select distinct on (i.contact_id) i.contact_id, i.kind::text as kind, i.mode::text as mode, i.occurred_at
         from interactions i
        where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-         and not ${B.INBOUND(sql)} and ${B.REACHED(sql)} and i.kind in ('call', 'meeting')
+         and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
+         and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode in ('in_person', 'video')))
          and (i.occurred_at at time zone 'America/Toronto')::date = (now() at time zone 'America/Toronto')::date
        order by i.contact_id, i.occurred_at desc`;
     const done = doneRows.filter((r) => byId[r.contact_id]).sort((a, b) => new Date(b.occurred_at) - new Date(a.occurred_at))
       .map((r) => ({ id: r.contact_id, name: byId[r.contact_id].name, role: byId[r.contact_id].role,
-        kind: B.kindOf(r) === 'meeting' ? 'visit' : B.kindOf(r), at: r.occurred_at }));
+        kind: B.kindOf(r) === 'meeting' ? 'visit' : B.kindOf(r), video: r.mode === 'video', at: r.occurred_at }));
     return { date: T.ymd(), day, fifty: { count: fiftyCount, next: B.nextMilestone(fiftyCount), goal: cfg.fifty_goal }, list, done, week };
   },
 
@@ -278,7 +280,7 @@ const OPS = {
 // ---- helpers ------------------------------------------------------------------------------------
 
 // This week Monday to Friday for Today's streak card (Pulse UI 2026-10-27): met, missed, today or still to come. The
-// touchpoint rule is the day goal's (_book.js dayStats): a reached outbound call or in-person visit.
+// touchpoint rule is the day goal's (_book.js dayStats): a reached outbound call or in-person or video visit.
 async function weekStrip(sql, me, cfg) {
   const today = T.ymd();
   const dow = new Date(today + 'T12:00:00Z').getUTCDay();
@@ -287,7 +289,7 @@ async function weekStrip(sql, me, cfg) {
     select (i.occurred_at at time zone 'America/Toronto')::date::text as day, count(*)::int as n
       from interactions i
      where i.user_id = ${me.id} and i.deleted_at is null and i.status is distinct from 'cancelled' and i.status is distinct from 'scheduled'
-       and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode = 'in_person')) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
+       and (${B.CALL(sql)} or (i.kind = 'meeting' and i.mode in ('in_person', 'video'))) and not ${B.INBOUND(sql)} and ${B.REACHED(sql)}
        and (i.occurred_at at time zone 'America/Toronto')::date >= ${monday}::date
      group by 1`;
   const by = Object.fromEntries(rows.map((r) => [r.day, r.n]));

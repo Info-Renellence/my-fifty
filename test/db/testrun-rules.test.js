@@ -80,7 +80,7 @@ describe('R6 going cold, R14 milestones', () => {
 });
 
 describe('R8 / R9 day goal and streak', () => {
-  test('cancelled and scheduled calls and visits are not touchpoints; texts and video calls neither', () => h.withDb(async (sql) => {
+  test('cancelled and scheduled calls and visits are not touchpoints; texts neither; a video visit counts (owner 2026-10-28)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     const now = new Date();
     await h.touch(sql, c, me.id, { kind: 'call', at: now });
@@ -90,7 +90,7 @@ describe('R8 / R9 day goal and streak', () => {
     await h.touch(sql, c, me.id, { kind: 'text', at: now });
     await h.touch(sql, c, me.id, { kind: 'meeting', mode: 'video', at: now });
     const d = await B.dayStats(sql, me, await B.settings(sql));
-    assert.equal(d.done, 2);
+    assert.equal(d.done, 3);
   }));
   test('a call at 11:30 PM Toronto counts for that Toronto day, not the next (UTC) day', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);

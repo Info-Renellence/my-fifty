@@ -1,7 +1,7 @@
 {
   "about": "Fingerprint of the shared rule files (book, lists, time, http) copied between Pulse (my-fifty/api/_x.js), Edge (renellence-edge/api/_edge/x.js) and Compass (compass/api/_compass/x.js). sha256 of the file with the leading \"// Copied from\" lines removed, CRLF read as LF and require('./_x') read as require('./x'). Never edit by hand: change Pulse's file, then run renellence-ops/ops/shared/sync.js, which updates all three repos.",
   "files": {
-    "book.js": "sha256:803aa752cbd182460405ece8abe4171ab49db9492eca0d29a60d1dd3cdc17cfd",
+    "book.js": "sha256:c75e8058813050730f7079241097b51830370096dcb0642d189301ef17ca60a5",
     "lists.js": "sha256:928e22d363b21dc84d258111d614a019adcc061367354f11ab7841af960a0d5e",
     "time.js": "sha256:a63afc8121aafe73cb82a00ac7fc6222328e381e3af26dfd2627012434b4b03a",
     "http.js": "sha256:81e330e7993dc8b0aecc3d695923d0148ddfe5147a12c49d08de789df66e4bc3"
