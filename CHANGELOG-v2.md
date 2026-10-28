@@ -478,3 +478,10 @@ A read-only audit of all 37 tables, then the owner said "make the safe fixes". `
   non-physicians; 34 unsigned onboardings, 21 waiting training agreements, 9 MD agreements with no order; 142 contacts with no
   role, 39 with no email or phone; 2 customers with orders but no shipping address; duplicate clinic names in two cities (Gold
   Tan and Sunset Spa, Dream Esthetiques MD); order #106565379 delivered with no lines; a call with Tara Tameta dated Nov 4.
+
+## 35. The 5-minute timer in three parts (pg_cron, no table change), 2026-10-28, approved by Yousef (data-flow improvement 5)
+
+`db/006-cron-parts.sql`, applied to v2. The one job `my-fifty-tick` (all steps in one 60-second Vercel run) is now three jobs,
+each every 5 minutes with the same Vault key: `my-fifty-tick` (`part=core`: Meta, pushes, nudge, snapshot, order resends, Stripe
+retries, alarms), `my-fifty-tick-hubspot` (`part=hubspot`: the HubSpot pull, the bridge) and `my-fifty-tick-sync`
+(`part=sync`: SignatureAPI, Gmail). Undo: re-run `db/003-cron.sql`.
