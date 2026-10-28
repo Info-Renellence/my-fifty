@@ -91,6 +91,25 @@ async function apply(sql, hs, opts = {}) {
       await tx`update contacts set is_medical_director = true where id = ${md} and is_medical_director is not true`;
       return { table: 'contacts', id: a };
     }
+    // Live Edge's Data Cleaner (owner 2026-10-28): what HubSpot does, done the v2 way (SOP: soft delete, merged_into).
+    if (c.kind === 'contact_clinic_remove') {
+      const contactId = await idOf(tx, 'contacts', c.contact), clinic = await idOf(tx, 'clinics', c.company);
+      if (!contactId || !clinic) return { skipped: true, why: 'contact or clinic not in v2' };
+      await tx`update contacts set clinic_id = null where id = ${contactId} and clinic_id = ${clinic}`;
+      return { table: 'contacts', id: contactId, unlinked: true };
+    }
+    if (c.kind === 'contact_md_remove') {
+      const [a, md] = [await idOf(tx, 'contacts', c.contact), await idOf(tx, 'contacts', c.md)];
+      if (!a || !md) return { skipped: true, why: 'practitioner or MD not in v2' };
+      await tx`update contacts set medical_director_contact_id = null where id = ${a} and medical_director_contact_id = ${md}`;
+      return { table: 'contacts', id: a, unlinked: true };
+    }
+    if (c.kind === 'delete') {
+      const table = c.type === 'contacts' ? 'contacts' : 'clinics';
+      const rows = await tx.unsafe(`update public.${table} set deleted_at = now() where legacy_id = any($1::text[]) and deleted_at is null returning id`, [c.ids]);
+      return rows.length ? { table, deleted: rows.length } : { skipped: true, why: table + ' not in v2' };
+    }
+    if (c.kind === 'merge') return merge(tx, c);
     if (c.kind === 'order') {
       let last = null;
       for (const id of c.ids) last = await syncOrder(tx, id);
@@ -114,6 +133,29 @@ async function apply(sql, hs, opts = {}) {
     }
     return { skipped: true, why: 'nothing to do' };
   });
+}
+
+// A HubSpot merge (live Edge's Data Cleaner): the merged-away record is soft-deleted (a contact also points at the one it
+// went into, merged_into_contact_id) and what hung off it moves to the one kept: for a contact its calls, meetings,
+// notes, tasks and orders; for a clinic its people. If v2 has only the merged-away one (the kept one was left out on
+// Oct 22), it simply takes the kept one's HubSpot id, so later copies find it.
+async function merge(tx, c) {
+  const table = c.type === 'contacts' ? 'contacts' : 'clinics';
+  const [keep, gone] = [await idOf(tx, table, c.primary), await idOf(tx, table, c.merged)];
+  if (!gone) return { skipped: true, why: 'merged-away ' + table + ' not in v2' };
+  if (!keep) {
+    await tx.unsafe(`update public.${table} set legacy_id = $1 where id = $2`, [String(c.primary), gone]);
+    return { table, id: gone, rekeyed: true };
+  }
+  if (table === 'contacts') {
+    for (const t of ['interactions', 'tasks', 'orders']) await tx.unsafe(`update public.${t} set contact_id = $1 where contact_id = $2`, [keep, gone]);
+    await tx`update contacts set medical_director_contact_id = ${keep} where medical_director_contact_id = ${gone}`;
+    await tx`update contacts set merged_into_contact_id = ${keep}, deleted_at = now() where id = ${gone}`;
+  } else {
+    await tx`update contacts set clinic_id = ${keep} where clinic_id = ${gone}`;
+    await tx`update clinics set deleted_at = now() where id = ${gone}`;
+  }
+  return { table, id: keep, merged: gone };
 }
 
 const idOf = async (tx, table, legacy) => {

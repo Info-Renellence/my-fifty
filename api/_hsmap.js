@@ -224,6 +224,12 @@ function classify(hs, o = {}) {
   if (url === '/crm/v3/objects/contacts/batch/update') return { kind: 'contact', ids: (b.inputs || []).map((x) => x.id).filter(Boolean), props: [...new Set((b.inputs || []).flatMap(keys))] };
   if ((m = url.match(/^\/crm\/v3\/objects\/companies\/?$/)) && method === 'POST') return { kind: 'company', ids: [r.id].filter(Boolean), create: true, props: keys(b) };
   if ((m = url.match(/^\/crm\/v3\/objects\/companies\/(\d+)$/)) && method === 'PATCH') return { kind: 'company', ids: [m[1]], props: keys(b) };
+  // Live Edge's Data Cleaner (owner 2026-10-28, run 4 R4-3 / R4-4): merges, deletes and archives, and removed links.
+  if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/merge$/)) && method === 'POST') return { kind: 'merge', type: m[1], primary: s(b.primaryObjectId), merged: s(b.objectIdToMerge) };
+  if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/(\d+)$/)) && method === 'DELETE') return { kind: 'delete', type: m[1], ids: [m[2]] };
+  if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/batch\/archive$/))) return { kind: 'delete', type: m[1], ids: (b.inputs || []).map((x) => s(x && x.id)).filter(Boolean) };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/companies\/(\d+)/)) && method === 'DELETE') return { kind: 'contact_clinic_remove', contact: m[1], company: m[2] };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/contacts\/(\d+)/)) && method === 'DELETE') return { kind: 'contact_md_remove', contact: m[1], md: m[2] };
   if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/companies\/(\d+)/))) return { kind: 'contact_clinic', contact: m[1], company: m[2] };
   if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/contacts\/(\d+)/))) return { kind: 'contact_md', contact: m[1], md: m[2] };
   if ((m = url.match(/^\/crm\/v3\/objects\/orders\/?$/)) && method === 'POST') return { kind: 'order', ids: [r.id].filter(Boolean) };
