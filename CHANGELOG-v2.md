@@ -386,3 +386,14 @@ users); (4) flag contacts with no name. No schema change.
   74a1663d…) and 14 no-name contacts. Most came from the old Quo->HubSpot webhook creating phone-only HubSpot contacts for
   unknown numbers, which the HubSpot pull copied into v2; that path is fixed in hubspot-automation cfb832a. The owner chose
   to keep the 16 Quo-made contacts with only Quo activity (no soft-delete).
+
+## 30. Quo-made contacts removed (data only), 2026-10-28, asked by Yousef
+
+Owner: "remove yousef, brittany houston, remove everything made by the quo problem except if it has activity (other than the
+call that originally created the customer)". "Yousef" (49feb434…) and "Brittany Houston" (74a1663d…) were already
+soft-deleted at 20:09 UTC by the HubSpot intake (deleted in HubSpot). Of the other Quo-made contacts, 3 had nothing but the
+one call/text that created them and were soft-deleted with that interaction: 2ac3ef7a… (no name, Toronto Cosmetic Clinic),
+42bec5cd… (no name, +14374762072), 2c1d7a4b… (Elizabeth Savytska). Each call/text went back to `quo_unmatched` (waiting), so it
+attaches again, once, if a rep creates a contact with that number. Script `renellence-ops/ops/fixes/remove-quo-made-2026-10-28.js`
+(dry run first; refuses any contact with other activity); backup `data/backups/remove-quo-made-v2-2026-10-28T20-18-57-300Z.json`.
+The Quo-made contacts with more activity stay. The HubSpot records are untouched. No schema change.
