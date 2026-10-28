@@ -153,3 +153,38 @@ describe('decision 1: the sales form claims a Pulse order once (op=order_claim)'
     assert.equal((await cron._.orderClaim(sql, { pulseOrderId: other })).reason, 'not_a_pulse_order');
   }));
 });
+
+describe('live Edge alerts on v2 (appAlerts / ping_rsvp, owner 2026-10-28)', () => {
+  const cron = require('../../api/cron');
+  const P = require('../../api/_push');
+  const withPush = async (fn) => { const real = P.notify, sent = []; P.notify = async (s, id, n) => { sent.push({ id, n }); return { sent: 1 }; }; try { return await fn(sent); } finally { P.notify = real; } };
+  const flag = (sql, on) => sql`insert into settings (key, value) values ('flags', ${sql.json({ edge_alerts: on })})
+    on conflict (key) do update set value = coalesce(settings.value, '{}'::jsonb) || ${sql.json({ edge_alerts: on })}`;
+
+  test('off until the cut-over; on: a visit 30 minutes away reminds its rep, a new order and an RSVP tell the admins', () => h.withDb(async (sql) => withPush(async (sent) => {
+    require('../../api/_flags').clear();
+    assert.equal((await cron._.appAlerts(sql)).skipped, 'off_until_edge_cutover');
+    await flag(sql, true); require('../../api/_flags').clear();   // the switches are cached for 30 s
+    const rep = await h.user(sql), admin = await h.user(sql, { kind: 'admin' });
+    await sql`insert into connections (user_id, provider, status) values (${admin.id}, 'push', 'connected')`;
+    const c = await h.contact(sql, rep, { first: 'Visita' });
+    const [m] = await sql`insert into interactions (kind, contact_id, user_id, occurred_at, mode, status, source, created_by_id)
+      values ('meeting', ${c}, ${rep.id}, now() + interval '30 minutes', 'in_person', 'scheduled', 'edge', ${rep.id}) returning id`;
+    const o = await h.order(sql, c, rep, { status: 'submitted' });
+    const [ev] = await sql`insert into events (name, kind, starts_at) values ('Unit Launch', 'launch', now() + interval '7 days') returning id`;
+    await sql`insert into attendees (event_id, contact_id, status) values (${ev.id}, ${c}, 'rsvp')`;
+    await cron._.appAlerts(sql);
+    const mine = sent.filter((s) => s.id === rep.id || s.id === admin.id);
+    assert.ok(mine.some((s) => s.id === rep.id && s.n.kind === 'meeting_reminder' && s.n.dedupeKey === 'meet:' + m.id), 'visit reminder to the rep');
+    assert.ok(mine.some((s) => s.id === admin.id && s.n.kind === 'new_order' && s.n.dedupeKey.includes(o)), 'new order to the admin');
+    assert.ok(mine.some((s) => s.id === admin.id && s.n.kind === 'rsvp' && /Unit Launch/.test(s.n.body)), 'RSVP to the admin');
+  })));
+
+  test('the RSVP ping from n8n tells every admin with a phone', () => h.withDb(async (sql) => withPush(async (sent) => {
+    const admin = await h.user(sql, { kind: 'admin' });
+    await sql`insert into connections (user_id, provider, status) values (${admin.id}, 'push', 'connected')`;
+    const r = await cron._.pingRsvp(sql, { name: 'Unit Guest', event: 'Liberty Grand' });
+    assert.ok(r.ok && r.admins >= 1);
+    assert.ok(sent.some((s) => s.id === admin.id && s.n.body === 'Unit Guest · Liberty Grand'));
+  })));
+});

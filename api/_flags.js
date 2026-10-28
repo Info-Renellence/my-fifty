@@ -17,7 +17,9 @@
 
 //   hubspot_pull        the timer's HubSpot -> v2 read (api/intake.js sync): the safety net while live Edge's own
 //                       copies (renellence-edge main api/_mirror.js) are proven; off once they are             on
-const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true });
+//   edge_alerts         the timer's visit reminders and new order / RSVP alerts (api/cron.js appAlerts), live Edge's alerts on
+//                       v2; off until the Edge cut-over, so info@ is not told twice (owner 2026-10-28)           not yet -> off
+const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true, edge_alerts: false });
 const TTL_MS = 30 * 1000;   // a switch flipped in the database is seen within 30 seconds
 
 let cache = null;   // { at, flags }

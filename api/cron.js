@@ -41,6 +41,7 @@ module.exports = route(async (req, res) => {
   if (op === 'order_decision' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderDecision(db(), await require('./_http').body(req)));
   // Decision 1 (owner 2026-10-28): the sales form asks here before it starts on an order Pulse sent, so a resend of the
   // same order (a retry after a lost answer) never makes a second invoice or charge.
+  if (op === 'ping_rsvp' && req.method === 'POST' && isfKey(req)) return send(res, 200, await pingRsvp(db(), await require('./_http').body(req)));
   if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
@@ -48,7 +49,7 @@ module.exports = route(async (req, res) => {
   const sql = db();
   // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
   const out = { meta: await require('./_meta').sync(sql).catch((e) => ({ error: e.message })) };
-  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
+  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), alerts: await appAlerts(sql).catch((e) => ({ error: e.message })), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
   // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
   out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27)
@@ -89,6 +90,64 @@ async function orderClaim(sql, b) {
     values ('n8n', ${'order:' + id + ':received'}, ${sql.json({ step: 'received', orderId: id })}, 'n8n', now(), 'done', 1, now(), 'orders', ${id})
     on conflict (source, external_id) do nothing returning id`;
   return { ok: true, first: !!row };
+}
+
+// Live Edge's alerts, on v2 (owner 2026-10-28: the sandbox gets everything live Edge does; docs/go-live-inventory.md rows
+// 80-83, 62). Pulse is the reps' phone app, so its phone notifications carry them, every tick:
+//   a booked visit, 30 minutes before (scheduled meetings in interactions; live Edge's QStash meeting reminder)
+//   a new order and a new RSVP, to every admin with a phone connected (live Edge's 5-minute "watch" to info@)
+// Each is sent once (notifications dedupe key). Fictional rows (demo-) never notify.
+async function appAlerts(sql) {
+  const out = { meetings: 0, orders: 0, rsvps: 0 };
+  if (!(await require('./_flags').on(sql, 'edge_alerts'))) return { skipped: 'off_until_edge_cutover' };
+  const meets = await sql`
+    select i.id, i.user_id, i.occurred_at, c.first_name, c.last_name, coalesce(cl.name, '') as clinic
+      from interactions i join contacts c on c.id = i.contact_id left join clinics cl on cl.id = c.clinic_id
+     where i.kind = 'meeting' and i.status = 'scheduled' and i.deleted_at is null and i.user_id is not null
+       and i.occurred_at between now() + interval '20 minutes' and now() + interval '40 minutes'
+       and coalesce(c.legacy_id, '') not like 'demo-%'`;
+  for (const m of meets) {
+    const at = new Date(m.occurred_at).toLocaleTimeString('en-CA', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Toronto' }).replace(/\s?([ap])\.?m\.?/i, (x, y) => ' ' + y.toUpperCase() + 'M');
+    const who = [m.first_name, m.last_name].filter(Boolean).join(' ');
+    const r = await push.notify(sql, m.user_id, { kind: 'meeting_reminder', dedupeKey: 'meet:' + m.id, title: 'Visit at ' + at, body: who + (m.clinic ? ' · ' + m.clinic : ''), url: '/' });
+    out.meetings += r.sent || 0;
+  }
+  const admins = await sql`select distinct u.id from users u join connections c on c.user_id = u.id and c.provider = 'push' and c.status = 'connected'
+     where u.kind = 'admin' and u.is_active is not false`;
+  if (!admins.length) return out;
+  const orders = await sql`
+    select o.id, coalesce(cl.name, c.first_name || ' ' || coalesce(c.last_name, '')) as who,
+           (select coalesce(sum(case when l.is_free then 0 else l.quantity * coalesce(l.unit_price, 0) end), 0) from order_lines l where l.order_id = o.id)::float8 as total
+      from orders o join contacts c on c.id = o.contact_id left join clinics cl on cl.id = c.clinic_id
+     where o.created_at > now() - interval '30 minutes' and o.deleted_at is null and coalesce(o.legacy_id, '') not like 'demo-%' and coalesce(c.legacy_id, '') not like 'demo-%'`;
+  const rsvps = await sql`
+    select a.id, coalesce(nullif(trim(coalesce(c.first_name, a.first_name, '') || ' ' || coalesce(c.last_name, a.last_name, '')), ''), 'Someone') as who, e.name as event
+      from attendees a join events e on e.id = a.event_id left join contacts c on c.id = a.contact_id
+     where a.status = 'rsvp' and a.created_at > now() - interval '30 minutes' and e.name not like '%(demo)%'`;
+  for (const a of admins) {
+    for (const o of orders) {
+      const r = await push.notify(sql, a.id, { kind: 'new_order', dedupeKey: 'neworder:' + o.id + ':' + a.id, title: 'New order', body: String(o.who || '').trim() + (o.total ? ' · $' + Math.round(o.total).toLocaleString('en-CA') : ' · samples'), url: '/' });
+      out.orders += r.sent || 0;
+    }
+    for (const v of rsvps) {
+      const r = await push.notify(sql, a.id, { kind: 'rsvp', dedupeKey: 'rsvp:' + v.id + ':' + a.id, title: 'New RSVP', body: v.who + ' · ' + v.event, url: '/' });
+      out.rsvps += r.sent || 0;
+    }
+  }
+  return out;
+}
+
+// The instant RSVP ping n8n sends after a launch-event form (live Edge's POST /api/me?ping=rsvp, the "[REG] Liberty Grand
+// RSVP" workflow's "Notify Edge (instant)" step; repoint it here at the cut-over): a phone notification to every admin.
+async function pingRsvp(sql, b) {
+  const who = String((b && (b.name || [b.firstName, b.lastName].filter(Boolean).join(' '))) || '').trim().slice(0, 120) || 'Someone';
+  const event = String((b && (b.event || b.eventName)) || 'the launch event').trim().slice(0, 120);
+  const key = 'rsvpping:' + require('crypto').createHash('sha1').update(who.toLowerCase() + '|' + event.toLowerCase() + '|' + T.ymd()).digest('hex').slice(0, 16);
+  const admins = await sql`select distinct u.id from users u join connections c on c.user_id = u.id and c.provider = 'push' and c.status = 'connected'
+     where u.kind = 'admin' and u.is_active is not false`;
+  let sent = 0;
+  for (const a of admins) sent += (await push.notify(sql, a.id, { kind: 'rsvp', dedupeKey: key + ':' + a.id, title: 'New RSVP', body: who + ' · ' + event, url: '/' })).sent || 0;
+  return { ok: true, admins: admins.length, sent };
 }
 
 // Aria's answer on a Pulse order. Not approved: the order is 'rejected' (Pulse shows "Disapproved"). Approved: 'approved'
@@ -291,4 +350,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, morningTitle, wires, resendOrders, sendOrders };
+module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, appAlerts, pingRsvp, morningTitle, wires, resendOrders, sendOrders };
