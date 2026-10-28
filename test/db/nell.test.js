@@ -124,3 +124,32 @@ describe('the forecast snapshot on the 1st (Compass forecast accuracy)', () => {
     assert.equal((await cron._.forecastSnapshot(sql, T.atLocal(month + '-10', 9, 0))).skipped, 'not_start_of_month');
   }));
 });
+
+describe('the sales form\'s approval answer (op=order_decision)', () => {
+  const cron = require('../../api/cron');
+  test('not approved: a Pulse order waiting on approval becomes rejected ("Disapproved"); approved: approved; others untouched', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const a = await h.order(sql, c, me, { status: 'submitted' }), b = await h.order(sql, c, me, { status: 'submitted' }), shipped = await h.order(sql, c, me, { status: 'shipped' });
+    assert.deepEqual(await cron._.orderDecision(sql, { pulseOrderId: a, approved: false }), { ok: true, changed: true, status: 'rejected' });
+    assert.equal((await cron._.orderDecision(sql, { pulseOrderId: b, approved: true })).status, 'approved');
+    assert.equal((await cron._.orderDecision(sql, { pulseOrderId: shipped, approved: false })).changed, false, 'only one still waiting on approval');
+    assert.equal((await cron._.orderDecision(sql, { pulseOrderId: 'x', approved: false })).reason, 'bad_request');
+    const st = Object.fromEntries((await sql`select id, status::text, approved_at from orders where id = any(${[a, b, shipped]})`).map((r) => [r.id, r]));
+    assert.equal(st[a].status, 'rejected');
+    assert.equal(st[b].status, 'approved'); assert.ok(st[b].approved_at);
+    assert.equal(st[shipped].status, 'shipped');
+  }));
+});
+
+describe('decision 1: the sales form claims a Pulse order once (op=order_claim)', () => {
+  const cron = require('../../api/cron');
+  test('the first claim goes on, a resend of the same order is a repeat; other ids are refused', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const id = await h.order(sql, c, me, { status: 'submitted' });
+    assert.deepEqual(await cron._.orderClaim(sql, { pulseOrderId: id }), { ok: true, first: true });
+    assert.deepEqual(await cron._.orderClaim(sql, { pulseOrderId: id.toUpperCase() }), { ok: true, first: false }, 'a retry of the same order');
+    assert.equal((await cron._.orderClaim(sql, { pulseOrderId: 'order:' + id })).reason, 'bad_request');
+    const [{ id: other }] = await sql`insert into orders (contact_id, channel, status) values (${c}, 'stripe', 'submitted') returning id`;
+    assert.equal((await cron._.orderClaim(sql, { pulseOrderId: other })).reason, 'not_a_pulse_order');
+  }));
+});

@@ -36,6 +36,12 @@ module.exports = route(async (req, res) => {
   const op = query(req).get('op') || 'tick';
   // The daily wire list is also read by n8n's [DIGEST] with the Pulse ISF key it already holds (owner 2026-10-27)
   if (op === 'wires' && (authorised(req) || isfKey(req))) return send(res, 200, await wires(db()));
+  // The sales form's approval answer for an order Pulse sent (owner 2026-10-28: "I disapproved it and Pulse still says
+  // waiting on approval"): POSTed by the workflow's "Pulse: Order Decision" step with the same key.
+  if (op === 'order_decision' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderDecision(db(), await require('./_http').body(req)));
+  // Decision 1 (owner 2026-10-28): the sales form asks here before it starts on an order Pulse sent, so a resend of the
+  // same order (a retry after a lost answer) never makes a second invoice or charge.
+  if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
   const started = Date.now();
@@ -71,6 +77,35 @@ async function newLeads(sql) {
 
 // The morning notification's title: the streak in days, as the Today tile shows it (Yousef 2026-10-23).
 const morningTitle = (streak) => streak ? streak + (streak === 1 ? ' day' : ' days') + ' in a row' : 'Good morning';
+
+// The once-only ledger is ingest_events (UNIQUE source + external_id; renellence-ops/ops/n8n/order-dispatch-proposal.md):
+// the first claim of 'order:<id>:received' answers first: true, every later one first: false. Only real Pulse orders.
+async function orderClaim(sql, b) {
+  const id = String((b && b.pulseOrderId) || '').trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(id)) return { ok: false, reason: 'bad_request' };
+  const [o] = await sql`select id from orders where id = ${id} and placed_by_id is not null`;
+  if (!o) return { ok: false, reason: 'not_a_pulse_order' };   // the sales form carries on as it does today
+  const [row] = await sql`insert into ingest_events (source, external_id, payload, received_via, received_at, status, attempts, processed_at, result_table, result_id)
+    values ('n8n', ${'order:' + id + ':received'}, ${sql.json({ step: 'received', orderId: id })}, 'n8n', now(), 'done', 1, now(), 'orders', ${id})
+    on conflict (source, external_id) do nothing returning id`;
+  return { ok: true, first: !!row };
+}
+
+// Aria's answer on a Pulse order. Not approved: the order is 'rejected' (Pulse shows "Disapproved"). Approved: 'approved'
+// with approved_at, until the sales form's HubSpot order comes back through the intake and takes over its status. Only an
+// order Pulse placed that is still waiting on approval changes; anything else is answered and left alone.
+async function orderDecision(sql, b) {
+  const id = String((b && b.pulseOrderId) || '').trim();
+  if (!/^[0-9a-f-]{36}$/i.test(id) || typeof b.approved !== 'boolean') return { ok: false, reason: 'bad_request' };
+  return sql.begin(async (tx) => {
+    await tx`select set_config('app.source', 'n8n', true), set_config('app.user_id', '', true)`;
+    const rows = b.approved
+      ? await tx`update orders set status = 'approved', approved_at = coalesce(approved_at, now()) where id = ${id} and placed_by_id is not null and status = 'submitted' returning id`
+      : await tx`update orders set status = 'rejected' where id = ${id} and placed_by_id is not null and status = 'submitted' returning id`;
+    if (!rows.length) return { ok: true, changed: false };
+    return { ok: true, changed: true, status: b.approved ? 'approved' : 'rejected' };
+  });
+}
 
 // The month's forecast as it stood on the 1st (owner 2026-10-28; run 4: Compass's "Forecast accuracy" card reads
 // metric_snapshots 'forecast' for the 1st and nothing wrote it). The first tick of each month saves, for every active
@@ -256,4 +291,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, morningTitle, wires, resendOrders, sendOrders };
+module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, morningTitle, wires, resendOrders, sendOrders };

@@ -246,7 +246,7 @@ describe('history', () => {
     await h.order(sql, c, me, { status: 'cancelled', days: 2, lines: [['SAL400', 1]] });
     const { entries } = await D.history(sql, me, Q({ id: c }));
     const orders = entries.filter((e) => e.type === 'order');
-    assert.deepEqual(orders.map((e) => [e.title, e.status, e.tone]), [['Order · $225', 'Cancelled', 'grey'], ['Order · $450', 'Rejected', 'grey']]);
+    assert.deepEqual(orders.map((e) => [e.title, e.status, e.tone]), [['Order · $225', 'Cancelled', 'grey'], ['Order · $450', 'Disapproved', 'grey']]);
     assert.equal((await D.person(sql, me, Q({ id: c }))).stage, 'lead', 'they still count for nothing');
   }));
   test('origin lines for social and other sources', () => h.withDb(async (sql) => {

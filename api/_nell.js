@@ -78,8 +78,28 @@ async function payday(sql, me, contactId, repId, total) {
   if (!(total > 0) || repId !== me.id) return null;
   const orders = (await B.ordersFor(sql, [contactId])).filter(B.isPaid);
   const rate = orders.length ? REORDER_RATE : NEW_RATE;
-  return { amount: money(total * rate), cents: Math.round(total * rate * 100), rate: Math.round(rate * 100) + '%', balance: money(await balance(sql, me)) };
+  const earn = total * rate;
+  // Under $10 with cents (a $0.10 test order earns $0.00, not a rounded "$0"); else whole dollars.
+  return { amount: earn < 10 ? '$' + earn.toFixed(2) : money(earn), cents: Math.round(earn * 100), rate: Math.round(rate * 100) + '%', balance: money(await balance(sql, me)) };
 }
+
+// All-time paid commission for a rep: 2% on each person's first paid order, 4% on every later one.
+async function balance(sql, me) {
+  const ids = (await sql`select distinct contact_id from orders where rep_id = ${me.id} and deleted_at is null`).map((r) => r.contact_id);
+  if (!ids.length) return 0;
+  const orders = (await B.ordersFor(sql, ids)).filter(B.isPaid);
+  const first = {};
+  for (const o of orders) if (!first[o.contact_id] || B.paidAt(o) < B.paidAt(first[o.contact_id])) first[o.contact_id] = o;
+  return orders.filter((o) => o.rep_id === me.id).reduce((a, o) => a + o.total * (first[o.contact_id].id === o.id ? NEW_RATE : REORDER_RATE), 0);
+}
+
+// The wins Rewards lists: newest first.
+function wins(me) {
+  const w = Array.isArray(me.preferences.nell_wins) ? me.preferences.nell_wins : [];
+  return w.slice().reverse().map((x) => ({ kicker: x.kicker, title: x.title, sub: x.sub, date: x.date, when: x.date === T.ymd() ? 'Today' : T.short(x.date + 'T12:00:00Z') }));
+}
+
+module.exports = { afterLog, payday, balance, wins, perfectWeek, perDay, NEW_RATE, REORDER_RATE };
 
 // All-time paid commission for a rep: 2% on each person's first paid order, 4% on every later one.
 async function balance(sql, me) {

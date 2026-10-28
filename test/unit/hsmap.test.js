@@ -72,5 +72,6 @@ test('what each n8n HubSpot write is', () => {
   assert.equal(k('PATCH', '/crm/v3/objects/orders/1', {}).kind, 'order');
   for (const [m, u] of [['POST', '/crm/v3/objects/deals'], ['PATCH', '/crm/v3/objects/deals/1'], ['POST', '/crm/v3/objects/notes'], ['POST', '/files/v3/files'],
     ['POST', '/crm/v3/objects/line_items/batch/create'], ['POST', '/crm/v4/associations/orders/deals/batch/create']]) assert.equal(k(m, u).kind, 'skip', u);
-  assert.equal(k('DELETE', '/crm/v3/objects/contacts/1').kind, 'unknown');
+  assert.equal(k('DELETE', '/crm/v3/objects/contacts/1').kind, 'delete');   // live Edge's Cleaner (owner 2026-10-28)
+  assert.equal(k('DELETE', '/crm/v3/objects/products/1').kind, 'unknown');
 });

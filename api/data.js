@@ -427,7 +427,7 @@ async function lastHistoryLine(sql, p) {
 }
 
 const ORDER_WORD = (o) => {
-  if (o.status === 'rejected') return ['Rejected', 'grey'];
+  if (o.status === 'rejected') return ['Disapproved', 'grey'];   // owner 2026-10-28: "it should show disapproved"
   if (o.status === 'cancelled') return ['Cancelled', 'grey'];
   if (o.delivered_at || o.status === 'delivered') return ['Delivered', 'green'];
   if (o.shipped_at || o.status === 'shipped') return ['Shipped', 'green'];
