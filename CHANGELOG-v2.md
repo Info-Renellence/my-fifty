@@ -427,3 +427,15 @@ designation rn; Vlassopoulos (Koukla Aesthetics) first_name Alaini, email koukla
 Tereza Gindi role injector -> manager; Tatiana Fras and Sonilla Majeed owner Info -> Emily; Amanda Lau owner Info -> Brittany;
 Anne-Marie Pion linked to clinic HubSpot 219789014003. 2 contacts already had the values. The 3 reassigned contacts had no open
 tasks or forecasts. Backup `data/backups/account-review-v2-2026-10-28T20-26-24-008Z.json`. No schema change.
+
+## 31. Lucas's duplicates merged (data only), 2026-10-28, asked by Yousef
+
+`renellence-ops/ops/fixes/merge-contacts.js renellence-ops/data/merges/lucas-2026-10-28.json` (a reusable merge: every reference moves to the
+one kept, except change_logs; a row the kept one already has is kept once and the copy is in the backup; dry run first; backup in
+`renellence-ops/data/backups/merge-*.json`).
+
+- Faranak Laalroshan, Jessica Carl, Igor Wilderman and Bryce Leontowicz: the empty copies from the launch-event list merged into the
+  real records (their event RSVP moved; a duplicate Friday check-in pick removed).
+- Rana Zeineddine merged into Rana Majed-Zeineddine (same phone; her Oct 27 order moved to the onboarded record).
+- Pinkal Ghindi (event, misspelt) merged into Pinkal Gandhi.
+- Lucas's Leads after: Events and Training 28 (14 new), Other Warm 55 (16 new), Onboarded 6.
