@@ -22,6 +22,9 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 //   push_subscribe   turn on phone notifications
 //   gmail_connect    after sign-in: keep the Gmail token
 const { db, asUser } = require('./_db');
+// Accents fold the same way as Edge's clinic and search matching (renellence-edge api/_edge/reads.js FOLD_FROM).
+const FOLD_FROM = 'àáâãäåāăąçćčďđèéêëēėęěìíîïīįĺľłñńňòóôõöøōőŕřśšşťùúûüūůűųýÿžźż';
+const FOLD_TO = [...FOLD_FROM].map((ch) => ({ đ: 'd', ł: 'l', ø: 'o' })[ch] || ch.normalize('NFD')[0]).join('');
 const { signedIn } = require('./_auth');
 const { send, body, route, fail, isUuid, clean, own } = require('./_http');
 const B = require('./_book');
@@ -202,14 +205,25 @@ const OPS = {
     }
     if (phone) {
       const [dupe] = await sql`select coalesce(t.id, c.id) as id, coalesce(t.owner_id, c.owner_id) as owner_id from contacts c ${intoLive(sql)}
-        where (c.phone = ${phone} or c.mobile_phone = ${phone}) and c.deleted_at is null`;
+        where (right(regexp_replace(coalesce(c.phone, ''), '[^0-9]', '', 'g'), 10) = ${phone.replace(/\D/g, '').slice(-10)}
+            or right(regexp_replace(coalesce(c.mobile_phone, ''), '[^0-9]', '', 'g'), 10) = ${phone.replace(/\D/g, '').slice(-10)})
+          and c.deleted_at is null`;   // by the last ten digits: a number Edge saved as typed ("(416) 555-...") is found too (run 4)
       if (dupe) throw fail(409, dupe.owner_id === me.id ? 'already_yours' : 'already_someones', dupe.owner_id === me.id ? dupe.id : undefined);
     }
     const id = await asUser(me.id, async (tx) => {
       let clinic = null;
       if (clinicName) {
-        [clinic] = await tx`select id, street, city, province, postal_code from clinics where lower(name) = ${clinicName.toLowerCase()} and deleted_at is null limit 1`;
-        if (!clinic) [clinic] = await tx`insert into clinics (name) values (${clinicName}) returning id, street, city, province, postal_code`;
+        // Edge's rule (owner 2026-10-28, run 4 R4-2): a clinic the rep already uses by that name; else one with the same
+        // name AND city (case, accents, spaces and punctuation ignored); else a new one. With no city, a name alone
+        // makes a new clinic: never a same-named one in another city.
+        const city = clean(b.city, 120);
+        const KEY = (sq, expr) => sq`regexp_replace(translate(lower(${expr}), ${FOLD_FROM}, ${FOLD_TO}), '[^a-z0-9]+', '', 'g')`;
+        const key = (s) => [...String(s || '').toLowerCase()].map((ch) => { const i = FOLD_FROM.indexOf(ch); return i >= 0 ? FOLD_TO[i] : ch; }).join('').replace(/[^a-z0-9]+/g, '');
+        [clinic] = await tx`select cl.id, cl.street, cl.city, cl.province, cl.postal_code from clinics cl join contacts c on c.clinic_id = cl.id
+          where c.owner_id = ${me.id} and lower(cl.name) = ${clinicName.toLowerCase()} and cl.deleted_at is null and c.deleted_at is null limit 1`;
+        if (!clinic && key(city)) [clinic] = await tx`select id, street, city, province, postal_code from clinics where deleted_at is null
+          and ${KEY(tx, tx`name`)} = ${key(clinicName)} and ${KEY(tx, tx`coalesce(city, '')`)} = ${key(city)} order by created_at limit 1`;
+        if (!clinic) [clinic] = await tx`insert into clinics (name, city) values (${clinicName}, ${city || null}) returning id, street, city, province, postal_code`;
       }
       // A new person's shipping address starts as their clinic's location (SOP section 4).
       const [c] = await tx`

@@ -186,11 +186,25 @@ describe('add_person (L13)', () => {
   test('saves a cold lead in my book, with the clinic’s address and a standard phone', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const cl = await h.clinic(sql, { name: 'Unit Clinic Reuse' });
+    await h.contact(sql, me, { clinicId: cl.id });   // the rep already has someone there, so the clinic is reused
     const r = await A.add_person(me, { firstName: ' Ana ', lastName: 'Lee', clinic: 'unit clinic reuse', phone: '647-555-0101', email: 'Ana.Lee@Test.invalid', role: 'injector', warm: false });
     const [c] = await sql`select owner_id, clinic_id, first_name, email::text, mobile_phone, role::text, lead_source::text, shipping_street, shipping_city from contacts where id = ${r.id}`;
     assert.deepEqual(c, { owner_id: me.id, clinic_id: cl.id, first_name: 'Ana', email: 'ana.lee@test.invalid', mobile_phone: '+16475550101', role: 'injector', lead_source: 'cold', shipping_street: '1 Test St', shipping_city: 'Testville' });
     const [l] = await sql`select actor_user_id, action from change_logs where entity_id = ${r.id} and action = 'create'`;
     assert.equal(l.actor_user_id, me.id, '"Added by you" comes from this');
+  }));
+  test('a same-named clinic is joined only by the rep who uses it, or by name and city (owner 2026-10-28, run 4 R4-2)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), you = await h.user(sql), other = await h.user(sql);
+    const name = 'Unit Twin Clinic ' + h.uid();
+    const far = await h.clinic(sql, { name, city: 'Ottawa' });
+    await h.contact(sql, other, { clinicId: far.id });
+    const clinicOf = async (id) => (await sql`select clinic_id from contacts where id = ${id}`)[0].clinic_id;
+    const a = await A.add_person(me, { firstName: 'Cy', clinic: name.toLowerCase() });
+    assert.notEqual(await clinicOf(a.id), far.id, 'no city: a new clinic, never the one in Ottawa');
+    const c = await A.add_person(me, { firstName: 'Ed', clinic: name, city: 'Ottawa' });
+    assert.equal(await clinicOf(c.id), await clinicOf(a.id), 'the rep already uses one by that name: that one first');
+    const b = await A.add_person(you, { firstName: 'Di', clinic: name, city: 'ottawa ' });
+    assert.equal(await clinicOf(b.id), far.id, 'same name and city: the existing clinic');
   }));
   test('a new clinic is made when none matches; warm is the default; an unknown role is dropped', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
@@ -214,6 +228,10 @@ describe('add_person (L13)', () => {
     // Save anyway: two people can share an email (v2 part B).
     assert.equal((await A.add_person(me, { firstName: 'X', email: 'dup.mine@test.invalid', sharedEmailOk: true })).ok, true);
     await assert.rejects(A.add_person(me, { firstName: 'X', phone: '(647) 555-0199' }), st(409, 'already_someones'));
+    // Run 4: a number Edge saved as typed is found by its digits (owner 2026-10-28: block duplicates in both apps).
+    const typed = await h.contact(sql, other, { email: 'dup.typed@test.invalid' });
+    await sql`update contacts set mobile_phone = '(647) 555-0177' where id = ${typed}`;
+    await assert.rejects(A.add_person(me, { firstName: 'X', phone: '+1 647 555 0177' }), st(409, 'already_someones'));
   }));
   test('a secondary email also counts as taken', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
