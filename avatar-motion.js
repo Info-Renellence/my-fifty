@@ -44,13 +44,16 @@
     if (!svg || svg.querySelector('.av-hand')) return;
     var head = svg.querySelector('.av-head circle'), shirt = svg.querySelector('.av-body path');
     var skin = (head && head.getAttribute('fill')) || '#EEF2F8', sleeve = (shirt && shirt.getAttribute('fill')) || '#5B6884';
-    var ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g');
+    // Inside the avatar's own circle (its clipPath), so the arm never shows outside the frame (owner 2026-10-28).
+    var ns = 'http://www.w3.org/2000/svg', clip = svg.querySelector('clipPath'), wrap = document.createElementNS(ns, 'g'), g = document.createElementNS(ns, 'g');
+    if (clip && clip.id) wrap.setAttribute('clip-path', 'url(#' + clip.id + ')');
     g.setAttribute('class', 'av-hand');
-    g.innerHTML = '<path d="M46 61L50 44" stroke="#0B1530" stroke-width="6.4" stroke-linecap="round"/>'
-      + '<path d="M46 61L50 44" stroke="' + sleeve + '" stroke-width="3.4" stroke-linecap="round"/>'
-      + '<path d="M47.2 42.5v-6.8a1.5 1.5 0 0 1 3 0v-1.6a1.5 1.5 0 0 1 3 0v1.2a1.5 1.5 0 0 1 3 0v6.4c0 3.6-2.2 5.8-5.2 5.8s-4.8-1.8-5.6-3.6l-1.6-3.4a1.4 1.4 0 0 1 2.4-1.4z"'
+    g.innerHTML = '<path d="M42 59L45.5 44" stroke="#0B1530" stroke-width="6.4" stroke-linecap="round"/>'
+      + '<path d="M42 59L45.5 44" stroke="' + sleeve + '" stroke-width="3.4" stroke-linecap="round"/>'
+      + '<path transform="translate(-4.5 0)" d="M47.2 42.5v-6.8a1.5 1.5 0 0 1 3 0v-1.6a1.5 1.5 0 0 1 3 0v1.2a1.5 1.5 0 0 1 3 0v6.4c0 3.6-2.2 5.8-5.2 5.8s-4.8-1.8-5.6-3.6l-1.6-3.4a1.4 1.4 0 0 1 2.4-1.4z"'
       + ' fill="' + skin + '" stroke="#0B1530" stroke-width="1.6" stroke-linejoin="round"/>';
-    svg.appendChild(g);
+    wrap.appendChild(g);
+    svg.appendChild(wrap);
   }
   function scan(node) {
     if (!node || node.nodeType !== 1) return;
