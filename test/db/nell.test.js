@@ -107,3 +107,20 @@ describe('the 3 pm nudge push', () => {
     assert.match(mine[0].n.body, /4 more start a new streak|more keeps your/);
   })));
 });
+
+describe('the forecast snapshot on the 1st (Compass forecast accuracy)', () => {
+  const cron = require('../../api/cron');
+  test('saves each active rep\'s forecast for the month once, and never changes it', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const month = T.ymd().slice(0, 7), on1st = T.atLocal(month + '-01', 9, 0);
+    await sql`insert into forecasts (contact_id, rep_id, due_date, syringes, syringe_price) values (${c}, ${me.id}, ${month + '-20'}, 10, 225)`;
+    await cron._.forecastSnapshot(sql, on1st);
+    const [s] = await sql`select metric_value::float8 v from metric_snapshots where rep_id = ${me.id} and metric = 'forecast' and snapshot_date = ${month + '-01'}`;
+    assert.equal(s.v, 2250);
+    await sql`insert into forecasts (contact_id, rep_id, due_date, syringes, syringe_price) values (${c}, ${me.id}, ${month + '-21'}, 10, 225)`;
+    await cron._.forecastSnapshot(sql, on1st);
+    const [again] = await sql`select metric_value::float8 v from metric_snapshots where rep_id = ${me.id} and metric = 'forecast' and snapshot_date = ${month + '-01'}`;
+    assert.equal(again.v, 2250, 'as it stood the first time');
+    assert.equal((await cron._.forecastSnapshot(sql, T.atLocal(month + '-10', 9, 0))).skipped, 'not_start_of_month');
+  }));
+});

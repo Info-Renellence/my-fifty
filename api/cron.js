@@ -42,7 +42,7 @@ module.exports = route(async (req, res) => {
   const sql = db();
   // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
   const out = { meta: await require('./_meta').sync(sql).catch((e) => ({ error: e.message })) };
-  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), orders: await sendOrders(sql) });
+  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
   // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
   out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27)
@@ -71,6 +71,32 @@ async function newLeads(sql) {
 
 // The morning notification's title: the streak in days, as the Today tile shows it (Yousef 2026-10-23).
 const morningTitle = (streak) => streak ? streak + (streak === 1 ? ' day' : ' days') + ' in a row' : 'Good morning';
+
+// The month's forecast as it stood on the 1st (owner 2026-10-28; run 4: Compass's "Forecast accuracy" card reads
+// metric_snapshots 'forecast' for the 1st and nothing wrote it). The first tick of each month saves, for every active
+// rep, what their book has forecast for that month (the same sum Compass commits at the monthly 1-on-1). Once a month:
+// a snapshot already there is never changed. Only on the 1st or 2nd (a tick missed on the 1st).
+async function forecastSnapshot(sql, now) {
+  const today = T.ymd(now || new Date()), month = today.slice(0, 7), first = month + '-01';
+  if (today > month + '-02') return { skipped: 'not_start_of_month' };   // a snapshot taken later would not be "as it stood on the 1st"
+  const reps = await sql`select u.id from users u where u.kind = 'rep' and u.is_active is not false
+    and not exists (select 1 from metric_snapshots m where m.rep_id = u.id and m.metric = 'forecast' and m.snapshot_date = ${first})`;
+  if (!reps.length) return { skipped: 'done_this_month' };
+  const cfg = await B.settings(sql);
+  let saved = 0;
+  for (const r of reps) {
+    const { people } = await B.book(sql, { id: r.id, preferences: {} }, { cfg });
+    const ids = people.map((p) => p.id);
+    const [sum] = ids.length ? await sql`select coalesce(sum(coalesce(syringes, 0) * coalesce(syringe_price, 0) + coalesce(cannula_boxes, 0) * coalesce(cannula_box_price, 0)
+        + coalesce(needle_boxes, 0) * coalesce(needle_box_price, 0)), 0)::float8 as v, count(*)::int as n
+      from forecasts where contact_id = any(${ids}) and deleted_at is null and to_char(due_date, 'YYYY-MM') = ${month}` : [{ v: 0, n: 0 }];
+    const done = await sql`insert into metric_snapshots (snapshot_date, rep_id, metric, metric_value, details)
+      values (${first}, ${r.id}, 'forecast', ${sum.v}, ${sql.json({ forecasts: sum.n, taken_at: new Date().toISOString() })})
+      on conflict (snapshot_date, rep_id, metric) do nothing returning id`;
+    saved += done.length;
+  }
+  return { reps: reps.length, saved };
+}
 
 // Nell's 3 pm nudge (Final Mockup (3) N4, owner 2026-10-28): on a workday between 3:00 and 3:30 pm Toronto, a rep with a
 // phone connected who is under the day goal and has counted nothing since noon gets "2 more keeps your 12-day streak
@@ -228,4 +254,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, nudge, morningTitle, wires, resendOrders, sendOrders };
+module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, morningTitle, wires, resendOrders, sendOrders };
