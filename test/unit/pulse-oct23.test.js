@@ -5,14 +5,16 @@ const fs = require('fs');
 const path = require('path');
 const app = fs.readFileSync(path.join(__dirname, '..', '..', 'app.js'), 'utf8');
 
-// Rebuilt to "Edge – Final Mockup (2)" on 2026-10-27: the F2 streak tile (days and this week's Monday to Friday),
-// and F11 Rewards (earned this quarter, Cha-ching, Race to Vienna). The syringe tiles and Race to 25 are not in it.
-test('the Today streak tile shows the streak days and this week, without "plan done"', () => {
-  const at = app.indexOf('function streakTile'); const tile = app.slice(at, app.indexOf('function fiftyTile', at));
-  assert.ok(tile.includes("day.streak + '</span><span class=\"tile-w\">day streak"), 'the streak number is shown');
+// F11 Rewards (Final Mockup (2), 2026-10-27): earned this quarter, Cha-ching, Race to Vienna. No syringe tiles or Race to 25.
+// F2d (Final Mockup (3), 2026-10-28): the two tiles became one panel, the streak over My Fifty, with Nell and her line.
+test('the Today panel shows the streak days and this week, My Fifty, and Nell’s line, without "plan done"', () => {
+  const at = app.indexOf('function todayPanel'); const tile = app.slice(at, app.indexOf('function screenToday', at));
+  assert.ok(tile.includes("day.streak + '</span><span class=\"tp-w\">day streak"), 'the streak number is shown');
   assert.ok(tile.includes('day.week'), 'Monday to Friday of this week');
   assert.ok(tile.includes("n + '/' + goal"), "today's ring counts towards the day goal");
-  assert.ok(!/plan done/i.test(tile), 'no "plan done" on the tile');
+  assert.ok(tile.includes('in My Fifty') && tile.includes('more to reach'), 'My Fifty under the streak');
+  assert.ok(tile.includes('Perfect day!') && tile.includes('Streak saved!') && tile.includes('saves your streak!'), "Nell's three lines");
+  assert.ok(!/plan done/i.test(tile), 'no "plan done" on the panel');
 });
 
 test('Rewards shows what was earned this quarter, the wins, and the Race to Vienna podium', () => {

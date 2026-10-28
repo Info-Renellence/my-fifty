@@ -103,12 +103,29 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const oneLine = (s) => String(s || '').replace(/\n/g, ' | ');
   try {
     await go('/');
+    if (SCEN === 'nell') {   // 2026-10-28: the F2d panel and Nell's four moments (Final Mockup (3))
+      await shot('nell-today');
+      note('NELL panel: ' + oneLine(await evaluate("(document.querySelector('.tp-wrap')||{}).innerText")));
+      const M = { payday: { kicker: 'PAYDAY', big: '+$54', line: 'On its way to you', sub: 'Commission on Sample Clinic B’s order, counted once it’s paid', pill: 'Rewards balance · $1,284' },
+        cheer: { kicker: 'STREAK SAVED', title: '13-day streak', sub: '5 logged today. Everything after this is a bonus.' },
+        jackpot: { kicker: 'NEW RECORD', title: '14 in a day', sub: 'Your best day ever. Previous best: 12.', pill: 'Saved to your wins on Rewards' },
+        nudge: { kicker: 'STILL TIME TODAY', title: '2 more keeps your 12-day streak alive', sub: '3 of 5 logged · 8 contacts left on today’s list', buttons: ['Show me who’s left', 'Not now'] } };
+      for (const k of Object.keys(M)) {
+        await evaluate('window.__nellMoment(' + JSON.stringify(k) + ', ' + JSON.stringify(M[k]) + ')');
+        await wait(4600);
+        note('NELL ' + k + ' clip: ' + await evaluate("(function(){ var v = document.querySelector('.nellm video'); return v ? (v.currentTime.toFixed(1) + 's of ' + (v.duration || 0).toFixed(1) + 's') : (document.querySelector('.nellm .nm-still') ? 'still' : 'none'); })()"));
+        await shot('nell-' + k);
+        await evaluate("(function(){ var b = document.querySelector('.nellm [data-nm=later]') || document.querySelector('.nellm'); if (b) b.click(); })()");
+        await wait(300);
+        note('NELL ' + k + ' closed: ' + !(await evaluate("!!document.querySelector('.nellm')")));
+      }
+    }
     if (SCEN === 'new') {
       const all = await api('op=search&q=');
       const find = (first) => (all.people.find((p) => p.name.indexOf(first) >= 0) || {}).id;
       // 1. Today My Fifty tile -> /people/fifty
       await shot('n1-today');
-      await click('a.tile.blue'); note('NEW1 tile -> ' + await path_() + ' fifty tab on: ' + await evaluate("!!document.querySelector('[data-pview=\"fifty\"].on, [data-pview=\"fifty\"][aria-selected=\"true\"]')"));
+      await click('a.tp-fifty'); note('NEW1 tile -> ' + await path_() + ' fifty tab on: ' + await evaluate("!!document.querySelector('[data-pview=\"fifty\"].on, [data-pview=\"fifty\"][aria-selected=\"true\"]')"));
       await shot('n1-fifty');
       await go('/people/fifty'); note('NEW1b direct /people/fifty -> ' + await path_() + ' text: ' + oneLine((await txt()).slice(0, 60)));
       // 2. the + on product rows

@@ -133,7 +133,7 @@
   }
   function skeleton(kind) {
     var head = '<span class="sk line" style="width:40%;margin:8px 4px 10px"></span><span class="sk" style="display:block;width:45%;height:36px;margin:0 4px 16px"></span>';
-    if (kind === 'today') return head + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px"><span class="sk tile" style="height:112px"></span><span class="sk tile" style="height:112px"></span></div>'
+    if (kind === 'today') return head + '<span class="sk tile" style="display:block;height:196px;margin:30px 0 14px;border-radius:22px"></span>'
       + '<span class="sk" style="display:block;height:46px;margin-bottom:12px"></span><span class="sk tile" style="display:block;height:320px"></span>';
     if (kind === 'card') return '<span class="sk line" style="width:24%;margin:4px 4px 14px"></span><span class="sk tile" style="display:block;height:196px;margin-bottom:14px;border-radius:26px"></span>'
       + '<div style="display:flex;justify-content:space-around;margin-bottom:14px"><span class="sk" style="width:54px;height:54px;border-radius:50%"></span><span class="sk" style="width:54px;height:54px;border-radius:50%"></span><span class="sk" style="width:54px;height:54px;border-radius:50%"></span><span class="sk" style="width:54px;height:54px;border-radius:50%"></span></div>'
@@ -243,35 +243,31 @@
     var done = { visit: d.done.filter(function (x) { return x.kind === 'visit'; }), call: d.done.filter(function (x) { return x.kind !== 'visit'; }) };
     return { rows: rows, done: done, missed: missed };
   }
-  function streakTile(day, perfect) {
-    var goal = day.goal, n = day.done, met = n >= goal;
-    var metDays = (day.week || []).filter(function (w) { return w.state === 'met' || (w.state === 'today' && met); }).length;
+  // F2d (Final Mockup (3), owner 2026-10-28): one progress panel, the streak over My Fifty, with Nell and her line.
+  function todayPanel(day, f, perfect) {
+    var goal = day.goal, n = day.done, met = n >= goal, toNext = Math.max(0, f.next - f.count);
     var circles = (day.week || []).map(function (w) {
-      var c, lab = '<span class="wk-l"' + (w.state === 'today' || w.state === 'met' ? '' : ' style="opacity:.55"') + '>' + w.label + '</span>';
-      if (w.state === 'today' && perfect) c = '<span class="wk-c perfect">' + flame(12) + '</span>';
-      else if (w.state === 'met' || (w.state === 'today' && met)) c = '<span class="wk-c saved">' + flame(12) + '</span>';
+      var c, on = w.state === 'today' || w.state === 'met';
+      if (w.state === 'today' && perfect) c = '<span class="tp-d perfect">' + flame(13) + '</span>';
+      else if (w.state === 'met' || (w.state === 'today' && met)) c = '<span class="tp-d saved">' + flame(13) + '</span>';
       else if (w.state === 'today') {
         var deg = Math.round(Math.min(n, goal) / goal * 360);
-        c = '<span class="wk-c ring" style="background:conic-gradient(#3A2400 0 ' + deg + 'deg, rgba(58,36,0,0.18) ' + deg + 'deg 360deg)"><span class="num">' + n + '/' + goal + '</span></span>';
-      } else c = '<span class="wk-c off"></span>';
-      return '<span class="wk">' + c + lab + '</span>';
+        c = '<span class="tp-d ring" style="background:conic-gradient(#F7C948 0 ' + deg + 'deg, rgba(255,255,255,0.12) ' + deg + 'deg 360deg)"><span class="num">' + n + '/' + goal + '</span></span>';
+      } else c = '<span class="tp-d off"></span>';
+      return '<span class="tp-dw">' + c + '<span class="tp-dl' + (on ? ' on' : '') + '">' + w.label + '</span></span>';
     }).join('');
-    return '<div class="tile gold streak" aria-label="' + day.streak + ' day streak, ' + n + ' of ' + goal + ' today">'
-      + '<span class="tile-bg">' + flame(92, '#FFFFFF') + '</span>'
-      + '<span class="tile-top"><span class="tile-ico">' + flame(16, 'url(#fl)') + '</span>'
-      + '<span class="tile-n"><span class="num">' + day.streak + '</span><span class="tile-w">day streak</span></span></span>'
-      + '<span class="wkrow"><span class="wkbar" aria-hidden="true"><span style="width:' + (metDays / 5 * 100) + '%"></span></span>' + circles + '</span></div>';
-  }
-  function fiftyTile(f) {
-    var top = Math.max(25, Math.ceil((f.count + 1) / 25) * 25), each = top / 5, toNext = Math.max(0, f.next - f.count);
-    var segs = '';
-    for (var i = 0; i < 5; i++) segs += '<span class="seg5"><span style="width:' + Math.round(Math.max(0, Math.min(1, (f.count - i * each) / each)) * 100) + '%"></span></span>';
-    return '<a href="/people/fifty" data-nav class="tile blue' + (fiftyUp(f.count) ? ' fifty-up' : '') + '" aria-label="' + f.count + ' in My Fifty, ' + toNext + ' more to ' + f.next + '">'
-      + '<span class="tile-bg" style="right:-18px;top:-10px;opacity:.16">' + ic('target', 96, 1.5) + '</span>'
-      + '<span class="tile-top"><span class="tile-ico" style="color:#62B2F7">' + ic('target', 18, 1.8) + '</span>'
-      + '<span class="tile-n"><span class="num">' + f.count + '</span><span class="tile-w">My Fifty</span></span></span>'
-      + '<span style="position:relative;display:flex;flex-direction:column;gap:5px"><span style="display:flex;gap:4px">' + segs + '</span>'
-      + '<span style="font-size:12px;font-weight:800;letter-spacing:0.2px">' + toNext + ' more to ' + f.next + '</span></span></a>';
+    var say = perfect ? 'Perfect day! 🔥' : met ? 'Streak saved! 🎉' : (goal - n) + ' more ' + (day.streak ? 'saves your streak!' : 'starts a streak!');
+    var fill = Math.round(Math.min(1, f.next ? f.count / f.next : 0) * 100);
+    return '<div class="tp-wrap"><div class="tp" aria-label="' + day.streak + ' day streak, ' + n + ' of ' + goal + ' today. ' + f.count + ' in My Fifty">'
+      + '<span class="tp-glow" aria-hidden="true"></span><div class="tp-col">'
+      + '<div class="tp-streak"><span class="tp-row">' + flame(22, 'url(#pfl)') + '<span class="tp-n num">' + day.streak + '</span><span class="tp-w">day streak</span></span>'
+      + '<span class="tp-days">' + circles + '</span></div>'
+      + '<span class="tp-hr"></span>'
+      + '<a href="/people/fifty" data-nav class="tp-fifty' + (fiftyUp(f.count) ? ' fifty-up' : '') + '" aria-label="' + f.count + ' in My Fifty, ' + toNext + ' more to reach ' + f.next + '">'
+      + '<span class="tp-row"><span style="color:#62B2F7;display:flex">' + ic('target', 22, 2) + '</span><span class="tp-n num">' + f.count + '</span><span class="tp-w">in My Fifty</span></span>'
+      + '<span class="tp-bar"><span style="width:' + fill + '%"></span></span><span class="tp-next">' + toNext + ' more to reach ' + f.next + '</span></a></div></div>'
+      + '<img class="nl-idle" src="/nell/idle.webp" alt="" aria-hidden="true" width="172" height="228">'
+      + '<div class="tp-say" role="status">' + esc(say) + '</div></div>';
   }
   function screenToday() {
     return paint(read('today'), function (d) {
@@ -280,11 +276,12 @@
       var perfect = !rows.visit.length && !rows.call.length && (dn.visit.length + dn.call.length) > 0;
       var dateLine = L.longDate(d.date).toUpperCase();
       var h = '<div class="scr today">'
-        + '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#D9640C"/></linearGradient></defs></svg>'
+        + '<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="fl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFB020"/><stop offset="1" stop-color="#D9640C"/></linearGradient>'
+          + '<linearGradient id="pfl" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC531"/><stop offset="0.55" stop-color="#FF7A00"/><stop offset="1" stop-color="#E0310B"/></linearGradient></defs></svg>'
         + '<div class="head"><span style="display:flex;flex-direction:column"><span class="date">' + esc(dateLine) + '</span><h1 class="h1">Today</h1></span>'
         + '<button type="button" data-me class="me num" aria-label="Signed in as ' + esc(ME.name || '') + '. Open to sign out" aria-haspopup="dialog">' + esc(ME.initials) + '</button></div>'
         + (d.week ? weekFocus(d.week) : '')
-        + '<div class="tiles">' + streakTile(d.day, perfect) + fiftyTile(d.fifty) + '</div>'
+        + todayPanel(d.day, d.fifty, perfect)
         + '<div class="seg big" role="tablist">' + [['visit', 'Visits'], ['call', 'Calls']].map(function (k) {
           var on = todayTab === k[0], n = dn[k[0]].length, of = n + rows[k[0]].length;
           return '<button type="button" role="tab" aria-selected="' + on + '" data-ttab="' + k[0] + '"' + (on ? ' class="on"' : '') + '>' + k[1]
@@ -318,6 +315,7 @@
         }
       }
       h += '</section>' + pushPrompt() + '</div>';
+      setTimeout(function () { nellPreload(); nellNudge(d); }, 400);
       return h;
     }, 'today', 'today');
   }
@@ -470,7 +468,7 @@
 
   // After a log: on Today the "+1" toast, or a win card for a milestone (F2); anywhere else the win screen (F4).
   function afterLog(r, ctx, reached) {
-    if (!ctx.today || location.pathname !== '/') { winMoment(r); return; }
+    if (!ctx.today || location.pathname !== '/') { winMoment(r); nellAfterLog(r); return; }
     var before = todayData, tr = before ? todayRows(before) : null;
     var openBefore = tr ? tr.rows.visit.length + tr.rows.call.length : 0, doneBefore = tr ? tr.done.visit.length + tr.done.call.length : 0;
     var total = openBefore + doneBefore, nd = doneBefore + (reached ? 1 : 0);
@@ -480,6 +478,7 @@
     else if (reached && ctx.today.coldDays) win = { k: 'BACK IN TOUCH', t: r.name || ctx.today.name, s: 'First contact in ' + ctx.today.coldDays + ' days. Off the going-cold list.', i: 'heart' };
     else if (reached && total > 3 && nd === Math.ceil(total / 2)) win = { k: 'MILESTONE', t: 'Halfway there', s: (total - nd) + ' to go. Keep it rolling.', i: 'star' };
     screenToday();
+    if (nellAfterLog(r)) return;
     if (win) showWinCard(win, '+1 · ' + nd + ' of ' + total);
     else toast(reached ? nd + ' of ' + total + ' logged' : 'Logged. No reply this time.', reached ? '+1' : '');
   }
@@ -492,6 +491,99 @@
     var close = function () { if (el.parentNode) el.parentNode.removeChild(el); };
     el.addEventListener('click', close);
     setTimeout(close, 2600);
+  }
+
+  // ---- Nell's moments (Final Mockup (3) N0-N4, owner 2026-10-28) ------------------------------------------------
+  // Full screen over whatever is open. Payday (order sent), Cheer (daily goal reached), Jackpot (a rare big win, from
+  // api/_nell.js) and Nudge (after 3 pm, under the goal). A tap anywhere closes it (Nudge: its buttons only). The clip
+  // is a 5 s video on the moment's own background; if the phone refuses to play it (Low Power Mode) or the rep has
+  // Reduce Motion on, Nell's still picture shows instead (with a small hop, unless motion is reduced).
+  var NELL_KINDS = ['payday', 'cheer', 'jackpot', 'nudge'];
+  var nellCalm = function () { try { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) { return false; } };
+  var nellSeen = function (k) { return localStorageGet('pulse-nell-' + k) === ymd(); };
+  var nellMark = function (k) { localStorageSet('pulse-nell-' + k, ymd()); };
+  var nellOpen = null, nellWarm = false;
+  // The stills straight away; the four clips once Today has painted (spec: never before Today).
+  function nellPreload() {
+    if (nellWarm) return;
+    nellWarm = true;
+    NELL_KINDS.forEach(function (k) { var i = new Image(); i.src = '/nell/' + k + '.webp'; });
+    setTimeout(function () { NELL_KINDS.forEach(function (k) { if (window.fetch) fetch('/nell/' + k + '.mp4').catch(function () {}); }); }, 1500);
+  }
+  // o: { kicker, title, sub, pill, big (Payday's amount), line (Payday's line under it), buttons (Nudge), onGo, onClose }
+  function nellMoment(kind, o) {
+    if (nellOpen) nellOpen.close(true);
+    var el = document.createElement('div'), calm = nellCalm();
+    el.className = 'nellm ' + kind;
+    el.setAttribute('role', 'dialog'); el.setAttribute('aria-modal', 'true'); el.setAttribute('aria-label', (o.kicker || '') + (o.title ? ': ' + o.title : ''));
+    var still = '<img class="nm-still' + (calm ? '' : ' hop') + '" src="/nell/' + kind + '.webp" alt="">';
+    el.innerHTML = '<div class="nm-top"><span class="nm-k">' + esc(o.kicker || '') + '</span>' + (o.title ? '<span class="nm-t">' + esc(o.title) + '</span>' : '') + '</div>'
+      + '<div class="nm-stage">' + (calm ? still : '<video class="nm-clip" src="/nell/' + kind + '.mp4" muted playsinline preload="auto" aria-hidden="true"></video>') + '</div>'
+      + '<div class="nm-foot">'
+      + (o.big ? '<span class="nm-big num' + (calm ? ' in' : '') + '">' + esc(o.big) + '</span>' : '')
+      + (o.line ? '<span class="nm-line">' + esc(o.line) + '</span>' : '')
+      + (o.sub ? '<span class="nm-sub">' + esc(o.sub) + '</span>' : '')
+      + (o.pill ? '<span class="nm-pill">' + esc(o.pill) + '</span>' : '')
+      + (o.buttons ? '<button type="button" class="btn nm-go" data-nm="go">' + esc(o.buttons[0]) + '</button><button type="button" class="nm-later" data-nm="later">' + esc(o.buttons[1]) + '</button>'
+        : '<span class="nm-tap">Tap anywhere to continue</span>')
+      + '</div>';
+    document.body.appendChild(el);
+    var done = false;
+    var key = function (e) { if (e.key === 'Escape') ctl.close(); };
+    var ctl = { close: function (quiet) {
+      if (done) return; done = true;
+      if (el.parentNode) el.parentNode.removeChild(el);
+      document.removeEventListener('keydown', key);
+      if (nellOpen === ctl) nellOpen = null;
+      if (!quiet && o.onClose) o.onClose();
+    } };
+    document.addEventListener('keydown', key);
+    el.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-nm]');
+      if (o.buttons && !b) return;   // Nudge closes only from its buttons
+      if (b && b.getAttribute('data-nm') === 'go' && o.onGo) { ctl.close(true); o.onGo(); return; }
+      ctl.close();
+    });
+    var v = el.querySelector('video'), big = el.querySelector('.nm-big');
+    var fallback = function () { if (!v || !v.parentNode) return; v.insertAdjacentHTML('afterend', still); v.parentNode.removeChild(v); v = null; if (big) big.classList.add('in'); };
+    if (v) {
+      // Payday: "+$54" pops on the handoff beat, about 80% of the way through.
+      v.addEventListener('timeupdate', function () { if (big && v && v.duration && v.currentTime >= v.duration * 0.8) big.classList.add('in'); });
+      v.addEventListener('ended', function () { if (big) big.classList.add('in'); });
+      v.addEventListener('error', fallback);
+      var p = v.play();
+      if (p && p.catch) p.catch(fallback);
+    }
+    nellOpen = ctl;
+    var first = el.querySelector('button'); if (first) first.focus();
+    return ctl;
+  }
+  // Local screen tests only (test/run/cdp-nell.js): open a moment by hand.
+  if (location.hostname === 'localhost') window.__nellMoment = nellMoment;
+  // Cheer or Jackpot from a log's answer (api/_nell.js). Jackpot is at most once a day (the server keeps it);
+  // Cheer once a day on this phone. True when a moment showed.
+  function nellAfterLog(r, onClose) {
+    var n = r && r.nell;
+    if (!n || (n.kind !== 'jackpot' && n.kind !== 'cheer')) return false;
+    if (nellSeen(n.kind)) return false;
+    nellMark(n.kind);
+    if (n.kind === 'jackpot') nellMark('cheer');   // Jackpot replaces Cheer on the same log
+    nellMoment(n.kind, { kicker: n.kicker, title: n.title, sub: n.sub, pill: n.kind === 'jackpot' ? 'Saved to your wins on Rewards' : '', onClose: onClose });
+    return true;
+  }
+  // Nudge (N4): a workday, after 3 pm, fewer than the goal logged, once a day, never over a sheet or another moment.
+  function torontoHour() { return Number(new Intl.DateTimeFormat('en-CA', { hour: 'numeric', hourCycle: 'h23', timeZone: 'America/Toronto' }).format(new Date())); }
+  function nellNudge(d) {
+    var day = d.day;
+    if (!day.workday || day.done >= day.goal || nellSeen('nudge') || nellOpen || $sheet.innerHTML || location.pathname !== '/') return;
+    if (!(torontoHour() >= 15)) return;
+    nellMark('nudge');
+    var left = day.goal - day.done, t = todayRows(d), open = t.rows.visit.length + t.rows.call.length;
+    nellMoment('nudge', { kicker: 'STILL TIME TODAY',
+      title: day.streak ? left + ' more keeps your ' + day.streak + '-day streak alive' : left + ' more ' + (left === 1 ? 'starts' : 'start') + ' a new streak',
+      sub: day.done + ' of ' + day.goal + ' logged · ' + open + (open === 1 ? ' contact' : ' contacts') + ' left on today’s list',
+      buttons: ['Show me who’s left', 'Not now'],
+      onGo: function () { var l = document.querySelector('.tlist'); if (l) l.scrollIntoView({ behavior: nellCalm() ? 'auto' : 'smooth', block: 'start' }); } });
   }
 
   // ---- F4 The win moment ---------------------------------------------------------------------------------
@@ -1465,7 +1557,13 @@
       var d = draft, samples = L.draftSummary(d.products.products, d).samples;
       act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
         lines: orderLines(d.products, d).map(function (l) { return l.free ? { sku: l.p.sku, qty: l.qty, free: true } : { sku: l.p.sku, qty: l.qty, price: l.price }; }) })
-        .then(function (r) { draft = null; sentScreen(r, samples); },
+        .then(function (r) {
+          draft = null; sentScreen(r, samples);
+          // Payday (N1): every order with money on it; the amount is the server's, never an estimate.
+          var pd = r.payday, who = d.products && d.products.person;
+          if (pd) nellMoment('payday', { kicker: 'PAYDAY', big: '+' + pd.amount, line: 'On its way to you',
+            sub: 'Commission on ' + ((who && (who.clinic || who.name)) || 'this') + '’s order, counted once it’s paid', pill: 'Rewards balance · ' + pd.balance });
+        },
           function (err) { b.disabled = false; b.textContent = 'Send for approval'; toast(errText(err)); if (err && err.message === 'no_shipping_address') shippingSheet(d.contactId); });
     }
   });
@@ -1536,6 +1634,14 @@
         + '<div class="head" style="align-items:baseline;padding:0 4px 8px"><h2 class="h2">Cha-ching</h2>' + (r.wins.length ? '<a href="/rewards/wins" data-nav class="link" style="padding-left:12px">See all</a>' : '') + '</div>';
       h += r.wins.length ? '<section class="card r20" style="margin-bottom:14px">' + r.wins.slice(0, 2).map(winRow).join('') + '</section>'
         : empty('trophy', 'No wins yet this quarter.', 'Every paid order earns you ' + r.booster.newText + ' and ' + r.booster.reorderText + '.', 'margin-bottom:14px;border-radius:20px');
+      // Nell's jackpots (N3 "Saved to your wins on Rewards"): the rare big days, newest first.
+      if (r.moments && r.moments.length) {
+        h += '<div class="head" style="padding:0 4px 8px"><h2 class="h2">Big days</h2></div><section class="card r20" style="margin-bottom:14px">'
+          + r.moments.slice(0, 3).map(function (m) {
+            return '<div class="row"><span class="round" style="color:#F7C948">' + ic('star', 18) + '</span><span class="grow"><span class="t ellip">' + esc(m.title) + '</span>'
+              + '<span class="sub ellip">' + esc(m.kicker.charAt(0) + m.kicker.slice(1).toLowerCase()) + ' · ' + esc(m.when) + '</span></span></div>';
+          }).join('') + '</section>';
+      }
       var pct = t.leader ? Math.round(t.mine / t.leader * 100) : 0;
       h += '<section class="hero race" style="background:var(--hero-deep)">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 class="h2">Race to Vienna ✈︎</h2><span class="glass">' + t.daysLeft + ' days left</span></span>'
