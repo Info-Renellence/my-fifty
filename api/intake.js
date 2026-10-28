@@ -271,7 +271,11 @@ async function syncOrder(tx, hsId, src = HS) {
                      where l.order_id = o.id and (not l.is_free or not exists (select 1 from order_lines x where x.order_id = o.id and not x.is_free))) as sig
         from orders o where o.contact_id = ${contactId} and o.legacy_id is null and o.placed_by_id is not null and o.deleted_at is null
          and o.created_at > now() - interval '7 days' order by o.created_at desc`;
-    const hit = cands.find((x) => x.sig === want);
+    // By id first (data-flow improvement 2, owner 2026-10-28): the sales form writes "Pulse order <id>" (or "Edge order <id>")
+    // into the HubSpot order note; then, for orders sent before that, the old match (same customer and paid items).
+    const named = /(?:Pulse|Edge) order ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i.exec(String((rec.properties || {}).hs_order_note || ''));
+    const byId = named ? (await tx`select id from orders where id = ${named[1]} and legacy_id is null and deleted_at is null`)[0] : null;
+    const hit = byId || cands.find((x) => x.sig === want);
     if (hit) { pulseOrder = hit.id; await tx`update orders set legacy_id = ${String(hsId)} where id = ${hit.id}`; }
   }
   const r = await upsert(tx, 'orders', order, ORDER_OWNED);
@@ -279,6 +283,7 @@ async function syncOrder(tx, hsId, src = HS) {
   if (pulseOrder) {
     // its lines are already there; its payment: a pending wire stays until marked received, a card charge is added once
     for (const pm of payments) {
+      if (pm.method !== 'wire' && (await tx`select 1 from payments where order_id = ${orderId} and provider = 'stripe' and kind = 'charge' and status = 'succeeded' limit 1`).length) continue;   // Stripe recorded it (api/_stripe.js)
       const [cur] = await tx`select id, status from payments where order_id = ${orderId} and kind = 'charge' order by created_at limit 1`;
       if (!cur) await tx.unsafe(`insert into public.payments (${Object.keys(pm).map((k) => `"${k}"`).join(', ')}) select ${Object.keys(pm).map((k) => `"${k}"`).join(', ')}
                                  from json_populate_record(null::public.payments, $1::text::json) on conflict do nothing`, [JSON.stringify(Object.assign({}, pm, { order_id: orderId }))]);
@@ -294,6 +299,7 @@ async function syncOrder(tx, hsId, src = HS) {
                      from json_populate_record(null::public.order_lines, $1::text::json) on conflict do nothing`, [JSON.stringify(row)]);
   }
   for (const pm of payments) {
+    if (pm.method !== 'wire' && (await tx`select 1 from payments where order_id = ${orderId} and provider = 'stripe' and kind = 'charge' and status = 'succeeded' limit 1`).length) continue;   // Stripe recorded it (api/_stripe.js)
     const row = Object.assign({}, pm, { order_id: orderId });
     const [cur] = await tx`select id, status from payments where id = ${pm.id}`;
     if (!cur) await tx.unsafe(`insert into public.payments (${Object.keys(row).map((k) => `"${k}"`).join(', ')}) select ${Object.keys(row).map((k) => `"${k}"`).join(', ')}

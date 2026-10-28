@@ -319,7 +319,16 @@ describe('cron', () => {
       const ok = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=tick', headers: { 'x-cron-key': 'test-cron-key' } }, ok);
       assert.equal(ok.statusCode, 200);
-      assert.deepEqual(Object.keys(ok.json()).sort(), ['alerts', 'forecast', 'gmail', 'hubspot', 'leads', 'meta', 'morning', 'nudge', 'orders', 'signatureapi']);   // + the HubSpot sync and SignatureAPI (2026-10-27), Nell's 3 pm nudge (2026-10-28)
+      assert.deepEqual(Object.keys(ok.json()).sort(), ['alarms', 'alerts', 'forecast', 'gmail', 'hubspot', 'leads', 'meta', 'morning', 'nudge', 'orders', 'part', 'signatureapi', 'stripe']);   // + the HubSpot sync and SignatureAPI (2026-10-27), Nell's 3 pm nudge, Stripe retries and alarms (2026-10-28)
+      // the parts pg_cron calls on their own (data-flow improvement 5): each does only its own steps
+      for (const [part, keys] of [['core', ['alarms', 'alerts', 'forecast', 'leads', 'meta', 'morning', 'nudge', 'orders', 'part', 'stripe']], ['hubspot', ['hubspot', 'part']], ['sync', ['gmail', 'part', 'signatureapi']]]) {
+        const r = h.fakeRes();
+        await cron({ method: 'GET', url: '/api/cron?op=tick&part=' + part, headers: { 'x-cron-key': 'test-cron-key' } }, r);
+        assert.deepEqual(Object.keys(r.json()).sort(), keys, part);
+      }
+      const badPart = h.fakeRes();
+      await cron({ method: 'GET', url: '/api/cron?op=tick&part=x', headers: { 'x-cron-key': 'test-cron-key' } }, badPart);
+      assert.equal(badPart.statusCode, 400);
       const bad = h.fakeRes();
       await cron({ method: 'GET', url: '/api/cron?op=other', headers: { 'x-cron-key': 'test-cron-key' } }, bad);
       assert.equal(bad.statusCode, 400);

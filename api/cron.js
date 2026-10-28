@@ -48,16 +48,31 @@ module.exports = route(async (req, res) => {
   if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
-  const started = Date.now();
+  // The tick in parts (data-flow improvement 5, owner 2026-10-28): pg_cron calls each part on its own every 5 minutes, so the
+  // long pulls each get a whole Vercel run instead of sharing one minute. No part (the old single timer job) = all of them.
+  const part = query(req).get('part') || 'all';
+  if (!['all', 'core', 'hubspot', 'sync'].includes(part)) throw fail(400, 'unknown_part');
+  const started = Date.now(), whole = part !== 'all';
   const sql = db();
-  // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
-  const out = { meta: await require('./_meta').sync(sql).catch((e) => ({ error: e.message })) };
-  Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), alerts: await appAlerts(sql).catch((e) => ({ error: e.message })), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
-  // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only
-  out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
-  // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27)
-  out.signatureapi = await require('./_sigapi').sync(sql, Math.min(12000, Math.max(4000, 40000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
-  out.gmail = await require('./_gmail').sync(sql, Math.max(5000, 45000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
+  const out = { part };
+  if (part === 'all' || part === 'core') {
+    // 0. Meta lead-form leads straight into v2 first (Yousef 2026-10-27), so this tick's new-lead pushes include them
+    out.meta = await require('./_meta').sync(sql).catch((e) => ({ error: e.message }));
+    Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), alerts: await appAlerts(sql).catch((e) => ({ error: e.message })), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
+    // Stripe events still waiting for their order (data-flow improvement 1)
+    out.stripe = await require('./_stripe').retryPending(sql).catch((e) => ({ error: e.message }));
+  }
+  if (part === 'all' || part === 'hubspot') {
+    // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only: the bridge
+    out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, whole ? 40000 : Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
+  }
+  if (part === 'all' || part === 'sync') {
+    // 6. SignatureAPI: new envelopes and the waiting ones' signatures (owner 2026-10-27); then Gmail with the time left
+    out.signatureapi = await require('./_sigapi').sync(sql, whole ? 15000 : Math.min(12000, Math.max(4000, 40000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
+    out.gmail = await require('./_gmail').sync(sql, Math.max(5000, (whole ? 48000 : 45000) - (Date.now() - started))).catch((e) => ({ error: e.message }));
+  }
+  // Freshness alarms to tech@ (data-flow improvement 6): read from what is already kept, nothing recorded per tick
+  if (part === 'all' || part === 'core') out.alarms = await require('./_alarms').check(sql).catch((e) => ({ error: e.message }));
   send(res, 200, out);
 });
 
