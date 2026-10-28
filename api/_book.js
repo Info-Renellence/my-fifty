@@ -83,6 +83,9 @@ const isPaid = (o) => !isSample(o) && o.n_lines > 0 && o.paid_flag;
 const paidAt = (o) => o.paid_at || o.submitted_at || o.created_at;   // a wire order: the day the money was marked received
 const placedAt = (o) => o.submitted_at || o.created_at;
 const isOrder = (o) => !isSample(o) && o.n_lines > 0;   // "ordered": placed, not cancelled or rejected, not samples
+// When samples arrived: the delivered or shipped date; an order marked delivered or shipped with no date (156 imported
+// ones, owner check 2026-10-28: Carolyn Agnew read "Samples on the way") counts from the day it was placed.
+const arrivedAt = (o) => o.delivered_at || o.shipped_at || (['shipped', 'delivered'].includes(o.status) ? placedAt(o) : null);
 
 // The whole book of one person. opts.contactId limits it to one contact (still owned by them). opts.everyone (Edge's
 // admins, Yousef 2026-10-22, F5) is every contact, unassigned ones included; My Fifty does not pass it.
@@ -168,9 +171,9 @@ async function book(sql, me, opts) {
       p.goingCold = p.coldDays > cfg.going_cold_days;
     }
     if (p.stage === 'candidate') {
-      const s = samples.find((x) => x.delivered_at || x.shipped_at) || samples[0];   // the newest samples that arrived; else the newest on the way
+      const s = samples.find(arrivedAt) || samples[0];   // the newest samples that arrived; else the newest on the way
       p.sampleOrder = s;
-      p.samplesAt = s.delivered_at || s.shipped_at || null;
+      p.samplesAt = arrivedAt(s);
       p.sampleDays = p.samplesAt ? T.daysBetween(p.samplesAt, now) : null;
       p.touchedSinceSamples = !!(p.samplesAt && p.lastTouchAt && p.lastTouchAt > p.samplesAt);
     }
