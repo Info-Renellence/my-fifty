@@ -205,12 +205,24 @@ describe('person', () => {
     assert.equal(p.label, 'LEAD · EVENT AND TRAINING');
     assert.equal(p.last, 'Nothing yet');
   }));
+  test('a wire order shows as paid on the card and in History, but Rewards still wait for the money (owner 2026-10-28)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const o = await h.order(sql, c, me, { status: 'delivered', method: 'wire', days: 5, lines: [['SAF100', 6]] });
+    await sql`insert into payments (order_id, kind, method, amount, currency, status, provider, is_test) values (${o}, 'charge', 'wire', 1350, 'CAD', 'pending', 'wire', false)`;
+    const p = await D.person(sql, me, Q({ id: c }));
+    assert.equal(p.stats[0][0], '$1,350', 'Total bought counts the wire');
+    assert.match(p.stats[1][1], / order$/, 'Last order is the wire');
+    const { entries } = await D.history(sql, me, Q({ id: c }));
+    assert.equal(entries.find((e) => e.type === 'order').status, 'Delivered');
+    const R = require('../../api/_rewards');
+    assert.equal((await R.rewards(sql, me)).booster.onNew, '$0', 'rewards still wait until the wire is marked received');
+  }));
   test('status row for each open order stage', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
     const one = async (o) => { const c = await h.contact(sql, me); await h.order(sql, c, me, o); return (await D.person(sql, me, Q({ id: c }))).status; };
     assert.equal((await one({ status: 'submitted' })).label, 'Waiting on approval');
     assert.equal((await one({ status: 'awaiting_md', lines: [['SAL400', 1, true]] })).label, 'Waiting on MD signature');
-    assert.equal((await one({ status: 'approved', method: 'wire' })).label, 'Waiting on payment', 'a wire order waits until the money is marked received');
+    assert.equal((await one({ status: 'approved', method: 'wire' })).label, 'Preparing to ship', 'a wire order shows as paid to reps (owner 2026-10-28)');
     const s = await one({ status: 'approved', lines: [['SAL400', 1, true]] });
     assert.deepEqual([s.kind, s.label, s.sub], ['samples', 'Preparing to ship', 'Samples · Free']);
     assert.equal(await one({ status: 'shipped', shipped: 1 }), null);

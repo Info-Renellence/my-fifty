@@ -148,11 +148,15 @@ const OPS = {
   },
 
   async person(sql, me, q) {
-    const p = await one(sql, me, q.get('id'));
+    let p = await one(sql, me, q.get('id'));
     const status = await statusRow(sql, p);
     const last = await lastHistoryLine(sql, p);
     // The card's three numbers (Pulse UI 2026-10-27): My Fifty = total bought, last order, days since contact;
     // candidate = samples sent, days since samples, days since contact; lead = where they came from, since added, contacts.
+    // Total bought and last order as reps see them: paid orders plus wires (owner 2026-10-28; shownPaid above).
+    const bought = p.orders.filter((o) => !B.isSample(o) && o.n_lines > 0 && shownPaid(o));
+    p = Object.assign({}, p, { totalBought: bought.reduce((a, o) => a + o.total, 0),
+      lastPaid: bought.length ? bought.reduce((a, o) => (B.paidAt(o) > B.paidAt(a) ? o : a)) : null });
     const since = (at) => (at ? T.daysBetween(at, Date.now()) + (T.daysBetween(at, Date.now()) === 1 ? ' day' : ' days') : 'None');
     const lastContact = [p.lastTouchAt, p.lastOrderAt].filter(Boolean).reduce((a, x) => (!a || x > a ? x : a), null);
     const SOURCE = { social: 'Social', event: 'Event', warm: 'Warm', cold: 'Cold', onboarded: 'Onboarding' };
@@ -399,7 +403,7 @@ async function statusRow(sql, p) {
     let label = 'Preparing to ship', fill = 2.5;
     if (open.status === 'submitted') { label = 'Waiting on approval'; fill = 0.5; }
     else if (open.status === 'awaiting_md' || (sample && open.medical_director_contact_id && !open.medical_director_signed_at)) { label = 'Waiting on MD signature'; fill = 1.5; }
-    else if (!sample && !open.paid_flag) { label = 'Waiting on payment'; fill = 1.5; }
+    else if (!sample && !shownPaid(open)) { label = 'Waiting on payment'; fill = 1.5; }
     return { kind: sample ? 'samples' : 'order', id: open.id, label, sub: sample ? 'Samples · Free' : 'Order · ' + money(open.total),
       value: sample ? 'Free' : money(open.total), fill, steps: sample ? ['Placed', 'MD signature', 'Shipped'] : ['Placed', 'Payment', 'Shipped'] };
   }
@@ -446,6 +450,10 @@ async function lastHistoryLine(sql, p) {
   return [KIND_WORD[B.kindOf(i)], outcomeWord(i), when(i.occurred_at)].filter(Boolean).join(' · ');
 }
 
+// What reps SEE about a customer (owner 2026-10-28: "wire payments should automatically show as paid even if in the system
+// it isn't"): a wire order shows as paid from the day it's placed. Customer info only: Rewards, the booster and Vienna
+// still count a wire only once the money is marked received (_rewards.js, _book.js isPaid).
+const shownPaid = (o) => !!(o && (o.paid_flag || o.payment_method === 'wire'));
 const ORDER_WORD = (o) => {
   if (o.status === 'rejected') return ['Disapproved', 'grey'];   // owner 2026-10-28: "it should show disapproved"
   if (o.status === 'cancelled') return ['Cancelled', 'grey'];
@@ -453,7 +461,7 @@ const ORDER_WORD = (o) => {
   if (o.shipped_at || o.status === 'shipped') return ['Shipped', 'green'];
   if (o.status === 'submitted') return ['Waiting on approval', 'amber'];
   if (o.status === 'awaiting_md') return ['Waiting on MD signature', 'amber'];
-  if (!B.isSample(o) && !o.paid_flag) return ['Waiting on payment', 'amber'];
+  if (!B.isSample(o) && !shownPaid(o)) return ['Waiting on payment', 'amber'];
   return ['Preparing to ship', 'blue'];
 };
 
@@ -548,11 +556,11 @@ function markCurrent(steps, waitingText) {
 const STATUS_RANK = { submitted: 0, awaiting_md: 0, approved: 1, invoiced: 1, paid: 1, sent_to_warehouse: 2, shipped: 3, delivered: 3 };
 const reached = (o, status) => (STATUS_RANK[o.status] || 0) >= STATUS_RANK[status];
 function orderSteps(o, x, pays, wire) {
-  const paid = x && x.paid_flag;
+  const paid = x && shownPaid(Object.assign({}, x, { payment_method: o.payment_method }));
   const pay = pays[0];
   let payWhen = '';
   // A wire order is paid only once the money is marked received (Edge decisions 2026-10-21); until then its due date shows.
-  if (o.payment_method === 'wire') payWhen = wire ? wire.text : 'Wire';
+  if (o.payment_method === 'wire') payWhen = 'Paid · wire';   // shown as paid (owner 2026-10-28); the wire's due date no longer shows
   else if (paid) payWhen = pay && pay.paid_at ? fmtTime(pay.paid_at) : 'Paid';
   else if (pay && pay.status === 'failed') payWhen = 'Card declined' + (pay.pay_link_url ? ' · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '') : '');
   else if (pay && pay.method === 'pay_link') payWhen = 'No card on file · link sent ' + fmtTime(pay.created_at).replace(/^Today /, '');

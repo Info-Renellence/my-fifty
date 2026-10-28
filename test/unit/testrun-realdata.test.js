@@ -16,10 +16,9 @@ test('a delivered sample order with no step times shows every step done (L21)', 
   const steps = D.sampleSteps({ submitted_at: placed, status: 'delivered' }, null, null);
   assert.ok(steps.every((s) => s.done));
 });
-test('a shipped wire order that is not received yet still waits on the payment only', () => {
+test('a delivered wire order not marked received shows every step done (owner 2026-10-28: wires show as paid)', () => {
   const steps = D.orderSteps({ submitted_at: placed, status: 'delivered', payment_method: 'wire' }, { paid_flag: false }, [], { text: 'Wire · 3 days overdue' });
-  assert.deepEqual(steps.map((s) => s.done), [true, true, false, true, true]);
-  assert.equal(steps[2].current, true);
+  assert.deepEqual(steps.map((s) => s.done), [true, true, true, true, true]);
 });
 test('an approved order with no approval time is approved; a submitted one still waits', () => {
   assert.equal(D.orderSteps({ submitted_at: placed, status: 'approved' }, { paid_flag: false }, [])[1].done, true);
