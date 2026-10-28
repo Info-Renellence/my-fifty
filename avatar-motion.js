@@ -48,9 +48,11 @@
     var ns = 'http://www.w3.org/2000/svg', clip = svg.querySelector('clipPath'), wrap = document.createElementNS(ns, 'g'), g = document.createElementNS(ns, 'g');
     if (clip && clip.id) wrap.setAttribute('clip-path', 'url(#' + clip.id + ')');
     g.setAttribute('class', 'av-hand');
-    g.innerHTML = '<path d="M42 59L45.5 44" stroke="#0B1530" stroke-width="6.4" stroke-linecap="round"/>'
-      + '<path d="M42 59L45.5 44" stroke="' + sleeve + '" stroke-width="3.4" stroke-linecap="round"/>'
-      + '<path transform="translate(-4.5 0)" d="M47.2 42.5v-6.8a1.5 1.5 0 0 1 3 0v-1.6a1.5 1.5 0 0 1 3 0v1.2a1.5 1.5 0 0 1 3 0v6.4c0 3.6-2.2 5.8-5.2 5.8s-4.8-1.8-5.6-3.6l-1.6-3.4a1.4 1.4 0 0 1 2.4-1.4z"'
+    // The sleeve grows out of the shoulder (owner 2026-10-28: "the hand looks detached"): it is the shirt's colour and
+    // starts inside the shirt, so it blends in; only the part above the shoulder line has the dark outline.
+    g.innerHTML = '<path d="M45.6 50L46.6 43.5" stroke="#0B1530" stroke-width="7.6" stroke-linecap="round"/>'
+      + '<path d="M44.2 60L46.6 43.5" stroke="' + sleeve + '" stroke-width="4.8" stroke-linecap="round"/>'
+      + '<path transform="translate(-4 0.5)" d="M47.2 42.5v-6.8a1.5 1.5 0 0 1 3 0v-1.6a1.5 1.5 0 0 1 3 0v1.2a1.5 1.5 0 0 1 3 0v6.4c0 3.6-2.2 5.8-5.2 5.8s-4.8-1.8-5.6-3.6l-1.6-3.4a1.4 1.4 0 0 1 2.4-1.4z"'
       + ' fill="' + skin + '" stroke="#0B1530" stroke-width="1.6" stroke-linejoin="round"/>';
     wrap.appendChild(g);
     svg.appendChild(wrap);

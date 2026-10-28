@@ -69,7 +69,7 @@
 
 /* A person's page: a real wave (owner 2026-10-28). avatar-motion.js adds the hand (.av-hand); it rises from the
    shoulder, waves three times from the elbow, then drops away, while the head leans toward it. */
-.av-motion .av svg g.av-hand { transform-box: view-box; transform-origin: 42px 59px; opacity: 0; }
+.av-motion .av svg g.av-hand { transform-box: view-box; transform-origin: 44.2px 58px; opacity: 0; }
 .av-motion .av.av-wave svg g.av-hand { animation: avHandWave 2.6s ease-in-out both; }
 .av-motion .av.av-wave .av-head { animation: avWaveLean 2.6s ease-in-out both; }
 @keyframes avHandWave {
