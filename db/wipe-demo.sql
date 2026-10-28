@@ -27,7 +27,7 @@ delete from onboardings where primary_contact_id in (select id from demo_contact
 delete from agreement_signers where contact_id in (select id from demo_contacts) or agreement_id in (select id from agreements where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders));
 delete from agreements where contact_id in (select id from demo_contacts) or order_id in (select id from demo_orders);
 delete from orders where id in (select id from demo_orders);
-delete from event_attendees where contact_id in (select id from demo_contacts);
+delete from attendees where contact_id in (select id from demo_contacts);
 update contacts set lead_source_event_id = null where id in (select id from demo_contacts);
 delete from events where name like '% (demo)';
 -- Compass (db/v2-010-compass.sql, 2026-10-23): demo reps' check-ins, picks, forecast reasons, 1-on-1s (and the tasks
@@ -69,7 +69,7 @@ delete from change_logs where contact_id in (select id from demo_contacts) or ac
        and not exists (select 1 from agreements a where a.id = entity_id) and not exists (select 1 from agreement_signers g where g.id = entity_id)
        and not exists (select 1 from onboardings o where o.id = entity_id));
 -- Edge demo rows (renellence-edge/db/seed-edge-demo.sql): every id starts with ed9e0000.
-delete from event_attendees where id::text like 'ed9e0000%';
+delete from attendees where id::text like 'ed9e0000%';
 delete from agreement_signers where id::text like 'ed9e0000%';
 delete from agreements where id::text like 'ed9e0000%';
 delete from forecasts where id::text like 'ed9e0000%';

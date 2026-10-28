@@ -74,7 +74,7 @@ describe('today', () => {
     for (let i = 0; i < 6; i++) await h.order(sql, await h.contact(sql, me), me, { status: 'shipped', days: 2 });
     const t = await D.today(sql, me);
     assert.match(t.date, /^\d{4}-\d{2}-\d{2}$/);
-    assert.equal(t.day.goal, 8);
+    assert.equal(t.day.goal, 5, 'the daily goal is 5 (owner 2026-10-27)');
     assert.deepEqual(t.fifty, { count: 6, next: 10, goal: 50 });
     assert.equal(t.list[0].why, 'lead');
   }));
@@ -162,7 +162,7 @@ describe('person', () => {
     assert.equal(p.name, 'Dr. Maya Unit');
     assert.equal(p.totalBought, '$900');
     assert.equal(p.lastOrder.total, '$900');
-    assert.deepEqual(p.status, { kind: 'order', id: open, label: 'Waiting on payment', sub: 'Order · $450' });
+    assert.deepEqual(p.status, { kind: 'order', id: open, label: 'Waiting on payment', sub: 'Order · $450', value: '$450', fill: 1.5, steps: ['Placed', 'Payment', 'Shipped'] });
     assert.deepEqual(p.fillers, ['saypha', 'restylane']);
     assert.equal(p.followUp.title, 'Call back');
     assert.equal(p.last, 'Call · reached · today');
@@ -186,7 +186,8 @@ describe('person', () => {
     const [onb] = await sql`insert into onboardings (primary_contact_id, submitted_at, status, agreement_id) values (${c}, now(), 'submitted', ${ag.id}) returning id`;
     assert.equal((await D.person(sql, me, Q({ id: c }))).status.label, 'Waiting on signature');
     await sql`update onboardings set status = 'complete' where id = ${onb.id}`;
-    assert.equal((await D.person(sql, me, Q({ id: c }))).status, null);
+    // Signed and no order yet: the next step is samples (F27 "No samples yet · Send").
+    assert.equal((await D.person(sql, me, Q({ id: c }))).status.label, 'No samples yet');
   }));
   test('lead labels name the group; a brand-new lead’s history line is "Nothing yet"', () => h.withDb(async (sql) => {
     const me = await h.user(sql);

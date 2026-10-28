@@ -76,7 +76,7 @@ module.exports = (async () => {   // exported so test/run/smoke-rollback.js can 
 
   const today = await D.today(sql, me);
   console.log('today', JSON.stringify({ day: today.day, fifty: today.fifty, list: today.list.map((x) => x.name + ' / ' + x.why + ' / ' + x.detail) }, null, 1));
-  ok(today.day.goal === 8, 'goal 8');
+  ok(today.day.goal === 5, 'goal 5');
 
   // ---- the checks that depend on today, on fresh rows dated from today ----
   const fx = await dateRows(sql);
