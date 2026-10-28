@@ -397,3 +397,13 @@ one call/text that created them and were soft-deleted with that interaction: 2ac
 attaches again, once, if a rep creates a contact with that number. Script `renellence-ops/ops/fixes/remove-quo-made-2026-10-28.js`
 (dry run first; refuses any contact with other activity); backup `data/backups/remove-quo-made-v2-2026-10-28T20-18-57-300Z.json`.
 The Quo-made contacts with more activity stay. The HubSpot records are untouched. No schema change.
+
+## 30. Sam's pages clean-up (data only), 2026-10-28, asked by Yousef
+
+`renellence-ops/ops/fixes/sam-cleanup-2026-10-28.js` (dry run first; backup in `renellence-ops/data/backups/sam-cleanup-*.json`; source 'import').
+
+- Merged "Ireen Girgis" (made by her Oct 23 onboarding) into "Ireen Grigis" (Royal West Medical, her orders); the kept one is now
+  spelled **Girgis**. Every reference moved (forecast, task, email, the Oct 23 onboarding, its agreement and signer); 6 emails that were
+  on both were kept once. The merged one: `merged_into_contact_id` + `deleted_at`. Its phone +1 416 200 3209 is only in the backup
+  (the kept one already has a phone and a mobile).
+- Renamed three follow-ups imported with wrong titles: Angie, Amy Thompson and Michelle Osow are now "Follow up with <name>".
