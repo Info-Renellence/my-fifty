@@ -67,6 +67,21 @@
 /* manager and others: a friendly wave */
 .av-motion .av-manager.av-sig .av-head, .av-motion .av-other.av-sig .av-head { animation: avWave 0.45s ease-in-out 2; }
 
+/* A person's page: a real wave (owner 2026-10-28). avatar-motion.js adds the hand (.av-hand); it rises from the
+   shoulder, waves three times from the elbow, then drops away, while the head leans toward it. */
+.av-motion .av svg g.av-hand { transform-box: view-box; transform-origin: 46px 61px; opacity: 0; }
+.av-motion .av.av-wave svg g.av-hand { animation: avHandWave 2.6s ease-in-out both; }
+.av-motion .av.av-wave .av-head { animation: avWaveLean 2.6s ease-in-out both; }
+@keyframes avHandWave {
+  0% { opacity: 0; transform: translateY(14px) rotate(0deg); }
+  12% { opacity: 1; transform: translateY(0) rotate(-8deg); }
+  24% { transform: rotate(16deg); } 36% { transform: rotate(-8deg); } 48% { transform: rotate(16deg); }
+  60% { transform: rotate(-8deg); } 72% { transform: rotate(16deg); }
+  86% { opacity: 1; transform: translateY(0) rotate(0deg); }
+  100% { opacity: 0; transform: translateY(14px) rotate(0deg); }
+}
+@keyframes avWaveLean { 0%, 100% { transform: rotate(0); } 15%, 80% { transform: rotate(5deg) translateY(-0.5px); } }
+
 /* 5. Big moments: the person who joined your Fifty jumps, with confetti */
 .joinav { display: flex; justify-content: center; position: relative; }
 .av-motion .av.jump { animation: avJump 0.9s cubic-bezier(.3, 1.5, .5, 1) 0.2s 3 both; transform-origin: 50% 100%; }

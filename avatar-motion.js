@@ -32,9 +32,25 @@
     el.style.setProperty('--av-b', rnd(4, 7).toFixed(2) + 's');
     el.style.setProperty('--av-l', rnd(9, 15).toFixed(2) + 's');
     if (io) io.observe(el); else el.classList.add('av-on');
-    if (el.classList.contains('card')) setTimeout(function () { play(el, 'av-sig', 1000); }, 450);
+    // A person's page: they wave hello with a real hand (owner 2026-10-28: "I said they're waving, you just made them
+    // shake"). The avatars have no arm, so one is added in the person's own skin and sleeve colours.
+    if (el.classList.contains('card')) { addHand(el); setTimeout(function () { play(el, 'av-wave', 2700); }, 450); }
     if (nodId && el.getAttribute('data-pid') === nodId) setTimeout(function () { play(el, 'av-nod', 1600); }, 300);
     if (el.classList.contains('jump')) confetti(el);
+  }
+  // An arm and an open hand by the head's right side (64-unit drawing), hidden until .av-wave plays.
+  function addHand(el) {
+    var svg = el.querySelector('svg');
+    if (!svg || svg.querySelector('.av-hand')) return;
+    var head = svg.querySelector('.av-head circle'), shirt = svg.querySelector('.av-body path');
+    var skin = (head && head.getAttribute('fill')) || '#EEF2F8', sleeve = (shirt && shirt.getAttribute('fill')) || '#5B6884';
+    var ns = 'http://www.w3.org/2000/svg', g = document.createElementNS(ns, 'g');
+    g.setAttribute('class', 'av-hand');
+    g.innerHTML = '<path d="M46 61L50 44" stroke="#0B1530" stroke-width="6.4" stroke-linecap="round"/>'
+      + '<path d="M46 61L50 44" stroke="' + sleeve + '" stroke-width="3.4" stroke-linecap="round"/>'
+      + '<path d="M47.2 42.5v-6.8a1.5 1.5 0 0 1 3 0v-1.6a1.5 1.5 0 0 1 3 0v1.2a1.5 1.5 0 0 1 3 0v6.4c0 3.6-2.2 5.8-5.2 5.8s-4.8-1.8-5.6-3.6l-1.6-3.4a1.4 1.4 0 0 1 2.4-1.4z"'
+      + ' fill="' + skin + '" stroke="#0B1530" stroke-width="1.6" stroke-linejoin="round"/>';
+    svg.appendChild(g);
   }
   function scan(node) {
     if (!node || node.nodeType !== 1) return;
