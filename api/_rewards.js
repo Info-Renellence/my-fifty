@@ -9,7 +9,7 @@ const T = require('./_time');
 
 const PROGRAMS = {
   booster: { name: 'Q4 Booster', from: '2026-10-01', to: '2026-12-31', newRate: 0.02, reorderRate: 0.04 },
-  trip: { name: 'Trip to Vienna', from: '2026-10-01', to: '2026-12-31', metric: 'New people' },
+  trip: { name: 'Trip to Vienna', from: '2026-10-01', to: '2026-12-03', metric: 'New people' },   // cutoff Dec 3 (owner 2026-10-28)
 };
 // Race to 25 (Yousef 2026-10-23): the second leaderboard, people in each rep's Fifty right now, out of 25.
 const RACE = { name: 'Race to 25', goal: 25, metric: 'In your Fifty now' };
