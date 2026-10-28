@@ -5,9 +5,11 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 //   { wf, node, hs: { method, url, body, response } }
 // 1. The copy is kept in ingest_events (source n8n, once: the same copy again is answered "duplicate"), so it can be
 //    replayed later (status failed/pending).
-// 2. It is applied to v2: the touched contact, clinic or order is re-read from HubSpot (read only, api/_hubspot.js) and
-//    mapped with the migration's rules and ids (api/_hsmap.js). Deals, automated notes and files are skipped (not in
-//    the data model / not kept on Oct 22).
+// 2. It is applied to v2 from n8n's own data (owner 2026-10-28, Option B: v2 and HubSpot are written at the same time;
+//    HubSpot is never read back for it): the request and HubSpot's answer, plus the earlier writes kept in ingest_events
+//    (api/_payload.js), mapped with the migration's rules and ids (api/_hsmap.js). A record n8n never wrote is left to
+//    the 5-minute HubSpot pull below (the bridge), the only part that reads HubSpot. Deals, automated notes and files are
+//    skipped (not in the data model / not kept on Oct 22).
 // Rules (owner 2026-10-27): a record n8n creates is added; a field n8n changes (PATCH) is updated; a record n8n creates
 // that v2 already has only gets its blank fields filled ("v2 wins"). A PATCH to a record v2 does not have is skipped
 // (it was left out on purpose on Oct 22). Changes are logged with source n8n (change_logs).
@@ -18,6 +20,10 @@ const { db } = require('./_db');
 const { send, body, route, fail } = require('./_http');
 const M = require('./_hsmap');
 const H = require('./_hubspot');
+const P = require('./_payload');
+// Where a record comes from: HubSpot (the bridge: the 5-minute pull and its repairs) or n8n's own data (api/_payload.js).
+const HS = { contact: (id) => H.contact(id), company: (id) => H.company(id), order: (id) => H.order(id), activity: (t, id) => H.activity(t, id, PROPS[t]),
+  lineItems: (ids) => H.lineItems(ids) };
 
 function authorised(req) {
   const want = String(process.env.N8N_INTAKE_SECRET || '');
@@ -66,21 +72,22 @@ async function apply(sql, hs, opts = {}) {
   if (c.kind === 'skip' || c.kind === 'unknown') return { skipped: true, why: c.why };
   return sql.begin(async (tx) => {
     await tx`select set_config('app.source', 'n8n', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
+    const src = opts.src || P.source(tx, hs);
     if (c.kind === 'contact') {
       let last = null;
-      for (const id of c.ids) last = await syncContact(tx, id, c.create ? null : c.props);
+      for (const id of c.ids) last = await syncContact(tx, id, c.create ? null : c.props, src);
       return last || { skipped: true, why: 'contact not in v2 (left out on Oct 22)' };
     }
     if (c.kind === 'company') {
       let last = null;
-      for (const id of c.ids) last = await syncClinic(tx, id, c.create ? null : c.props);
+      for (const id of c.ids) last = await syncClinic(tx, id, c.create ? null : c.props, src);
       return last || { skipped: true, why: 'clinic not in v2' };
     }
     if (c.kind === 'contact_clinic') {
       const contactId = await idOf(tx, 'contacts', c.contact);
       if (!contactId) return { skipped: true, why: 'contact not in v2' };
-      const clinic = (await idOf(tx, 'clinics', c.company)) || ((await syncClinic(tx, c.company, null)) || {}).id;
-      if (!clinic) return { skipped: true, why: 'clinic not found in HubSpot' };
+      const clinic = (await idOf(tx, 'clinics', c.company)) || ((await syncClinic(tx, c.company, null, src)) || {}).id;
+      if (!clinic) return { skipped: true, why: 'clinic not in v2 yet (the 5-minute pull brings it)' };
       await tx`update contacts set clinic_id = ${clinic} where id = ${contactId} and clinic_id is distinct from ${clinic}`;
       return { table: 'contacts', id: contactId };
     }
@@ -112,19 +119,21 @@ async function apply(sql, hs, opts = {}) {
     if (c.kind === 'merge') return merge(tx, c);
     if (c.kind === 'order') {
       let last = null;
-      for (const id of c.ids) last = await syncOrder(tx, id);
-      return last || { skipped: true, why: 'order not found' };
+      for (const id of c.ids) last = await syncOrder(tx, id, src);
+      return last || { skipped: true, why: 'order not among n8n writes (the 5-minute pull brings it)' };
     }
-    // a call, meeting, note or task (live Edge, n8n): re-read with its contacts, then the sync's rules (syncOne)
+    // a call, meeting, note or task (live Edge, n8n): the record with its contacts, then the sync's rules (syncOne). A link
+    // made on its own (associations/contacts) names the contact in its address or body.
     if (c.kind === 'activity') {
       let last = null;
       for (const id of c.ids) {
-        const rec = await H.activity(c.type, id, PROPS[c.type]);
+        const rec = await src.activity(c.type, id);
         if (!rec) continue;
-        const r = await syncOne(tx, c.type, rec, H.assocIds(rec, 'contacts'), { person: !!opts.fromEdge });
+        const linked = H.assocIds(rec, 'contacts').concat(c.contacts || []);
+        const r = await syncOne(tx, c.type, rec, [...new Set(linked)], { person: !!opts.fromEdge, src });
         last = r === 'skipped' ? last || { skipped: true, why: 'not on a contact in v2, or not kept' } : { table: c.type === 'tasks' ? 'tasks' : 'interactions', result: r };
       }
-      return last || { skipped: true, why: 'not found in HubSpot' };
+      return last || { skipped: true, why: 'not among n8n writes (the 5-minute pull brings it)' };
     }
     if (c.kind === 'activity_delete') {
       if (c.type === 'tasks') await tx`update tasks set deleted_at = now() where id = any(${c.ids.map((id) => M.uid('task:' + id))}) and deleted_at is null`;
@@ -180,26 +189,26 @@ async function upsert(tx, table, row, cols) {
   return { id: cur.id, created: false, changed: ks };
 }
 
-async function syncContact(tx, hsId, patched) {
+async function syncContact(tx, hsId, patched, src = HS) {
   const exists = await idOf(tx, 'contacts', hsId);
   if (!exists && patched) return null;   // a change to someone left out of v2 on purpose
-  const rec = await H.contact(hsId);
+  const rec = await src.contact(hsId);
   if (!rec) return null;
   const row = Object.assign({ id: M.uid('contact:' + hsId) }, M.contactRow(hsId, rec.properties || {}));
   if (!exists && !row.owner_id) delete row.owner_id;
   // the clinic HubSpot links (created first when v2 does not have it yet)
   const co = H.assocIds(rec, 'companies')[0] || (rec.properties || {}).associatedcompanyid;
-  if (co) row.clinic_id = (await idOf(tx, 'clinics', co)) || ((await syncClinic(tx, co, null)) || {}).id || undefined;
+  if (co) row.clinic_id = (await idOf(tx, 'clinics', co)) || ((await syncClinic(tx, co, null, src)) || {}).id || undefined;
   if (!row.clinic_id) delete row.clinic_id;
   const cols = patched ? M.columnsFor(M.CONTACT_PROPS, patched) : null;
   const r = await upsert(tx, 'contacts', row, cols);
   return { table: 'contacts', id: r.id, created: r.created };
 }
 
-async function syncClinic(tx, hsId, patched) {
+async function syncClinic(tx, hsId, patched, src = HS) {
   const exists = await idOf(tx, 'clinics', hsId);
   if (!exists && patched) return null;
-  const rec = await H.company(hsId);
+  const rec = await src.company(hsId);
   if (!rec) return null;
   const row = Object.assign({ id: M.uid('clinic:' + hsId) }, M.clinicRow(hsId, rec.properties || {}));
   if (!row.name) return null;
@@ -207,19 +216,48 @@ async function syncClinic(tx, hsId, patched) {
   return { table: 'clinics', id: r.id, created: r.created };
 }
 
+// A change n8n made to an order whose create Pulse has not got on file (made before the write steps, or in HubSpot): only
+// the fields the change carries, and the status only ever moves forward (never back from paid, never off rejected/cancelled).
+const RANK = ['submitted', 'approved', 'awaiting_md', 'invoiced', 'paid', 'sent_to_warehouse', 'shipped', 'delivered'];
+async function patchOrder(tx, hsId, p) {
+  const [cur] = await tx`select id, status::text as status, payment_method::text as pm from orders where legacy_id = ${String(hsId)} and deleted_at is null`;
+  if (!cur) return { skipped: true, why: 'order not in v2 yet (the 5-minute pull brings it)' };
+  const set = {};
+  if (p.qbo_id) set.quickbooks_invoice_id = String(p.qbo_id);
+  const tn = p.tracking_number || p.hs_shipping_tracking_number;
+  if (tn) set.tracking_number = String(tn);
+  if (p.tracking_url) set.tracking_url = String(p.tracking_url);
+  if (p.hs_order_note) set.approval_note = String(p.hs_order_note);
+  const rep = p.hubspot_owner_id ? M.ownerUser(p.hubspot_owner_id) : null;
+  if (rep) set.rep_id = rep;
+  if (p.payment_type === 'Payment Terms') { set.payment_method = 'wire'; set.payment_terms_days = 30; } else if (p.payment_type && !cur.pm) set.payment_method = 'card_on_file';
+  const wire = (set.payment_method || cur.pm) === 'wire';
+  const stage = M.stageOf(p.hs_pipeline_stage);
+  const to = stage === 'cancelled' || p.hs_is_canceled === 'true' ? 'cancelled' : stage === 'delivered' ? 'delivered' : stage === 'shipped' ? 'shipped'
+    : stage === 'processed' ? (p.hs_payment_status === 'Paid' && !wire ? 'paid' : 'invoiced') : p.hs_payment_status === 'Paid' && !wire ? 'paid' : null;
+  if (to && !['rejected', 'cancelled'].includes(cur.status)) {
+    if (to === 'cancelled') { set.status = 'cancelled'; set.cancelled_at = new Date().toISOString(); }
+    else if (RANK.indexOf(to) > RANK.indexOf(cur.status)) { set.status = to; if (to === 'delivered') set.delivered_at = p.hs_closed_date || new Date().toISOString(); }
+  }
+  if (!Object.keys(set).length) return { table: 'orders', id: cur.id, changed: [] };
+  await tx`update orders set ${tx(set)} where id = ${cur.id}`;
+  return { table: 'orders', id: cur.id, changed: Object.keys(set) };
+}
+
 // HubSpot is where these orders live (the Internal Sales Form, the daily digest's tracking): its status, dates,
 // tracking and QuickBooks id always win; lines and payments are added once.
 const ORDER_OWNED = ['status', 'delivered_at', 'cancelled_at', 'tracking_number', 'tracking_url', 'quickbooks_invoice_id', 'shipment_method', 'payment_method', 'payment_terms_days',
   'tax_amount', 'shipping_amount', 'discount_amount', 'contact_id', 'rep_id', 'order_number'];
-async function syncOrder(tx, hsId) {
-  const rec = await H.order(hsId);
+async function syncOrder(tx, hsId, src = HS) {
+  const rec = await src.order(hsId);
   if (!rec) return null;
+  if (rec.partial) return patchOrder(tx, hsId, rec.properties || {});   // only changes on file, not the create: those fields only
   const cids = H.assocIds(rec, 'contacts');
   let contactId = null;
   for (const k of cids) { contactId = await idOf(tx, 'contacts', k); if (contactId) break; }
-  if (!contactId && cids[0]) contactId = ((await syncContact(tx, cids[0], null)) || {}).id || null;   // a customer is always wanted
+  if (!contactId && cids[0]) contactId = ((await syncContact(tx, cids[0], null, src)) || {}).id || null;   // a customer is always wanted
   if (!contactId) return { skipped: true, why: 'order has no customer' };
-  const lis = await H.lineItems(H.assocIds(rec, 'line_items'));
+  const lis = await src.lineItems(H.assocIds(rec, 'line_items'));
   const { order, lines, payments } = M.orderRows(hsId, rec.properties || {}, lis, contactId);
   for (const k of Object.keys(order)) if (order[k] == null) delete order[k];
   // A Pulse order sent to the Internal Sales Form (api/_isf.js) comes back here as a HubSpot order: link it to the Pulse

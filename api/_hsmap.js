@@ -130,7 +130,8 @@ function orderRows(hsId, p, lineItems, contactId) {
   const id = uid('order:' + hsId);
   const total = num(p.hs_total_price);
   const isShopify = p.hs_object_source_detail_1 === 'Shopify';
-  const order = { id, contact_id: contactId, rep_id: rep, channel: 'shopify', order_number: orNull(p.hs_order_name), status, submitted_at: submitted,
+  // channel: Shopify only for Shopify's own orders (history); every new order goes through Stripe (owner 2026-10-28)
+  const order = { id, contact_id: contactId, rep_id: rep, channel: isShopify ? 'shopify' : 'stripe', order_number: orNull(p.hs_order_name), status, submitted_at: submitted,
     quickbooks_invoice_id: orNull(p.qbo_id), payment_method: total > 0 ? (wire ? 'wire' : 'card_on_file') : null, payment_terms_days: wire && total > 0 ? 30 : null,
     tax_amount: num(p.hs_tax), shipping_amount: num(p.hs_shipping_cost), discount_amount: num(p.hs_order_discount),
     shipment_method: /atshealthcare/i.test(s(p.tracking_url)) ? 'ats' : /Manual Shipment/i.test(note) ? 'manual' : null,
@@ -240,8 +241,9 @@ function classify(hs, o = {}) {
   if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/batch\/(create|update)$/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: (r.results || []).map((x) => x.id).filter(Boolean) };
   if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/(\d+)$/)) && method === 'PATCH' && act(m[1])) return { kind: 'activity', type: m[1], ids: [m[2]] };
   if ((m = url.match(/^\/crm\/v3\/objects\/(calls|meetings|notes|tasks)\/(\d+)$/)) && method === 'DELETE') return { kind: 'activity_delete', type: m[1], ids: [m[2]] };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/(calls|meetings|notes|tasks)\/(\d+)\/associations\/contacts?\/(\d+)/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: [m[2]], contacts: [m[3]] };
   if ((m = url.match(/^\/crm\/v[34]\/objects\/(calls|meetings|notes|tasks)\/(\d+)\/associations\/contacts\//)) && act(m[1])) return { kind: 'activity', type: m[1], ids: [m[2]] };
-  if ((m = url.match(/^\/crm\/v4\/associations\/(calls|meetings|notes|tasks)\/contacts\/batch\/create$/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: (b.inputs || []).map((x) => x.from && x.from.id).filter(Boolean) };
+  if ((m = url.match(/^\/crm\/v4\/associations\/(calls|meetings|notes|tasks)\/contacts\/batch\/create$/)) && act(m[1])) return { kind: 'activity', type: m[1], ids: (b.inputs || []).map((x) => x.from && x.from.id).filter(Boolean), contacts: (b.inputs || []).map((x) => x.to && x.to.id).filter(Boolean).map(String) };
   if (/\/objects\/line_items\/batch\/create/.test(url)) return { kind: 'skip', why: 'line items: saved with their order' };
   if (/\/objects\/deals|\/associations\/(deals|orders)\/|\/objects\/orders\/deals|deals\//.test(url)) return { kind: 'skip', why: 'deals are not in v2 (data model 2026-10-19)' };
   if (/\/objects\/notes/.test(url)) return { kind: 'skip', why: 'automated note (only notes a rep writes are kept, as on Oct 22)' };
@@ -251,5 +253,5 @@ function classify(hs, o = {}) {
   return { kind: 'unknown', why: method + ' ' + url };
 }
 
-module.exports = { uid, ownerUser, repFromName, contactRow, clinicRow, orderRows, classify, columnsFor, CONTACT_PROPS, COMPANY_PROPS, e164, email, STAFF, titleDesignation,
+module.exports = { uid, ownerUser, repFromName, contactRow, clinicRow, orderRows, classify, columnsFor, CONTACT_PROPS, COMPANY_PROPS, e164, email, STAFF, titleDesignation, stageOf,
   callRow, meetingRow, noteRow, taskRow, contactSkip, intId, strip };

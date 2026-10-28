@@ -77,7 +77,7 @@ test('meta: the feed down, slow answers and junk are an error word, never a thro
   await h.withDb(async (sql) => {
     for (const [handler, want] of [[() => ({ status: 500 }), 'feed_500'], [() => ({ status: 401 }), 'feed_401'], [() => { throw new Error('down'); }, 'feed_unreachable'], [() => ({ text: 'not json' }), 'feed_unreachable']]) {
       const f = h.fakeFetch(handler);
-      try { assert.deepEqual(await meta.sync(sql), { error: want }); } finally { f.restore(); }
+      try { assert.deepEqual(await meta.sync(sql), { error: want, from: 'edge' }); } finally { f.restore(); }   // from: Edge's feed until META_ADS_TOKEN (2026-10-28)
     }
     const f = h.fakeFetch(() => ({ json: null }));
     try { const r = await meta.sync(sql); assert.equal(r.seen, 0); } finally { f.restore(); }

@@ -38,21 +38,19 @@ test('a Pulse order is sent as the sales form sends it, with a token, and its Hu
       if (repEmail === 'lucas.stockley@renellence.com') assert.equal(b.sales_person.name, 'Lucas Stockley');
     } finally { global.fetch = real; delete process.env.EDGE_ISF_SECRET; }
 
-    // the workflow's HubSpot order (paid lines only) comes back through the Mirror
-    const hsC = String(870000000 + (Date.now() % 1e8)), hsO = String(880000000 + (Date.now() % 1e8));
+    // the workflow's HubSpot order (paid lines only) comes back through the write step, from n8n's own data (Option B,
+    // owner 2026-10-28: HubSpot is never read): the line items first, then the order linking them and the customer
+    const hsC = String(870000000 + (Date.now() % 1e8)), hsO = String(880000000 + (Date.now() % 1e8)), li = 'LU1' + (Date.now() % 1e8);
     await sql`update contacts set legacy_id = ${hsC} where id = ${c}`;
-    process.env.HUBSPOT_READ_TOKEN = 'unit';
-    global.fetch = async (url, opts) => {
-      const u = new URL(url);
-      const ok = (j) => ({ ok: true, status: 200, text: async () => JSON.stringify(j) });
-      if (u.pathname.endsWith('/orders/' + hsO)) return ok({ id: hsO, properties: { hs_order_name: '#U1', hs_pipeline_stage: '937ea84d-x', hs_payment_status: 'Paid', hs_total_price: '450',
-        hs_order_note: 'Internal Sales Order - Rep: Lucas Stockley (x) | CARD ON FILE (Stripe pi_u)' }, associations: { contacts: { results: [{ id: hsC }] }, line_items: { results: [{ id: 'LU1' }] } } });
-      if (/line_items\/batch\/read/.test(u.pathname)) return ok({ results: [{ id: 'LU1', properties: { name: 'saypha filler', hs_sku: 'SAF100', quantity: '2', price: '225' } }] });
-      throw new Error('unexpected ' + url + ' ' + (opts && opts.method));
-    };
+    global.fetch = async (url) => { throw new Error('HubSpot was called (Option B: never): ' + url); };
+    const props = { hs_order_name: '#U1', hs_pipeline_stage: '937ea84d-x', hs_payment_status: 'Paid', hs_total_price: '450', hs_order_note: 'Internal Sales Order - Rep: Lucas Stockley (x) | CARD ON FILE (Stripe pi_u)' };
+    const to = (id, t) => ({ to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: t }] });
     try {
-      const r = await I.intake(sql, { wf: 'ISF', node: 'HS Order: Create', hs: { method: 'POST', url: 'https://api.hubapi.com/crm/v3/objects/orders', body: '{}', response: { id: hsO } } });
-      assert.equal(r.linked, 'pulse');
+      await I.intake(sql, { wf: 'ISF', node: 'HS Order: Create Line Items', hs: { method: 'POST', url: 'https://api.hubapi.com/crm/v3/objects/line_items/batch/create', body: '{}',
+        response: { results: [{ id: li, properties: { name: 'saypha filler', hs_sku: 'SAF100', quantity: '2', price: '225' } }] } } });
+      const r = await I.intake(sql, { wf: 'ISF', node: 'HS Order: Create', hs: { method: 'POST', url: 'https://api.hubapi.com/crm/v3/objects/orders',
+        body: JSON.stringify({ properties: props, associations: [to(hsC, 507), to(li, 513)] }), response: { id: hsO, properties: props } } });
+      assert.equal(r.linked, 'pulse', JSON.stringify(r));
       assert.equal(r.id, oid);
       const [o] = await sql`select legacy_id, status::text, order_number, (select count(*)::int from order_lines where order_id = ${oid}) lines,
                               (select count(*)::int from orders where contact_id = ${c} and deleted_at is null) orders,

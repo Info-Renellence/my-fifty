@@ -1,5 +1,5 @@
-// n8n -> v2 (api/intake.js, owner 2026-10-27) on the TEST database, rolled back. HubSpot is faked (no network): each test
-// says what HubSpot holds; the intake re-reads it like it does in production.
+// n8n -> v2 (api/intake.js, owner 2026-10-27) on the TEST database, rolled back. Since Option B (owner 2026-10-28) the intake
+// writes from n8n's own data and never reads HubSpot; fakeHubspot is kept for the tests that still need a HubSpot answer.
 const { test, after } = require('node:test');
 const assert = require('node:assert/strict');
 const h = require('../helpers');
@@ -37,10 +37,13 @@ const copy = (method, url, body, response) => ({ wf: 'Test workflow', node: 'Tes
 test('a contact n8n creates is added, with its clinic; the same copy again is a duplicate', async () => {
   await h.withDb(async (sql) => {
     const cid = String(800000000 + n), co = String(810000000 + n);
-    const undo = fakeHubspot({ contacts: { [cid]: { properties: { firstname: 'Testa', lastname: 'Intake', email: 'testa.intake@demo.invalid', jobtitle: 'RN', hubspot_owner_id: '265024690' }, companies: [co] } },
-      companies: { [co]: { properties: { name: 'Intake Test Clinic', city: 'Toronto', state: 'ON' } } } });
+    // Option B (owner 2026-10-28): from n8n's own data, HubSpot is never read (fakeHubspot holds nothing)
+    const undo = fakeHubspot({});
     try {
-      const c1 = copy('POST', '/crm/v3/objects/contacts', { properties: { email: 'testa.intake@demo.invalid' } }, { id: cid });
+      await I.intake(sql, copy('POST', '/crm/v3/objects/companies', { properties: { name: 'Intake Test Clinic', city: 'Toronto', state: 'ON' } },
+        { id: co, properties: { name: 'Intake Test Clinic', city: 'Toronto', state: 'ON' } }));
+      const c1 = copy('POST', '/crm/v3/objects/contacts', { properties: { email: 'testa.intake@demo.invalid' }, associations: [{ to: { id: co }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 279 }] }] },
+        { id: cid, properties: { firstname: 'Testa', lastname: 'Intake', email: 'testa.intake@demo.invalid', jobtitle: 'RN', hubspot_owner_id: '265024690' } });
       const r = await I.intake(sql, c1);
       assert.equal(r.ok, true); assert.equal(r.table, 'contacts'); assert.equal(r.created, true);
       const [c] = await sql`select c.id, c.first_name, c.role, c.owner_id, cl.name as clinic from contacts c left join clinics cl on cl.id = c.clinic_id where c.legacy_id = ${cid}`;
@@ -78,20 +81,23 @@ test('a PATCH changes only the fields n8n changed; a PATCH to someone not in v2 
 test('an Internal Sales Form order becomes an order with lines and a payment; a later PATCH moves it on', async () => {
   await h.withDb(async (sql) => {
     const cid = String(830000000 + n), oid = String(840000000 + n), li = String(850000000 + n);
-    const hs = { contacts: { [cid]: { properties: { firstname: 'Orda', lastname: 'Intake', email: 'orda@demo.invalid', hubspot_owner_id: '268233804' } } },
-      orders: { [oid]: { properties: { hs_order_name: '#T' + n, hs_pipeline_stage: '937ea84d-0a4f-4dcf-9028-3f9c2aafbf03', hs_payment_status: 'Paid', hs_total_price: '450',
-        hs_order_note: 'Internal Sales Order - Rep: Lucas Stockley (1) | CARD ON FILE (Stripe pi_x)', hs_external_created_date: new Date().toISOString() }, contacts: [cid], line_items: [li] } },
-      line_items: { [li]: { name: 'saypha filler', hs_sku: 'SAF100', quantity: '2', price: '225' } } };
-    const undo = fakeHubspot(hs);
+    const props = { hs_order_name: '#T' + n, hs_pipeline_stage: '937ea84d-0a4f-4dcf-9028-3f9c2aafbf03', hs_payment_status: 'Paid', hs_total_price: '450',
+      hs_order_note: 'Internal Sales Order - Rep: Lucas Stockley (1) | CARD ON FILE (Stripe pi_x)', hs_external_created_date: new Date().toISOString() };
+    const to = (id, t) => ({ to: { id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: t }] });
+    const undo = fakeHubspot({});   // Option B: HubSpot is never read
     try {
-      const r = await I.intake(sql, copy('POST', '/crm/v3/objects/orders', {}, { id: oid }));
+      await I.intake(sql, copy('POST', '/crm/v3/objects/contacts', { properties: { email: 'orda@demo.invalid' } },
+        { id: cid, properties: { firstname: 'Orda', lastname: 'Intake', email: 'orda@demo.invalid', hubspot_owner_id: '268233804' } }));
+      await I.intake(sql, copy('POST', '/crm/v3/objects/line_items/batch/create', { inputs: [{ properties: { name: 'saypha filler', hs_sku: 'SAF100', quantity: '2', price: '225' } }] },
+        { results: [{ id: li, properties: { name: 'saypha filler', hs_sku: 'SAF100', quantity: '2', price: '225' } }] }));
+      const r = await I.intake(sql, copy('POST', '/crm/v3/objects/orders', { properties: props, associations: [to(cid, 507), to(li, 513)] }, { id: oid, properties: props }));
       assert.equal(r.table, 'orders'); assert.equal(r.created, true);
       const [o] = await sql`select o.status::text, o.payment_method::text, (select count(*)::int from order_lines l where l.order_id = o.id) as lines,
                                    (select status::text from payments p where p.order_id = o.id) as pay, c.legacy_id as customer
                               from orders o join contacts c on c.id = o.contact_id where o.legacy_id = ${oid}`;
       assert.deepEqual([o.status, o.payment_method, o.lines, o.pay, o.customer], ['paid', 'card_on_file', 1, 'succeeded', cid]);
-      hs.orders[oid].properties = Object.assign({}, hs.orders[oid].properties, { hs_pipeline_stage: '3725360f-x', tracking_number: 'TRK1' });
-      await I.intake(sql, copy('PATCH', '/crm/v3/objects/orders/' + oid, { properties: { hs_pipeline_stage: '3725360f-x' } }));
+      await I.intake(sql, copy('PATCH', '/crm/v3/objects/orders/' + oid, { properties: { hs_pipeline_stage: '3725360f-x', tracking_number: 'TRK1' } },
+        { id: oid, properties: { hs_pipeline_stage: '3725360f-x', tracking_number: 'TRK1' } }));
       const [o2] = await sql`select status::text, tracking_number from orders where legacy_id = ${oid}`;
       assert.deepEqual([o2.status, o2.tracking_number], ['delivered', 'TRK1']);
     } finally { undo(); }
@@ -105,15 +111,13 @@ test('live Edge: a rep\'s note goes on the contact\'s history (n8n\'s same note 
     const cHs = String(893000000 + n), note = String(894000000 + n);
     await sql`update contacts set legacy_id = ${cHs} where id = ${c}`;
     const real = global.fetch;
-    global.fetch = async (url) => {
-      if (new URL(url).pathname.endsWith('/notes/' + note)) return { ok: true, status: 200, text: async () => JSON.stringify({ id: note,
-        properties: { hs_note_body: 'Dropped off the lips kit', hs_timestamp: new Date().toISOString(), hs_object_source: 'INTEGRATION' }, associations: { contacts: { results: [{ id: cHs }] } } }) };
-      throw new Error('unexpected ' + url);
-    };
+    global.fetch = async (url) => { throw new Error('HubSpot was called (Option B: never): ' + url); };
+    const body = { properties: { hs_note_body: 'Dropped off the lips kit', hs_timestamp: new Date().toISOString() }, associations: [{ to: { id: cHs }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] };
+    const answer = { id: note, properties: { hs_note_body: 'Dropped off the lips kit', hs_timestamp: new Date().toISOString(), hs_object_source: 'INTEGRATION' } };
     try {
-      const fromN8n = await I.intake(sql, copy('POST', '/crm/v3/objects/notes', {}, { id: note }));
+      const fromN8n = await I.intake(sql, copy('POST', '/crm/v3/objects/notes', body, answer));
       assert.equal(fromN8n.skipped, true);
-      const e = copy('POST', '/crm/v3/objects/notes', {}, { id: note });
+      const e = copy('POST', '/crm/v3/objects/notes', body, answer);
       e.wf = 'Edge'; e.node = 'POST /crm/v3/objects/notes';
       const r = await I.intake(sql, e);
       assert.equal(r.table, 'interactions');
