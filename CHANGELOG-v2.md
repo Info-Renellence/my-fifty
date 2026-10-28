@@ -415,5 +415,5 @@ Owner: "remove 6046691811, c153b3ed, the rest if ur sure or fairly sure edit it"
 `remove-quo-made-2026-10-28.js --any-quo` (backup `remove-quo-made-v2-2026-10-28T20-21-32-322Z.json`). Named from their own
 emails / Quo call summaries (`renellence-ops/ops/fixes/name-nameless-2026-10-28.js`, blank fields only, backup first):
 9d510bcd… Taylor Wettlaufer (Rx Cosmetics), 5d6dc307… Louise (MD Skin Lab), 8b7482ed… Dorsa (Advanced Aesthetics),
-113cf1ae… Anna (Vita Cosmetic and Laser Clinic). Still nameless and left as they are: YS Cosmetic, Sasha Miracle Beauty
-Front Desk, Wellness Centre 4 You (x2), Gates Beauty, Cesthetique. No schema change.
+113cf1ae… Anna (Vita Cosmetic and Laser Clinic). Then (owner: "rename front desk lines to front desk") first_name "Front Desk" on 0c5a2c73… (Miracle Beauty), 82936191… and
+0da77e42… (Wellness Centre 4 You). Still nameless: YS Cosmetic, Gates Beauty, Cesthetique (web search found no person). No schema change.
