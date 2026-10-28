@@ -103,6 +103,13 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const oneLine = (s) => String(s || '').replace(/\n/g, ' | ');
   try {
     await go('/');
+    if (SCEN === 'motion') {   // avatar motion prototype (2026-10-28)
+      note('MOTION on: ' + await evaluate("document.documentElement.classList.contains('av-motion') + ' / animated avatars on screen: ' + document.querySelectorAll('.av.av-on').length"));
+      await shot('motion-today');
+      const id = await evaluate("(document.querySelector('.trow a[href^=\"/person/\"]')||{}).getAttribute && document.querySelector('.trow a[href^=\"/person/\"]').getAttribute('href')");
+      if (id) { await go(id); await wait(500); await shot('motion-card'); }
+      await go('/people'); await shot('motion-people');
+    }
     if (SCEN === 'podium') { await go('/rewards'); await shot('rewards-podium', true); }
     if (SCEN === 'nell') {   // 2026-10-28: the F2d panel and Nell's four moments (Final Mockup (3))
       await shot('nell-today');

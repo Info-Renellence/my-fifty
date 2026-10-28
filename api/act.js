@@ -112,7 +112,7 @@ const OPS = {
     const counted = kind !== 'text' && !!b.reached;
     // Nell (Final Mockup (3) N2 Cheer / N3 Jackpot): the moment this log earned, if any (api/_nell.js).
     const nell = await require('./_nell').afterLog(sql, me, cfg, day, { counted, contactId: c.id, interactionId: out.interactionId, name: B.fullName(c), write: (fn) => asUser(me.id, fn) }).catch(() => null);
-    return Object.assign(out, { day, nell, name: B.fullName(c), followUp: T.short(due),
+    return Object.assign(out, { day, nell, contactId: c.id, name: B.fullName(c), followUp: T.short(due),
       counted, next: list[0] ? { id: list[0].id, name: list[0].name } : null, wasStage: before.people[0] && before.people[0].stage });
   },
 

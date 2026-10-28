@@ -58,7 +58,7 @@ const OPS = {
     // Joining = their first order (the Fifty is worked out from orders placed, paid or not: Edge decisions 2026-10-21).
     const fresh = fifty.filter((p) => p.firstOrderAt && (!seenAt || new Date(p.firstOrderAt) > seenAt))
       .sort((a, b) => new Date(b.firstOrderAt) - new Date(a.firstOrderAt));
-    const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
+    const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, role: fresh[0].role, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
     const gmail = await sql`select status from connections where user_id = ${me.id} and provider = 'gmail' order by updated_at desc limit 1`;
     return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, joined, firstVisit: !seenAt,
       gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() && flags.voice_notes,

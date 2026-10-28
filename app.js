@@ -19,6 +19,18 @@
   var L = window.MFLib;
   var esc = L.esc, nb = L.nb, ymd = L.ymd, addDays = L.addDays, shortDate = L.shortDate, errText = L.errText;
   var AV = window.PulseAv.av;
+  // Avatar state for the motion prototype (avatar-motion.css): going cold shivers, My Fifty shimmers, candidates peek,
+  // new leads wave, waiting on something taps. Only classes; nothing moves without avatar-motion.css.
+  function avState(o) {
+    o = o || {};
+    var s = [];
+    if (o.goingCold || o.coldDays >= 30 || o.tag === 'Going cold' || o.cold) s.push('st-cold');
+    if (o.stage === 'fifty') s.push('st-fifty');
+    if (o.stage === 'candidate') s.push('st-cand');
+    if (o.isNew || o.newThisWeek || o.fresh) s.push('st-new');
+    if (o.status && /^Waiting/.test(o.status.label || '')) s.push('st-wait');
+    return s.join(' ');
+  }
   // A plain toast, or Today's "+1" toast with the gold chip (F2).
   function toast(msg, plus) {
     var t = document.getElementById('toast');
@@ -147,8 +159,8 @@
       + '<span style="font-size:17px;font-weight:600;max-width:300px">' + esc(errText(e)) + '</span><button type="button" data-reload class="pillbtn blue" style="height:44px;padding:0 22px">Try again</button></div>';
   }
   // The role avatar with the small Fifty dot in its corner (F6 rows).
-  function avDot(role, name, size, kind) {
-    return '<span class="avwrap">' + AV(role, name, size) + '<span class="badge"><span class="dot ' + kind + '" style="width:10px;height:10px"></span></span></span>';
+  function avDot(role, name, size, kind, pid) {
+    return '<span class="avwrap">' + AV(role, name, size, avState({ stage: 'fifty', cold: kind === 'cold' }), pid) + '<span class="badge"><span class="dot ' + kind + '" style="width:10px;height:10px"></span></span></span>';
   }
 
   // ---- router ------------------------------------------------------------------------------------------
@@ -220,7 +232,7 @@
     d.list.forEach(function (x) {
       var k = x.action === 'visit' ? 'visit' : 'call';
       seen[k + x.id] = rows[k].length;
-      rows[k].push({ id: x.id, name: x.name, role: x.role, why: cap(x.detail), kind: k, taskId: x.taskId, coldDays: x.why === 'going_cold' ? parseInt(String(x.detail).replace(/\D+/g, ''), 10) : 0 });
+      rows[k].push({ id: x.id, name: x.name, role: x.role, stage: x.stage, why: cap(x.detail), kind: k, taskId: x.taskId, coldDays: x.why === 'going_cold' ? parseInt(String(x.detail).replace(/\D+/g, ''), 10) : 0 });
     });
     var missed = [];
     if (d.week) {
@@ -296,7 +308,7 @@
       }
       open.forEach(function (r) {
         h += '<div class="row trow">'
-          + '<a href="/person/' + r.id + '" data-nav data-avtap aria-hidden="true" tabindex="-1">' + AV(r.role, r.name, 40) + '</a>'
+          + '<a href="/person/' + r.id + '" data-nav data-avtap aria-hidden="true" tabindex="-1">' + AV(r.role, r.name, 40, avState(r), r.id) + '</a>'
           + '<a href="/person/' + r.id + '" data-nav class="grow"><span class="t ellip">' + esc(r.name) + '</span><span class="sub ellip">' + esc(r.why) + '</span></a>'
           + '<button type="button" class="round" data-tlog="' + r.id + '" data-kind="' + r.kind + '"' + (r.pickId ? ' data-pick="' + r.pickId + '"' : '')
           + ' aria-label="' + (r.kind === 'visit' ? 'Log a visit with ' : 'Call ') + esc(r.name) + '">' + ic(r.kind === 'visit' ? 'pin' : 'phone', 18) + '</button></div>';
@@ -468,6 +480,7 @@
 
   // After a log: on Today the "+1" toast, or a win card for a milestone (F2); anywhere else the win screen (F4).
   function afterLog(r, ctx, reached) {
+    try { if (reached && r && r.contactId) document.dispatchEvent(new CustomEvent('pulse:logged', { detail: { id: r.contactId } })); } catch (e) { /* old browser */ }
     if (!ctx.today || location.pathname !== '/') { winMoment(r); nellAfterLog(r); return; }
     var before = todayData, tr = before ? todayRows(before) : null;
     var openBefore = tr ? tr.rows.visit.length + tr.rows.call.length : 0, doneBefore = tr ? tr.done.visit.length + tr.done.call.length : 0;
@@ -625,7 +638,8 @@
     localStorageSet('pulse-fifty-seen', String(j.count));   // this moment is the celebration; the tile behind it stays still
     $sheet.innerHTML = '<div class="moment joined" role="dialog" aria-modal="true" aria-label="' + esc(j.name) + ' joined your Fifty"><div class="inner">'
       + '<img src="/logo-white.png" alt="Renellence" width="132" height="18" style="height:18px;width:auto;margin-top:6px">'
-      + '<span class="headline display" style="font-size:32px;font-weight:800;letter-spacing:-1.1px;line-height:1.15;margin-top:38px">' + esc(j.name) + '<br>joined your Fifty!</span>'
+      + '<span class="joinav" style="margin-top:30px">' + AV(j.role, j.name, 96, 'ring jump', j.id) + '</span>'
+      + '<span class="headline display" style="font-size:32px;font-weight:800;letter-spacing:-1.1px;line-height:1.15;margin-top:18px">' + esc(j.name) + '<br>joined your Fifty!</span>'
       + '<div style="width:100%;margin-top:28px"><div class="dots" style="gap:9px">' + dots + '</div></div>'
       + '<span class="num" style="font-size:52px;font-weight:800;letter-spacing:-1.8px;margin-top:26px;line-height:1">' + j.count + '<span style="font-size:22px;color:#E3EEFB;font-weight:600"> of ' + j.goal + '</span></span>'
       + '<span style="font-size:17px;color:#E3EEFB;margin-top:8px">' + Math.max(0, j.next - j.count) + ' more to ' + j.next + '</span>'
@@ -684,7 +698,7 @@
     var rows = peopleFilter === 'warm' ? f.warm : f.cold;
     if (!rows.length) return h + empty('people', peopleFilter === 'cold' ? 'Nobody is going cold.' : 'Nobody here yet.', peopleFilter === 'warm' ? 'Turn candidates into My Fifty with a first order.' : '');
     return h + '<section class="card">' + rows.map(function (r) {
-      return '<a href="/person/' + r.id + '" data-nav class="row" style="min-height:64px">' + avDot(r.role, r.name, 42, peopleFilter === 'warm' ? 'warm' : 'cold')
+      return '<a href="/person/' + r.id + '" data-nav class="row" style="min-height:64px">' + avDot(r.role, r.name, 42, peopleFilter === 'warm' ? 'warm' : 'cold', r.id)
         + '<span class="grow"><span class="t ellip">' + esc(r.name) + '</span><span class="sub ellip">' + nb(r.sub) + '</span></span>' + CHEV + '</a>';
     }).join('') + '</section>';
   }
@@ -693,7 +707,7 @@
     return '<span class="avwrap" style="width:44px;height:44px"><svg width="44" height="44" viewBox="0 0 44 44" aria-hidden="true" style="position:absolute;inset:0">'
       + '<circle cx="22" cy="22" r="' + R + '" fill="none" stroke="#323E5C" stroke-width="3"/>'
       + (frac ? '<circle cx="22" cy="22" r="' + R + '" fill="none" stroke="#62B2F7" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + (C * frac).toFixed(1) + ' ' + C.toFixed(1) + '" transform="rotate(-90 22 22)"/>' : '')
-      + '</svg><span style="position:absolute;inset:6px">' + AV(r.role, r.name, 32) + '</span></span>';
+      + '</svg><span style="position:absolute;inset:6px">' + AV(r.role, r.name, 32, 'st-cand', r.id) + '</span></span>';
   }
   function candidatesView(cands) {
     var ready = cands.filter(function (c) { return c.days != null && c.days >= ASK_DAYS; });
@@ -739,7 +753,7 @@
     if (newWeek.length) {
       h += sect('New this week', '') + '<div class="stories noscroll">' + newWeek.map(function (p) {
         var G = GROUP[p.group] || GROUP.cold;
-        return '<a href="/person/' + p.id + '" data-nav class="story"><span class="sring">' + AV(p.role, p.first, 45)
+        return '<a href="/person/' + p.id + '" data-nav class="story"><span class="sring">' + AV(p.role, p.first, 45, 'st-new', p.id)
           + '<span class="sbadge" style="color:' + G.hex + '">' + ic(G.icon, 12, 2) + '</span></span><span class="sname">' + esc(p.first) + '</span></a>';
       }).join('') + '</div>';
     }
@@ -777,7 +791,7 @@
       body.classList.add('hide');
       var STAGE = { fifty: 'My Fifty', candidate: 'Candidate', lead: 'Lead' };
       out.innerHTML = d.people.length ? '<section class="card" style="margin-bottom:12px">' + d.people.map(function (p) {
-        return '<a href="/person/' + p.id + '" data-nav class="row">' + AV(p.role, p.name, 40)
+        return '<a href="/person/' + p.id + '" data-nav class="row">' + AV(p.role, p.name, 40, avState(p), p.id)
           + '<span class="grow"><span class="t ellip">' + esc(p.name) + '</span><span class="sub ellip">' + [p.clinic ? nb(p.clinic) : '', STAGE[p.stage]].filter(Boolean).join(' · ') + '</span></span>' + CHEV + '</a>';
       }).join('') + '</section>' : empty('search', 'Nobody in your book matches.', 'Check the spelling, or add them with Add person.', 'margin-bottom:12px');
     }).catch(function (err) { toast(errText(err)); });
@@ -799,7 +813,7 @@
       if (!d.leads.length) return h + empty(G.icon === 'onboarded' ? 'pen' : 'people', 'No leads here right now.', onb ? 'Signed onboardings with no order yet show here.' : '') + '</div>';
       if (onb) {
         return h + sect('Send samples', '', '#62D49E') + '<section class="card r20">' + d.leads.map(function (l) {
-          return '<div class="row" style="min-height:68px;padding:8px 10px 8px 14px"><a href="/person/' + l.id + '" data-nav style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px">' + AV(l.role, l.name, 42)
+          return '<div class="row" style="min-height:68px;padding:8px 10px 8px 14px"><a href="/person/' + l.id + '" data-nav style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px">' + AV(l.role, l.name, 42, avState({ newThisWeek: l.newThisWeek }), l.id)
             + '<span class="grow"><span class="t ellip">' + esc(l.name) + '</span><span class="sub ellip">' + (l.signed ? 'Signed ' + esc(l.signed) : esc(l.sub)) + '</span></span></a>'
             + '<a href="/order/' + l.id + '" data-nav class="ask" style="font-family:var(--font);font-size:13px;font-weight:700;padding:0 13px">Send samples</a></div>';
         }).join('') + '</section></div>';
@@ -807,7 +821,7 @@
       if (fresh.length) {
         h += sect('New', '', '#62B2F7') + '<section class="card r20" style="margin-bottom:14px;box-shadow:var(--edge),inset 3px 0 0 #1170C0;overflow:hidden">' + fresh.map(function (l) {
           return '<div class="row" style="min-height:66px;padding:8px 10px 8px 14px"><a href="/person/' + l.id + '" data-nav style="flex:1 1 auto;min-width:0;display:flex;align-items:center;gap:12px">'
-            + '<span class="avwrap">' + AV(l.role, l.name, 42) + '<span class="newpip"></span></span>'
+            + '<span class="avwrap">' + AV(l.role, l.name, 42, 'st-new', l.id) + '<span class="newpip"></span></span>'
             + '<span class="grow"><span class="t ellip" style="font-weight:700">' + esc(l.name) + '</span><span class="sub ellip">' + esc(l.sub) + '</span></span>'
             + '<span style="font-size:12px;color:var(--dim);flex:none">' + esc(l.age) + '</span></a>'
             + '<button type="button" class="round blue" style="width:42px;height:42px" data-ask="' + l.id + '" aria-label="Call ' + esc(l.name) + '">' + ic('phone', 18, 2.1) + '</button></div>';
@@ -816,7 +830,7 @@
       if (old.length) {
         h += sect('In progress', '') + '<section class="card r20">' + old.map(function (l) {
           var state = l.last || 'Not reached yet';
-          return '<a href="/person/' + l.id + '" data-nav class="row">' + AV(l.role, l.name, 40)
+          return '<a href="/person/' + l.id + '" data-nav class="row">' + AV(l.role, l.name, 40, '', l.id)
             + '<span class="grow"><span class="t ellip">' + esc(l.name) + '</span><span class="sub ellip">' + esc(l.sub) + '</span></span>'
             + '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none"><span class="statepill" style="' + STATE_TONE(state) + '"><span></span>' + esc(state) + '</span>'
             + '<span style="font-size:11px;color:var(--faint)">' + esc(l.age) + '</span></span></a>';
@@ -850,7 +864,7 @@
       var back = lead ? '/people/leads/' + (p.leadGroup || 'cold') : '/people';
       var h = '<div class="scr">' + backLink(back, lead ? 'Leads' : 'People')
         + '<section class="hero pcard"><span class="pring" aria-hidden="true"></span>'
-        + '<span style="position:relative;display:flex;align-items:center;gap:16px"><span data-avtap>' + AV(p.role, p.name, 88, 'ring') + '</span>'
+        + '<span style="position:relative;display:flex;align-items:center;gap:16px"><span data-avtap>' + AV(p.role, p.name, 88, 'ring card ' + avState(p), p.id) + '</span>'
         + '<span style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column">'
         + '<span class="stagepill"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '</span>'
         + '<h1 class="display" style="font-size:25px;font-weight:800;line-height:1.1;letter-spacing:-1px">' + esc(p.name) + '</h1>'
@@ -1256,7 +1270,7 @@
     if (!list.length) return '<div class="row" style="min-height:76px"><span class="round">' + ic('box', 18) + '</span><span class="grow"><span class="t">Nobody is ready to order yet</span><span class="sub">People show here once they are onboarded or have ordered before.</span></span></div>';
     return list.map(function (p) {
       var tag = p.tag === 'Going cold' ? 'cold' : p.tag === 'Reorder due' ? 'due' : 'quiet';
-      return '<a href="/order/' + p.id + '" data-nav class="row" style="min-height:66px">' + AV(p.role, p.name, 42)
+      return '<a href="/order/' + p.id + '" data-nav class="row" style="min-height:66px">' + AV(p.role, p.name, 42, avState({ stage: 'fifty', tag: p.tag }), p.id)
         + '<span class="grow"><span class="t ellip">' + esc(p.name) + '</span><span class="sub ellip">' + nb(p.clinic) + '</span></span>'
         + '<span style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex:none">' + (p.last ? '<span class="num" style="font-size:15px;font-weight:700">' + esc(p.last) + '</span>' : '')
         + '<span class="tag ' + tag + '">' + esc(p.tag) + '</span></span></a>';

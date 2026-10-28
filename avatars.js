@@ -17,9 +17,10 @@
     return KEY[role] || 'other';
   }
   // size in px; cls adds classes (e.g. 'lg'); the outer span carries data-av so a tap can animate it.
-  function av(role, name, size, cls) {
+  // pid (optional): the person's id, so a moment can find their avatar (avatar-motion.js, prototype 2026-10-28).
+  function av(role, name, size, cls, pid) {
     var k = key(role, name), z = size || 40;
-    return '<span class="av av-' + k + (cls ? ' ' + cls : '') + '" data-av="' + k + '" style="width:' + z + 'px;height:' + z + 'px" aria-hidden="true">'
+    return '<span class="av av-' + k + (cls ? ' ' + cls : '') + '" data-av="' + k + '"' + (pid ? ' data-pid="' + String(pid).replace(/[^0-9a-f-]/gi, '') + '"' : '') + ' style="width:' + z + 'px;height:' + z + 'px" aria-hidden="true">'
       + '<svg viewBox="0 0 64 64" width="' + z + '" height="' + z + '">' + ART[k] + '</svg></span>';
   }
   window.PulseAv = { av: av, key: key };
