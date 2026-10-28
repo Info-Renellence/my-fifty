@@ -417,3 +417,13 @@ emails / Quo call summaries (`renellence-ops/ops/fixes/name-nameless-2026-10-28.
 9d510bcd… Taylor Wettlaufer (Rx Cosmetics), 5d6dc307… Louise (MD Skin Lab), 8b7482ed… Dorsa (Advanced Aesthetics),
 113cf1ae… Anna (Vita Cosmetic and Laser Clinic). Then (owner: "rename front desk lines to front desk") first_name "Front Desk" on 0c5a2c73… (Miracle Beauty), 82936191… and
 0da77e42… (Wellness Centre 4 You). Still nameless: YS Cosmetic, Gates Beauty, Cesthetique (web search found no person). No schema change.
+
+## 32. Account Review edits applied (data only), 2026-10-28, asked by Yousef
+
+Owner: "apply those 9". The manager's 9 contact edits from the Account Review page (artifact 4NcdbdwTeHF4SCGxfjGTkW, db `c/`,
+all made 2026-10-22; no clinic edits) applied with `renellence-ops/ops/fixes/account-review-apply.js` (dry run first; a field
+edited in the apps since the load would have been kept, none was). Changed (7 contacts): Mehrnoush Sohrabirad role injector /
+designation rn; Vlassopoulos (Koukla Aesthetics) first_name Alaini, email koukla1@shaw.ca, role injector, designation other;
+Tereza Gindi role injector -> manager; Tatiana Fras and Sonilla Majeed owner Info -> Emily; Amanda Lau owner Info -> Brittany;
+Anne-Marie Pion linked to clinic HubSpot 219789014003. 2 contacts already had the values. The 3 reassigned contacts had no open
+tasks or forecasts. Backup `data/backups/account-review-v2-2026-10-28T20-26-24-008Z.json`. No schema change.
