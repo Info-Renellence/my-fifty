@@ -229,9 +229,9 @@ function classify(hs, o = {}) {
   if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/merge$/)) && method === 'POST') return { kind: 'merge', type: m[1], primary: s(b.primaryObjectId), merged: s(b.objectIdToMerge) };
   if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/(\d+)$/)) && method === 'DELETE') return { kind: 'delete', type: m[1], ids: [m[2]] };
   if ((m = url.match(/^\/crm\/v3\/objects\/(contacts|companies)\/batch\/archive$/))) return { kind: 'delete', type: m[1], ids: (b.inputs || []).map((x) => s(x && x.id)).filter(Boolean) };
-  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/companies\/(\d+)/)) && method === 'DELETE') return { kind: 'contact_clinic_remove', contact: m[1], company: m[2] };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/compan(?:y|ies)\/(\d+)/)) && method === 'DELETE') return { kind: 'contact_clinic_remove', contact: m[1], company: m[2] };
   if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/contacts\/(\d+)/)) && method === 'DELETE') return { kind: 'contact_md_remove', contact: m[1], md: m[2] };
-  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/companies\/(\d+)/))) return { kind: 'contact_clinic', contact: m[1], company: m[2] };
+  if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/compan(?:y|ies)\/(\d+)/))) return { kind: 'contact_clinic', contact: m[1], company: m[2] };
   if ((m = url.match(/^\/crm\/v[34]\/objects\/contacts\/(\d+)\/associations\/contacts\/(\d+)/))) return { kind: 'contact_md', contact: m[1], md: m[2] };
   if ((m = url.match(/^\/crm\/v3\/objects\/orders\/?$/)) && method === 'POST') return { kind: 'order', ids: [r.id].filter(Boolean) };
   if ((m = url.match(/^\/crm\/v3\/objects\/orders\/(\d+)$/)) && method === 'PATCH') return { kind: 'order', ids: [m[1]] };
