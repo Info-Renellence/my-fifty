@@ -454,3 +454,27 @@ Owner: "edit the ones you have high confidence for, and mark the rest". `renelle
   15715d1f… Bita's clinic "Elite Medical Clo" (cut off; no website) and no owner, the three nameless contacts (YS Cosmetic,
   Gates Beauty, Cesthetique; web search in #31 found no person), and 41 first-name-only contacts (#29 found no last name at
   high confidence).
+
+## 34. Full v2 audit: safe fixes (data only), 2026-10-28, asked by Yousef
+
+A read-only audit of all 37 tables, then the owner said "make the safe fixes". `renellence-ops/ops/fixes/audit-safe-fixes-2026-10-28.js`
+(dry run first; each fix checks the old value; backup `data/backups/audit-safe-fixes-v2-2026-10-28T21-09-52-120Z.json`; source
+'import', batch ce1dc5ae-a573-4624-ab38-c31201d60577). No schema change.
+- Rana's Oct 27 Shopify order #123365466 had landed on her merged-away copy (#31) and was moved to the kept record (8608bb6a…).
+- Ina Zhou: the empty copy 053dccf9… merged into 6943fdd0… with `merge-contacts.js data/merges/audit-2026-10-28.json` (her event
+  RSVP moved; backup `merge-2026-10-28T21-09-54-482Z.json`).
+- 7 clinics with no live contact soft-deleted (left by merges): Essence of Beauty Skin Health and Aesthetics, Shawna Leifso-Subtly
+  You Inc., Dr Ireen Girgis, Nurse Injector Bhav, The Scene Medical, Toronto Cosmetic Clinic, Espace Skins.
+- Studio Sheeque: the email that sat in the contact's and the clinic's phone fields removed. US zips cleared as postal codes on
+  O Esthetics (15205) and Thrive Aurora (60504). One shipping city written in Arabic -> Montreal.
+- 3 MD signers on agreements completed Oct 27 (Vero Dorval, Vijeta Singh, Fariba Shahin) marked signed at the completion time.
+- 3 duplicate open follow-ups soft-deleted (Kandaeya Daniel, Min Je Woo, Sareena Multani; one copy of each kept).
+- 6 Quo calls/texts on the deleted staff contacts "Yousef" and "Brittany Houston" soft-deleted.
+- 35 signer names trimmed of stray spaces.
+- Not changed, after a closer look: 8 Compass picks on merged contacts (each kept contact already has its own pick that week) and
+  29 "off" Gmail connection rows (some updated today, part of the connect flow).
+- Open owner questions from the audit: shared phone numbers log one Quo call on both contacts (45 times); 29 Shopify orders with
+  no rep and 80 with a rep who isn't the owner; 36 "medical directors" with role injector (4 other) and 5 md designations on
+  non-physicians; 34 unsigned onboardings, 21 waiting training agreements, 9 MD agreements with no order; 142 contacts with no
+  role, 39 with no email or phone; 2 customers with orders but no shipping address; duplicate clinic names in two cities (Gold
+  Tan and Sunset Spa, Dream Esthetiques MD); order #106565379 delivered with no lines; a call with Tara Tameta dated Nov 4.
