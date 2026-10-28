@@ -61,7 +61,11 @@ function prompt(me, x) {
     + 'What we know about the client (use it ONLY to spell names, clinics and products correctly when the recording '
     + 'is unclear or a word was misheard, e.g. "say far" is saypha; never add facts from it that the rep did not say):\n' + facts + '\n\n'
     + 'Our product names: ' + x.products.map((p) => p.name).join('; ') + '. Also: saypha lips, saypha volume, saypha volume plus, '
-    + 'saypha filler, Magic Needle cannulas, Mesbio needles, Exprecell. Write "saypha" and its product names in lower case.\n\n'
+    + 'saypha filler, Magic Needle cannulas, Mesbio needles, Exprecell. Write "saypha" and its product names in lower case.\n'
+    // Other brands clinics name, so they're heard right (owner 2026-10-28: "Revanesse" was written as "Revance", which
+    // doesn't sell fillers in Canada).
+    + 'Other brands clinics mention: Juvéderm, Restylane, Belotero, Teoxane (RHA), Revanesse (never "Revance"), Stylage, Yvoire, '
+    + 'RegenLab, Eclipse PRP, Arthrex PRF, AlyssaMed, Cellenis, EmCyte.\n\n'
     + 'Return:\n'
     + '- "note": what happened, 1 to 4 short sentences in the first person, in the language the rep spoke. Only what was said.\n'
     + '- "nextStep": the follow-up the rep said they will do, one short line, or "".\n'
