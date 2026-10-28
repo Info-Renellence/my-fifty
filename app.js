@@ -318,10 +318,11 @@
           + '<span style="flex:1;text-align:left;color:var(--ink)">' + (done.length + missed.length) + ' done</span><span style="font-size:13px">' + (todayShowDone ? 'Hide' : 'Show') + '</span></button>';
         if (todayShowDone) {
           done.forEach(function (x) {
-            h += '<div class="drow"><span class="grow"><span class="dn">' + esc(x.name) + '</span><span class="dw">' + (x.kind === 'visit' ? 'Visit' : x.kind === 'text' ? 'Text' : 'Call') + ' · ' + timeOf(x.at) + '</span></span><span class="logged">Logged</span></div>';
+            // A logged row opens the person (owner 2026-10-28), as the open rows do.
+            h += '<a href="/person/' + x.id + '" data-nav class="drow"><span class="grow"><span class="dn">' + esc(x.name) + '</span><span class="dw">' + (x.kind === 'visit' ? 'Visit' : x.kind === 'text' ? 'Text' : 'Call') + ' · ' + timeOf(x.at) + '</span></span><span class="logged">Logged</span></a>';
           });
           missed.forEach(function (p) {
-            h += '<div class="drow"><span class="grow"><span class="dn">' + esc(p.name) + '</span><span class="dw">Visit · missed' + (p.when ? ' ' + esc(p.when) : '') + '</span></span>'
+            h += '<div class="drow"><a href="/person/' + p.contactId + '" data-nav class="grow"><span class="dn">' + esc(p.name) + '</span><span class="dw">Visit · missed' + (p.when ? ' ' + esc(p.when) : '') + '</span></a>'
               + '<button type="button" class="link" data-unmissed="' + p.id + '" style="font-size:13px;min-height:36px">Undo</button></div>';
           });
         }
@@ -581,7 +582,7 @@
     if (nellSeen(n.kind)) return false;
     nellMark(n.kind);
     if (n.kind === 'jackpot') nellMark('cheer');   // Jackpot replaces Cheer on the same log
-    nellMoment(n.kind, { kicker: n.kicker, title: n.title, sub: n.sub, pill: n.kind === 'jackpot' ? 'Saved to your wins on Rewards' : '', onClose: onClose });
+    nellMoment(n.kind, { kicker: n.kicker, title: n.title, sub: n.sub, pill: '', onClose: onClose });
     return true;
   }
   // Nudge (N4): a workday, after 3 pm, fewer than the goal logged, once a day, never over a sheet or another moment.
@@ -1650,14 +1651,8 @@
         + '<div class="head" style="align-items:baseline;padding:0 4px 8px"><h2 class="h2">Cha-ching</h2>' + (r.wins.length ? '<a href="/rewards/wins" data-nav class="link" style="padding-left:12px">See all</a>' : '') + '</div>';
       h += r.wins.length ? '<section class="card r20" style="margin-bottom:14px">' + r.wins.slice(0, 2).map(winRow).join('') + '</section>'
         : empty('trophy', 'No wins yet this quarter.', 'Every paid order earns you ' + r.booster.newText + ' and ' + r.booster.reorderText + '.', 'margin-bottom:14px;border-radius:20px');
-      // Nell's jackpots (N3 "Saved to your wins on Rewards"): the rare big days, newest first.
-      if (r.moments && r.moments.length) {
-        h += '<div class="head" style="padding:0 4px 8px"><h2 class="h2">Big days</h2></div><section class="card r20" style="margin-bottom:14px">'
-          + r.moments.slice(0, 3).map(function (m) {
-            return '<div class="row"><span class="round" style="color:#F7C948">' + ic('star', 18) + '</span><span class="grow"><span class="t ellip">' + esc(m.title) + '</span>'
-              + '<span class="sub ellip">' + esc(m.kicker.charAt(0) + m.kicker.slice(1).toLowerCase()) + ' · ' + esc(m.when) + '</span></span></div>';
-          }).join('') + '</section>';
-      }
+      // Big days (Nell's jackpots) are no longer shown on Rewards (owner 2026-10-28: "keep the info, it's important, but
+      // don't show it to the rep"). They are still saved and still come back in r.moments.
       h += '<section class="hero race" style="background:var(--hero-deep)">'
         + '<span style="display:flex;justify-content:space-between;align-items:center;gap:8px"><h2 class="h2">Race to Vienna ✈︎</h2><span class="glass">' + t.daysLeft + ' days left</span></span>'
         + podium(t) + '</section>';
