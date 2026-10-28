@@ -505,10 +505,13 @@ async function historyOf(sql, me, p) {
     // "Next:" is the follow-up made from this log (tasks.from_interaction_id), or the line the rep wrote.
     const written = String(i.body || '').match(/(?:^|\n)[ \t]*next(?: step)?[ \t]*:\s*([\s\S]+)$/i);
     const next = i.next_step && i.next_step !== 'Follow up' ? i.next_step : written ? written[1].trim() : !i.body && i.ai_next ? i.ai_next : '';
+    // An email shows its subject and only what was written this time; the whole email is one tap away (api/_email.js).
+    const mail = i.kind === 'email' ? require('./_email').forHistory(i.subject, i.body) : null;
     out.push({ type: 'touch', kind, at: i.occurred_at, id: i.id, editable: mine && i.kind !== 'email',
       title: [(KIND_WORD[kind] || 'Note') + (inbound ? ' from ' + who : ''), outcomeWord(i)].filter(Boolean).join(' · '),
-      body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 4000) : (i.body || i.ai_summary || ''),
-      next, by: who });
+      body: mail ? mail.body.slice(0, 4000) : (i.body || i.ai_summary || ''),
+      ...(mail ? { subject: mail.subject, full: mail.full } : {}),
+      next: mail ? '' : next, by: who });
   }
   // Rejected and cancelled orders are left out of everything else (they never count), but History shows them, so
   // the rep sees what happened (Yousef 2026-10-21, Q7).

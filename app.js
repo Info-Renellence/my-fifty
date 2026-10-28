@@ -1152,7 +1152,10 @@
         if (e.type === 'touch') {
           badge = '<span class="hb" style="background:#1D3A62;color:#62B2F7">' + ic({ call: 'phone', meeting: 'pin', text: 'text', email: 'mail', note: 'pen' }[e.kind] || 'pen', 16) + '</span>';
           card = '<div class="card hcard"><span class="hhead"><span class="display" style="font-size:15px;font-weight:700">' + esc(e.title) + '</span><span class="hwhen">' + esc(e.when) + '</span></span>'
-            + (e.body ? historyBody(L.stripNext(e.body)) : '')
+            + (e.subject ? '<span style="font-size:14px;font-weight:600;color:#C9D1E0">' + esc(e.subject) + '</span>' : '')
+            + (e.body ? historyBody(e.kind === 'email' ? e.body : L.stripNext(e.body)) : '')
+            + (e.full ? '<button type="button" data-hfull class="link" style="align-self:flex-start;min-height:36px;font-size:13px">Show the whole email</button>'
+              + '<span data-fullmail hidden style="font-size:13px;line-height:1.4;white-space:pre-line;color:var(--muted);overflow-wrap:anywhere">' + esc(e.full) + '</span>' : '')
             + (e.next ? '<span style="font-size:15px;line-height:1.35"><b>Next:</b> ' + esc(e.next) + '</span>' : '')
             + '<span style="display:flex;justify-content:space-between;align-items:center"><span style="font-size:12px;color:var(--muted)">' + (e.by === 'You' ? '' : esc(e.by)) + '</span>'
             + (e.editable ? '<button type="button" data-edit="' + e.id + '" data-text="' + esc(e.body) + '" class="link" style="font-size:13px;min-height:36px">Edit</button>' : '') + '</span></div>';
@@ -1180,6 +1183,8 @@
   $app.addEventListener('click', function (e) {
     var b = e.target.closest('[data-htab]');
     if (b) { historyTab = b.getAttribute('data-htab'); render(); return; }
+    b = e.target.closest('[data-hfull]');
+    if (b) { var full = b.nextElementSibling; full.hidden = !full.hidden; b.textContent = full.hidden ? 'Show the whole email' : 'Hide the whole email'; return; }
     b = e.target.closest('[data-hmore]');
     if (b) { var body = b.previousElementSibling; var open = body.classList.toggle('clamp3') === false; b.textContent = open ? 'Less' : 'More'; return; }
     b = e.target.closest('[data-edit]');
