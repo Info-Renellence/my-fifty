@@ -656,8 +656,8 @@
     warm: { label: 'Other Warm', rgb: '245,158,107', hex: '#F59E6B', icon: 'warm' },
     cold: { label: 'Cold', rgb: '127,219,242', hex: '#7FDBF2', icon: 'cold' },
   };
-  // Candidates are ready to ask two weeks after their samples arrive (F6 "Ask in 7 days").
-  var ASK_DAYS = 14;
+  // Candidates are ready to ask 5 days after their samples arrive (owner 2026-10-28; was 14).
+  var ASK_DAYS = 5;
   var peopleView = 'fifty', peopleFilter = 'cold';
   function screenPeople() {
     return paint(read('people'), function (d) {
