@@ -456,8 +456,12 @@ async function historyOf(sql, me, p) {
   const out = [];
   const inter = await sql`
     select i.id, i.kind::text, i.mode::text, i.direction::text, i.outcome, i.subject, i.body, i.occurred_at, i.user_id, u.full_name as user_name,
-           (select t.title from tasks t where t.from_interaction_id = i.id and t.deleted_at is null order by t.created_at desc limit 1) as next_step
+           (select t.title from tasks t where t.from_interaction_id = i.id and t.deleted_at is null order by t.created_at desc limit 1) as next_step,
+           -- Claude's call summary (Supabase claude-jobs, owner 2026-10-28): shown as the call's note when the rep wrote none.
+           s.output_text as ai_summary, s.output_json->>'next_step' as ai_next
       from interactions i left join users u on u.id = i.user_id
+      left join lateral (select a.output_text, a.output_json from ai_outputs a where a.interaction_id = i.id and a.kind = 'call_summary'
+                          and a.model_name like 'claude%' order by a.created_at desc limit 1) s on i.kind = 'call'
      where i.contact_id = ${p.id} and i.deleted_at is null and i.status is distinct from 'scheduled'
      order by i.occurred_at desc limit 200`;
   for (const i of inter) {
@@ -472,10 +476,10 @@ async function historyOf(sql, me, p) {
     }
     // "Next:" is the follow-up made from this log (tasks.from_interaction_id), or the line the rep wrote.
     const written = String(i.body || '').match(/(?:^|\n)[ \t]*next(?: step)?[ \t]*:\s*([\s\S]+)$/i);
-    const next = i.next_step && i.next_step !== 'Follow up' ? i.next_step : written ? written[1].trim() : '';
+    const next = i.next_step && i.next_step !== 'Follow up' ? i.next_step : written ? written[1].trim() : !i.body && i.ai_next ? i.ai_next : '';
     out.push({ type: 'touch', kind, at: i.occurred_at, id: i.id, editable: mine && i.kind !== 'email',
       title: [(KIND_WORD[kind] || 'Note') + (inbound ? ' from ' + who : ''), outcomeWord(i)].filter(Boolean).join(' · '),
-      body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 4000) : (i.body || ''),
+      body: i.kind === 'email' ? [i.subject, i.body].filter(Boolean).join(' — ').slice(0, 4000) : (i.body || i.ai_summary || ''),
       next, by: who });
   }
   // Rejected and cancelled orders are left out of everything else (they never count), but History shows them, so

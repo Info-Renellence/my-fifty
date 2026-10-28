@@ -85,14 +85,41 @@ async function transcribe(sql, me, body, deps) {
   if (!MIMES.includes(mime)) throw fail(400, 'bad_audio_type');
   const x = await context(sql, me, body.contactId);
   const out = await gem.json(prompt(me, x), { schema: SCHEMA, audio: { mime, data: audio }, timeoutMs: 40000, fallbackModel: 'gemini-2.5-flash-lite' });
-  const date = clean(out && out.followUpDate, 10);
-  const draft = { note: brand(clean(out && out.note, 3000)), nextStep: brand(clean(out && out.nextStep, 300)),
-    followUpDate: /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= T.ymd() ? date : '', transcript: brand(clean(out && out.transcript, 6000)) };
+  const okDate = (d) => { const s = clean(d, 10); return /^\d{4}-\d{2}-\d{2}$/.test(s) && s >= T.ymd() ? s : ''; };
+  let draft = { note: brand(clean(out && out.note, 3000)), nextStep: brand(clean(out && out.nextStep, 300)),
+    followUpDate: okDate(out && out.followUpDate), transcript: brand(clean(out && out.transcript, 6000)) };
+  let model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  // Owner 2026-10-28: Gemini hears it, Claude writes it (the Data Map's voice prompt, Supabase claude-jobs). When Claude
+  // isn't set up, is slow or fails, Gemini's own draft above is kept, so the mic never stops working.
+  const claude = (deps && deps.claude) || claudeVoice;
+  if (draft.transcript) {
+    const c = await claude({ contactId: body.contactId, transcript: draft.transcript, kind: body.kind, reached: body.reached, repName: me.name });
+    if (c && c.ok && c.output && clean(c.output.note, 3000)) {
+      draft = Object.assign(draft, { note: brand(clean(c.output.note, 3000)), nextStep: brand(clean(c.output.next_step, 300)),
+        followUpDate: okDate(c.output.follow_up_date), flags: Array.isArray(c.output.flags) ? c.output.flags.slice(0, 5).map((f) => clean(f, 200)) : [] });
+      model = c.model || 'claude';
+    }
+  }
   const [ai] = await sql`
     insert into ai_outputs (kind, contact_id, input_text, output_text, output_json, model_name, created_by_id)
-    values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${sql.json(draft)}, ${process.env.GEMINI_MODEL || 'gemini-2.5-flash'}, ${me.id})
+    values ('voice_note', ${body.contactId}, ${draft.transcript}, ${draft.note}, ${sql.json(draft)}, ${model}, ${me.id})
     returning id`;
   return Object.assign({ aiOutputId: ai.id }, draft);
+}
+
+// The Supabase function claude-jobs (job "voice"). CLAUDE_JOBS_URL + CLAUDE_JOBS_SECRET in Vercel; null when either is
+// missing or the call fails or takes over 25 s (the rep is waiting; Gemini's draft is used instead).
+async function claudeVoice(payload) {
+  const url = process.env.CLAUDE_JOBS_URL, secret = process.env.CLAUDE_JOBS_SECRET;
+  if (!url || !secret) return null;
+  try {
+    const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Claude-Jobs-Secret': secret },
+      body: JSON.stringify(Object.assign({ job: 'voice' }, payload)), signal: AbortSignal.timeout(25000) });
+    return r.ok ? await r.json() : null;
+  } catch (e) {
+    console.error('VOICE_CLAUDE', e.message);
+    return null;
+  }
 }
 
 module.exports = { transcribe, context, _prompt: prompt };

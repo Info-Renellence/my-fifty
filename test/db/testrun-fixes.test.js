@@ -130,6 +130,38 @@ describe('voice notes (Gemini stubbed)', () => {
     assert.equal(d.transcript, 'saypha lips, saypha volume');
     assert.equal(d.followUpDate, '', 'a date in the past is dropped');
   }));
+  // Owner 2026-10-28: Gemini hears it, Claude writes it; Gemini's draft stays when Claude can't answer.
+  const gem = { note: 'gemini note', nextStep: 'gemini next', followUpDate: '', transcript: 'she wants sofia lips pricing' };
+  test('Claude writes the note from Gemini\'s transcript, and the row says which model wrote it', () => h.withDb(async (sql) => {
+    const V = require('../../api/_voice');
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const sent = [];
+    const claude = async (p) => { sent.push(p); return { ok: true, model: 'claude-sonnet-5-5', output: { note: 'She wants Saypha Lips pricing.', next_step: 'Send pricing', follow_up_date: '2999-01-04', flags: [] } }; };
+    const d = await V.transcribe(sql, me, { contactId: c, audio: 'AAAA', mime: 'audio/mp4', kind: 'visit', reached: true }, { gemini: fakeGemini(gem), claude });
+    assert.equal(sent[0].transcript, 'she wants sofia lips pricing');
+    assert.equal(sent[0].kind, 'visit');
+    assert.equal(d.note, 'She wants saypha lips pricing.', 'brand rule applies to Claude too');
+    assert.equal(d.nextStep, 'Send pricing');
+    assert.equal(d.followUpDate, '2999-01-04');
+    const [row] = await sql`select model_name, output_text from ai_outputs where id = ${d.aiOutputId}`;
+    assert.equal(row.model_name, 'claude-sonnet-5-5');
+  }));
+  test('when Claude fails or is not set up, Gemini\'s draft is kept', () => h.withDb(async (sql) => {
+    const V = require('../../api/_voice');
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    for (const claude of [async () => null, async () => ({ ok: false, output: null })]) {
+      const d = await V.transcribe(sql, me, { contactId: c, audio: 'AAAA', mime: 'audio/mp4' }, { gemini: fakeGemini(gem), claude });
+      assert.equal(d.note, 'gemini note');
+      assert.equal(d.nextStep, 'gemini next');
+    }
+  }));
+  test('nothing goes to Claude when Gemini heard nothing', () => h.withDb(async (sql) => {
+    const V = require('../../api/_voice');
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    let called = 0;
+    await V.transcribe(sql, me, { contactId: c, audio: 'AAAA', mime: 'audio/mp4' }, { gemini: fakeGemini({ note: '', nextStep: '', followUpDate: '', transcript: '' }), claude: async () => { called++; return null; } });
+    assert.equal(called, 0);
+  }));
 });
 
 describe('Tomorrow on two people at once (two phones, or two quick taps)', () => {

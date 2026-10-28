@@ -435,7 +435,7 @@
           st.rec = 'working'; draw();
           var fr = new FileReader();
           fr.onload = function () {
-            act('voice', { contactId: p.id, audio: String(fr.result).split(',')[1], mime: blob.type }).then(function (r) {
+            act('voice', { contactId: p.id, audio: String(fr.result).split(',')[1], mime: blob.type, kind: st.kind, reached: st.ans ? st.ans === 'yes' : null }).then(function (r) {
               st.rec = null; st.aiOutputId = r.aiOutputId;
               var text = r.note + (r.nextStep ? '\nNext: ' + r.nextStep : '');
               st.note = (st.note ? st.note + '\n' : '') + text;

@@ -339,7 +339,14 @@ this nor v2-015 yet; it needs the v1 owner login.
 | 85 | New table `ai_runs` (one row per Claude run: job, prompt version and hash, models planned and used, result claude/rules/none, attempts, fallbacks, tokens, cost_usd, validation, blocked, stopped, cap, month spend before/after, output, ms; RLS on, admins read; append-only, no triggers) | The run log and the $100/month cost cap (`ops/claude` ledger, moved from a local file into v2 so the Supabase function can use it) |
 | 86 | `ai_outputs_kind` gains `data_health`, `enrichment`, `gap_ranking`, `monday_prep`, `focus_actions`, `meeting_notes` | Where each job's result is kept (call summaries, voice notes and lead clean-up already had kinds) |
 
-Add `ai_runs` to the SOP (System section).
+Added to the SOP (2026-10-28), with the exception that data_health, gap_ranking, monday_prep and meeting_notes rows link to
+no single record (the rep, week or month is in `output_json`).
+
+Data (no schema change), same day: settings rows `claude` ({monthly_cap_usd: 100, jobs_on: {}}) and `claude_prompts` (the
+shared prompt plus ten job prompts from the Data Map page; `renellence-ops/ops/claude/sync-prompts.cjs`). The live tests of
+the jobs on 2026-10-28 wrote real proposals to `ai_outputs` (1 data_health, 2 lead_cleanup, 3 call_summary, 1
+monday_prep, 1 gap_ranking, 1 meeting_notes, 2 enrichment) and their `ai_runs` rows; they are ordinary results awaiting
+review, not test data.
 
 ## 28. City location cache for the Territory map (data only), 2026-10-28
 

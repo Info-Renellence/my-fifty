@@ -250,6 +250,21 @@ describe('history', () => {
     assert.deepEqual(times, times.slice().sort((a, b) => b - a), 'newest first');
     assert.match(entries[0].month, /^[A-Z][a-z]+$/);
   }));
+  test('a Quo call with no note shows Claude\'s summary and next step; a written note always wins (owner 2026-10-28)', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), c = await h.contact(sql, me);
+    const quiet = await h.touch(sql, c, me.id, { days: 1, source: 'quo' });
+    const noted = await h.touch(sql, c, me.id, { days: 2, source: 'quo', body: 'My own note' });
+    for (const [id, model] of [[quiet, 'claude-sonnet-5-5'], [noted, 'claude-sonnet-5-5']])
+      await sql`insert into ai_outputs (kind, contact_id, interaction_id, output_text, output_json, model_name)
+                values ('call_summary', ${c}, ${id}, 'Spoke with Dana about saypha lips.', ${sql.json({ next_step: 'Send pricing' })}, ${model})`;
+    await sql`insert into ai_outputs (kind, contact_id, interaction_id, output_text, model_name) values ('call_summary', ${c}, ${quiet}, 'Quo''s own summary', 'quo')`;
+    const { entries } = await D.history(sql, me, Q({ id: c }));
+    const q = entries.find((e) => e.id === quiet), n = entries.find((e) => e.id === noted);
+    assert.equal(q.body, 'Spoke with Dana about saypha lips.', 'Claude\'s, not Quo\'s own summary');
+    assert.equal(q.next, 'Send pricing');
+    assert.equal(n.body, 'My own note');
+    assert.equal(n.next, '');
+  }));
   test('rejected and cancelled orders show in History, and still count for nothing (Q7)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     await h.order(sql, c, me, { status: 'rejected', days: 3, lines: [['SAF100', 2]] });
