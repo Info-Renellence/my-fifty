@@ -355,3 +355,16 @@ looked up on OpenStreetMap's Nominatim, in a new `settings` row `geo_cities` (`{
 place). The row is created the first time an admin opens Territory on v2; each save goes through `asUser`, so `change_logs`
 records it. Reassign (same app) changes `contacts.owner_id`, open `tasks.assignee_id` and `forecasts.rep_id` from this month on,
 one `change_logs` batch per reassign; nothing else.
+
+## 29. Emily's Leads clean-up (data only), 2026-10-28, asked by Yousef ("b")
+
+From the owner's check of Emily's Leads page. `renellence-ops/ops/fixes/emily-cleanup-2026-10-28.js` (dry run first; backup in
+`renellence-ops/data/backups/emily-cleanup-*.json`; source 'import', one batch).
+
+- Soft-deleted two staff numbers that Quo -> HubSpot -> the HubSpot pull had made into customers: "Yousef" (+1 647 863 0027) and
+  "Brittany Houston" (+1 778 707 9023). Neither had orders.
+- Merged four duplicates (calls, meetings, notes, tasks, orders moved to the one kept; the other `merged_into_contact_id` + `deleted_at`;
+  blanks filled): Kylie Cheng (The Scene Medical; kept the one with history, lead source event), Bhav Dhillon (kept Gold Tan and
+  Sunset Spa, email added), Jessie Tian ("Jessie Heos Toronto" merged in, its number as mobile), Leigh Bishop (Emily's "DrLeigh
+  Bishop" merged into Lucas's, #26). PL Bastian left as is.
+- Emily's Leads after: Other Warm 43 (10 new), Social Media 51 (5 new), Events and Training 14 (3 new), Cold 0.
