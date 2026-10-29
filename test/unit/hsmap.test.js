@@ -75,3 +75,14 @@ test('what each n8n HubSpot write is', () => {
   assert.equal(k('DELETE', '/crm/v3/objects/contacts/1').kind, 'delete');   // live Edge's Cleaner (owner 2026-10-28)
   assert.equal(k('DELETE', '/crm/v3/objects/products/1').kind, 'unknown');
 });
+
+test('notes: a rep\'s note written through live Edge is kept like one typed in HubSpot; other app notes are not (owner 2026-10-29)', () => {
+  const edge = M.noteRow('1', { hs_object_source: 'INTEGRATION', hs_note_body: '<p>Dropped samples.</p><p><em>Logged from Edge Leads by Emily Grace.</em></p>', hs_timestamp: '2026-10-28T15:00:00Z' });
+  assert.equal(edge.skip, undefined);
+  assert.equal(edge.row.body.includes('Dropped samples.'), true);
+  const voice = M.noteRow('2', { hs_object_source: 'INTEGRATION', hs_note_body: '<p>Call back Monday.</p><p><em>Voice note, logged from Edge by Sam Almas.</em></p>' });
+  assert.equal(voice.skip, undefined);
+  const app = M.noteRow('3', { hs_object_source: 'INTEGRATION', hs_note_body: '<p>Order #1234 shipped.</p>' });
+  assert.match(app.skip, /automated/);
+  assert.equal(M.noteRow('4', { hs_object_source: 'CRM_UI', hs_note_body: '<p>Typed in HubSpot</p>' }).skip, undefined);
+});

@@ -190,8 +190,11 @@ function meetingRow(id, p, now = new Date().toISOString()) {
     body: [strip(p.hs_meeting_body), strip(p.hs_internal_meeting_notes)].filter(Boolean).join('\n\n') || null, location: orNull(p.hs_meeting_location), needs_review: false,
     source: 'import', external_id: 'hubspot:meeting:' + id } };
 }
+// A note live Edge wrote for a rep ("Logged from Edge ... by <rep>", voice notes, "Booked from Edge") is a person's note
+// even though HubSpot marks it as written by an app (owner 2026-10-29: every change made in old Edge must reach v2).
+const EDGE_NOTE = /(logged|booked) from edge\b/i;
 function noteRow(id, p, o = {}) {
-  if (!o.person && !/^(CRM_UI|MOBILE)/.test(String(p.hs_object_source || ''))) return { skip: 'automated note (only notes a person writes are kept)' };
+  if (!o.person && !/^(CRM_UI|MOBILE)/.test(String(p.hs_object_source || '')) && !EDGE_NOTE.test(String(p.hs_note_body || ''))) return { skip: 'automated note (only notes a person writes are kept)' };
   const body = strip(p.hs_note_body);
   if (!body) return { skip: 'empty note' };
   return { row: { kind: 'note', user_id: ownerUser(p.hubspot_owner_id), occurred_at: iso(p.hs_timestamp), body, needs_review: false, source: 'import', external_id: 'hubspot:note:' + id } };

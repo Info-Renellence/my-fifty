@@ -397,6 +397,12 @@ async function sync(sql, budgetMs) {
   const until = Date.now() + (budgetMs || 25000);
   const [row] = await sql`select value from settings where key = 'hubspot_sync'`;
   const marks = Object.assign({}, (row && row.value) || {});
+  // Once (owner 2026-10-29): read notes again from the Oct 22 export, so the notes live Edge wrote for reps (skipped as
+  // app-written until noteRow knew them, and never copied because live Edge's intake key was wrong) are added.
+  if (!marks.edge_notes_reread) {
+    if (!marks.notes || marks.notes > EXPORT_AT) marks.notes = EXPORT_AT;
+    marks.edge_notes_reread = new Date().toISOString();
+  }
   const out = {};
   for (const type of ORDER) {
     const res = (out[type] = { seen: 0, added: 0, updated: 0, skipped: 0 });

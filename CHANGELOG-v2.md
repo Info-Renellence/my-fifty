@@ -573,3 +573,15 @@ Tests `test/db/edge-kv.test.js`; live Edge `test/v2copy.test.js`. Undo: revert t
   medical director from another clinic; their primary contact, injector and agreement moved to the practitioner named on the
   form (renellence-ops `ops/fixes/onboarding-owner-2026-10-29.js`, backup in `data/backups/`). Both now show as onboarded.
 Undo: revert 6a13d3a and remove the n8n step; the onboarding backup holds the old rows.
+
+## 40. Live Edge's notes reach v2; Imen Azabou's clinic (code + data), 2026-10-29, asked by Yousef
+
+- Found: live Edge's intake key (PULSE_INTAKE_SECRET on Vercel daily-renellence) does not match Pulse's, so every copy live
+  Edge sent since Oct 27 (`_mirror.js`, and #37/#39 since today) was refused (401). Owner sets the right key
+  (`renellence-ops/ops/fix-edge-intake-key.sh`); the #37/#39 catch-ups run again once Pulse takes them.
+- The 5-minute pull skipped notes HubSpot marks as written by an app, which is how live Edge's notes look, so the notes reps
+  wrote in live Edge (Leads/Customers notes, voice notes, "Booked from Edge" meetings are meetings and were fine) were not
+  in v2. `api/_hsmap.js` noteRow now keeps a note that says "Logged from Edge" / "Booked from Edge"; the pull reads notes
+  again once from the Oct 22 export (settings `hubspot_sync.edge_notes_reread`). Notes already in v2 or deleted there are
+  not touched (ids per note and contact). Test `test/unit/hsmap.test.js`.
+- Imen Azabou -> Espace Skins: already done at 2026-10-29 13:43 UTC (source import, a clean-up run), nothing changed now.
