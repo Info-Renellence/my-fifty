@@ -3,7 +3,8 @@
 // by rep and send the rep the details").
 //
 // Each timer tick (api/cron.js, core part):
-//   1. info@'s new inbox mail (its Gmail connection in Pulse; the last 2 days, each message once). Robots, our own mail
+//   1. info@'s new inbox mail and the application notices it sent (its Gmail connection in Pulse; the last 2 days, each
+//      message once). Robots, our own mail
 //      and existing customers who have ordered are dropped in code; our own website notices (New Account Application
 //      and other form notices sent from info@) are kept.
 //   2. the rest go to Claude (Supabase claude-jobs, job "inbox"), which says which are potential new customers and
@@ -112,7 +113,10 @@ async function run(sql, budgetMs = 45000) {
   const seen = new Set(st.seen);
   const at = await G._.accessToken(open(box.credentials_encrypted));
   // First run: today's mail only. After that the last 2 days, each message once (seen).
-  const l = await G._.gget(at, 'messages?maxResults=50&q=' + encodeURIComponent(`in:inbox ${st.fresh ? 'newer_than:1d' : 'newer_than:2d'}`));
+  // The website's New Account Application notice is sent FROM info@ to staff (found 2026-10-29: to Emily, Aria and
+  // Caterina), so in info@'s mailbox it is only in Sent: read those as well as the inbox.
+  const q = `{in:inbox subject:"account application"} ${st.fresh ? 'newer_than:1d' : 'newer_than:2d'}`;
+  const l = await G._.gget(at, 'messages?maxResults=50&q=' + encodeURIComponent(q));
   const ids = ((l && l.messages) || []).map((x) => x.id).filter((id) => !seen.has(id)).reverse();
   const out = { new: ids.length, candidates: 0, leads: 0, sent: 0, unassigned: 0 };
   const cands = [], done = [];
