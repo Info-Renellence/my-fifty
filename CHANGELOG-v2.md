@@ -611,3 +611,11 @@ Owner: "give them ability to make a contact a candidate or a lead"; answer: the 
 - Also (no schema change): the person card's "Next follow-up" is now "Next step", what to do (the open follow-up task's
   title) and when; `set_follow_up` takes `title`.
 - **Status: applied to v1 (test) and v2 2026-10-29** (`renellence-ops/ops/fixes/apply-v2-017.js`, dry run first; 0 contacts set).
+
+## 44. Zainab Ghanim's order credited to Brittany (data), 2026-10-29, asked by Yousef
+
+Owner: "zainab ghanims should count to brittany fix that, everything else is ok" (after the commission check across reps).
+- `orders.rep_id` of #123365393 (Oct 1, $1,350 wire, paid; a reorder) moved from Info Renellence to Brittany Houston
+  (`renellence-ops/ops/fixes/credit-zainab-brittany.cjs`, dry run first; change_logs has it). Brittany's Q4 Booster: $513 -> $567.
+- HubSpot still has the order under info@. If that order changes in HubSpot, the 5-minute pull would set it back to Info
+  Renellence; changing its owner to Brittany in HubSpot stops that.
