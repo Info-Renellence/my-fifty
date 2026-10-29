@@ -26,6 +26,11 @@ describe('orders n8n did not accept are sent again', () => {
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] });
     assert.equal(r.sentToN8n, false);
     assert.equal(await sends(sql, r.orderId), 0);
+    // placed seconds ago: its own send may still be on its way, so the timer waits (audit 2026-10-28)
+    const fresh = f.calls.length;
+    await cron.resendOrders(sql);
+    assert.equal(f.calls.slice(fresh).filter((x) => JSON.parse(x.body).orderId === r.orderId).length, 0, 'not resent in its first 2 minutes');
+    await sql`update orders set submitted_at = now() - interval '3 minutes' where id = ${r.orderId}`;
     const mine = (out) => out;   // other waiting orders in v2 (if any) may be counted too
     assert.equal(mine(await cron.resendOrders(sql)).sent, 0, 'still down');
     up = true;

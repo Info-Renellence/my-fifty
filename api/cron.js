@@ -302,6 +302,9 @@ async function resendOrders(sql, notQueued) {
   const waiting = await sql`
     select o.id, o.contact_id from orders o join contacts c on c.id = o.contact_id left join users u on u.id = o.rep_id
      where o.status = ${'submitted'} and o.deleted_at is null and o.placed_by_id is not null and o.submitted_at > now() - interval '7 days'
+       -- not one placed in the last 2 minutes: its own send may still be on its way (data-flow audit 2026-10-28: a tick
+       -- 1 s after an order sent it a second time while the rep's send was still waiting for n8n's answer)
+       and o.submitted_at < now() - interval '2 minutes'
        and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
        and not exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'send')

@@ -23,6 +23,7 @@ test('a failed send to the sales form is sent again by the timer with the same o
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1 }] });
     assert.equal(r.sentToN8n, false); assert.equal(await sends(sql, r.orderId), 0);
     assert.equal(forms[0]['X-Idempotency-Key'], 'order:' + r.orderId, 'the first try carries the key');
+    await sql`update orders set submitted_at = now() - interval '3 minutes' where id = ${r.orderId}`;   // past the 2-minute wait
     assert.equal((await cron.resendOrders(sql)).sent, 0, 'still down');
     up = true;
     const t = await cron.resendOrders(sql);
