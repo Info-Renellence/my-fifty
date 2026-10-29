@@ -338,7 +338,8 @@ async function syncOrder(tx, hsId, src = HS) {
 // Meta leads land in HubSpot directly: none of that goes through n8n. Every timer tick (api/cron.js) reads what changed in
 // HubSpot since the last tick (read only) and brings it into v2 with the Oct 22 rules and ids (api/_hsmap.js):
 //   contacts  new since the Oct 22 export are added (not Quo-made, staff or test ones); people left out on Oct 22 are
-//             never brought back by a later edit; existing ones only get blank fields filled ("v2 wins")
+//             not brought back by a later edit, only by a rep's own call, meeting, note or task on them (owner
+//             2026-10-29); existing ones only get blank fields filled ("v2 wins")
 //   clinics   blank fields filled;  orders  as the n8n intake does (syncOrder)
 //   calls, meetings, notes (a person's only), tasks   added once on the v2 contacts they belong to; a meeting's or task's
 //             status and dates follow HubSpot
