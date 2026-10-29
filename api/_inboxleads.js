@@ -24,17 +24,31 @@ const INFO = 'info@renellence.com';
 const OURS = /@renellence\.com$/i;
 // Our own website and form notices from info@ that carry someone else's details (New Account Application etc.).
 const NOTICE = /account application|application|submission|enquiry|inquiry|interest form|contact form|sign[- ]?up|registration|register/i;
-const MAX_SEEN = 600, MAX_LOG = 50, BATCH = 5;   // 5 a tick: web searches take time
+const MAX_SEEN = 600, MAX_LOG = 50, BATCH = 5;
+// Our own alerts must never be read back as leads (2026-10-29: info@'s Sent copy of "New account application: Refresh MD
+// Spa" matched the application search, so every tick emailed Emily the same lead again). They carry Pulse's Message-ID.
+const OUR_ALERT = /^(new lead|new account application|no rep found, please assign):/i;
+const PULSE_MSG = /@myfifty\.renellence\.com>?$/i;
+// One email per lead: the same applicant (email) or clinic again within 30 days (a forward, a resubmitted form) is skipped.
+const REPEAT_DAYS = 30;
+const leadKey = (res, m) => {
+  const e = String(res.email || '').trim().toLowerCase();
+  if (e && !OURS.test(e)) return 'e:' + e;
+  const c = String(res.clinic || res.name || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return c ? 'c:' + c : 'm:' + String(m.subject || '').toLowerCase();
+};   // 5 a tick: web searches take time
 const digits = (p) => String(p || '').replace(/\D/g, '').slice(-10);
 const first = (s) => String(s || '').trim().split(/\s+/)[0].toLowerCase();
 
 async function state(sql) {
   const [r] = await sql`select value from settings where key = 'inbox_leads'`;
   const v = (r && r.value) || {};
-  return { seen: Array.isArray(v.seen) ? v.seen : [], log: Array.isArray(v.log) ? v.log : [], fresh: !r };
+  return { seen: Array.isArray(v.seen) ? v.seen : [], log: Array.isArray(v.log) ? v.log : [], sent: v.sent && typeof v.sent === 'object' ? v.sent : {}, fresh: !r };
 }
 async function save(sql, st) {
-  const value = { seen: st.seen.slice(-MAX_SEEN), log: st.log.slice(-MAX_LOG) };
+  const cut = Date.now() - REPEAT_DAYS * 864e5;
+  const sent = Object.fromEntries(Object.entries(st.sent || {}).filter(([, at]) => new Date(at).getTime() > cut));
+  const value = { seen: st.seen.slice(-MAX_SEEN), log: st.log.slice(-MAX_LOG), sent };
   await sql`insert into settings (key, value, updated_at) values ('inbox_leads', ${sql.json(value)}, now())
             on conflict (key) do update set value = excluded.value, updated_at = now()`;
 }
@@ -128,6 +142,7 @@ async function run(sql, budgetMs = 45000) {
     const from = G._.addrs(G._.hdr(m, 'From')), subject = G._.hdr(m, 'Subject');
     const body = G._.bodyText(m.payload) || m.snippet || '';
     const ours = from.some((a) => OURS.test(a));
+    if (PULSE_MSG.test(G._.hdr(m, 'Message-ID')) || (ours && OUR_ALERT.test(subject.trim()))) continue;   // our own lead alerts
     if (ours && !NOTICE.test(subject)) continue;                 // our own mail, not a form notice
     if (!ours && from.some((a) => G._.ROBOT.test(a))) continue;  // robots and newsletters
     const person = ours ? null : await known(sql, from, '');
@@ -148,6 +163,8 @@ async function run(sql, budgetMs = 45000) {
       out.leads++;
       const person = await known(sql, [res.email].concat(G._.addrs(c.m.from)), res.phone);
       if (person && person.ordered) continue;
+      const key = leadKey(res, c.m);
+      if (st.sent[key]) { out.repeats = (out.repeats || 0) + 1; continue; }   // already sent to the rep: never again
       const r = route(res, person, reps);
       const to = r.to.length ? r.to : [{ email: INFO, name: 'info@' }];
       if (!r.to.length) out.unassigned++;
@@ -163,6 +180,7 @@ async function run(sql, budgetMs = 45000) {
       st.log.push({ at: new Date().toISOString(), gmail: c.id, kind: res.kind, who, to: to.map((t) => t.email), why: r.why, sent,
         location: res.location_source || '' });
       st.seen.push(c.id);
+      st.sent[key] = new Date().toISOString();
       await save(sql, st);   // after every lead, so a cut-off run never sends the same lead twice
     }
   }
@@ -173,4 +191,4 @@ async function run(sql, budgetMs = 45000) {
 
 module.exports = { run };
 // Exposed for the unit tests only.
-module.exports._ = { route, details, NOTICE, known };
+module.exports._ = { route, details, NOTICE, known, leadKey, OUR_ALERT };

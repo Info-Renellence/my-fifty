@@ -22,7 +22,7 @@ function google(messages, claude) {
     if (url.includes('/messages/send')) { sent.push(JSON.parse(init.body).raw); return { json: { id: 's' + sent.length } }; }
     const m = messages.find((x) => url.includes('/messages/' + x.id + '?'));
     if (m) return { json: { id: m.id, labelIds: ['INBOX'], snippet: '', payload: { mimeType: 'text/plain', body: { data: b64(m.body) },
-      headers: [{ name: 'From', value: m.from }, { name: 'To', value: 'info@renellence.com' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: 'Thu, 29 Oct 2026' }] } } };
+      headers: [{ name: 'From', value: m.from }, { name: 'To', value: 'info@renellence.com' }, { name: 'Subject', value: m.subject }, { name: 'Date', value: 'Thu, 29 Oct 2026' }, { name: 'Message-ID', value: m.mid || '<' + m.id + '@mail.unit.invalid>' }] } } };
     if (url.startsWith(process.env.CLAUDE_JOBS_URL)) { const b = JSON.parse(init.body); asked.push(b); return claude(b); }
     return { status: 404, json: {} };
   });
@@ -114,5 +114,32 @@ test('switched off: nothing read', async () => {
     require('../../api/_flags').clear();
     const out = await IL.run(sql, 50000);
     assert.deepEqual(out, { off: true });
+  });
+});
+
+test('never reads its own alerts back, and emails a lead once (owner 2026-10-29: Emily got the same lead every 5 minutes)', async () => {
+  await h.withDb(async (sql) => {
+    require('../../api/_flags').clear();   // the switched-off test before this one left the cache off
+    const reps = await setup(sql);
+    const app = (id) => ({ id, from: 'Info Renellence <info@renellence.com>', subject: 'New Account Application - Loop Spa', body: 'Clinic Loop Spa, Email loop.' + n + '@unit.invalid' });
+    const msgs = [
+      app('l1' + n),
+      // our own alert in info@'s Sent folder, as Gmail returns it for the application search
+      { id: 'l2' + n, from: 'Renellence <info@renellence.com>', subject: 'New account application: Loop Spa', body: 'New account application from the info@ inbox.', mid: '<abc.def@myfifty.renellence.com>' },
+      // the same application forwarded by someone
+      { id: 'l3' + n, from: 'Info Renellence <info@renellence.com>', subject: 'Fwd: New Account Application - Loop Spa', body: 'Clinic Loop Spa, Email loop.' + n + '@unit.invalid' },
+    ];
+    const g = google(msgs, (b) => ({ json: { ok: true, results: b.emails.map((e) => result(e.code, { kind: 'application', clinic: 'Loop Spa', email: 'loop.' + n + '@unit.invalid', postal: 'V6B 1A1' })) } }));
+    try {
+      const out = await IL.run(sql, 50000);
+      assert.equal(out.candidates, 2, 'our alert never goes to Claude');
+      assert.ok(!g.asked[0].emails.some((e) => /^New account application:/.test(e.subject)));
+      assert.equal(g.mails().length, 1, 'one email for the lead, not one per copy');
+      assert.equal(out.repeats, 1);
+      // the alert it just sent shows up in Sent on the next tick: still nothing
+      msgs.push({ id: 'l4' + n, from: 'Renellence <info@renellence.com>', subject: 'New account application: Loop Spa', body: 'x', mid: '<zzz@myfifty.renellence.com>' });
+      await IL.run(sql, 50000);
+      assert.equal(g.mails().length, 1);
+    } finally { g.f.restore(); }
   });
 });
