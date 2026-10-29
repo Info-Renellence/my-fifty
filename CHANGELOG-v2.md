@@ -529,3 +529,17 @@ Owner: "i want claude picking and writing"; answers: today's rules + Claude's ju
   for this week's unsubmitted check-ins, plus a `checkins` row (no submitted_at) for a rep who had none. change_logs source
   edge_app, no user. Runs in `ai_runs` (job picks). Code: renellence-edge 18b54ca (Edge `api/_edge/claudepicks.js`, job
   `supabase/functions/claude-jobs/jobs/picks.ts`). Off switch: settings `claude` `{"jobs_on": {"picks": false}}`.
+
+## 39. Data-flow audit approvals (data + code, no schema change), 2026-10-29, approved by Yousef
+
+From the 28 Oct audit (renellence-ops `data/audit-2026-10-28/report.md`), items 4, 5, 6 and 9.
+- Code (Pulse): SignatureAPI looks back 14 days, not 3 (7286ebe); the timer waits 2 minutes before re-sending an order
+  (1ba35e3); the singular `associations/company` link is applied (3f9c011); the HubSpot pull adds someone left out on
+  Oct 22 once a rep's own call, meeting, note or task is on them, and follows HubSpot merges (91a639f).
+- Data: the 28 Oct French onboarding's clinic (HubSpot company 227342630887), soft-deleted by #34 as empty only because
+  its link was skipped, restored and linked to the onboarding's primary contact (renellence-ops
+  `ops/fixes/onboarding-clinic-2026-10-29.js`, backup in `data/backups/`).
+- Data: 3 people reps worked in HubSpot on 20-27 Oct, left out on Oct 22, added with the migration's ids and rules, plus one
+  clinic (HubSpot contacts 273712214972, 281173117937, 257908976581; company 225279604714;
+  `ops/fixes/left-out-3-2026-10-29.js`). change_logs source import, one batch each.
+Undo: soft-delete the 3 contacts and the clinic by legacy_id; set the restored clinic's deleted_at back.
