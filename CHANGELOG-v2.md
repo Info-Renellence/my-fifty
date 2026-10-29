@@ -524,7 +524,7 @@ Test `test/db/edge-forecasts.test.js`; live Edge `test/v2forecasts.test.js`. Und
 
 Owner: "i want claude picking and writing"; answers: today's rules + Claude's judgment, facts + recent notes, starting this week.
 - settings `claude_prompts.picks` added (renellence-ops `ops/claude/prompts/picks.txt` via `sync-prompts.cjs v2 --apply`).
-- pg_cron `claude-picks` (Fridays 04:00 UTC, one `claude_job('picks', {rep})` per active rep; `ops/claude/schedule-picks.js`).
+- pg_cron `claude-picks` (Fridays 04:00 UTC, one `claude_job('picks', {rep})` per active rep; `ops/claude/schedule-picks.cjs`).
 - Writes: `account_picks.suggested_pick` / `suggested_reason` (and `rep_pick` only where it still equalled the old suggestion)
   for this week's unsubmitted check-ins, plus a `checkins` row (no submitted_at) for a rep who had none. change_logs source
   edge_app, no user. Runs in `ai_runs` (job picks). Code: renellence-edge 18b54ca (Edge `api/_edge/claudepicks.js`, job
