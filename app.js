@@ -398,6 +398,10 @@
         if (st.typing) {
           box = '<div class="notebox typing"><textarea class="note" data-note rows="3" placeholder="What happened? Add a line starting Next: for the next step">' + esc(st.note) + '</textarea>'
             + (BOOT.voice ? '<button type="button" data-mic class="mic" aria-label="Say it instead">' + ic('mic', 20, 2) + '</button>' : '') + '</div>';
+        } else if (BOOT.voice && !st.note.trim() && st.rec === null) {
+          // Nothing said or typed yet: two equal choices (owner 2026-10-29: "add a type button for the voice recording area")
+          box = '<div class="notepair"><button type="button" class="notebox" data-say><span class="mic">' + ic('mic', 22, 2) + '</span><span class="nt">Say it</span></button>'
+            + '<button type="button" class="notebox" data-type><span class="mic">' + ic('pen', 20, 2) + '</span><span class="nt">Type it</span></button></div>';
         } else {
           var recording = st.rec === 'on', working = st.rec === 'working', has = !!st.note.trim();
           var title = working ? 'Writing it up…' : recording ? 'Listening… 0:' + String(st.secs).padStart(2, '0') : has ? 'Note added' : 'Add a quick note';
@@ -468,7 +472,8 @@
         if (st.note.trim() || !BOOT.voice) { st.typing = true; st.focus = true; draw(); return; }
         startRec(); return;
       }
-      if (e.target.closest('[data-mic]')) { st.typing = false; startRec(); return; }
+      if (e.target.closest('[data-mic]') || e.target.closest('[data-say]')) { st.typing = false; startRec(); return; }
+      if (e.target.closest('[data-type]')) { st.typing = true; st.focus = true; draw(); return; }
       if (e.target.closest('[data-save]')) {
         if (st.busy || !st.ans || st.note.trim().length < 2 || st.rec !== null) return;
         st.busy = true; draw();
@@ -729,7 +734,7 @@
     }
     if (settling.length) {
       h += sect('Samples settling in', '') + '<section class="card r20" style="margin-bottom:14px">' + settling.map(function (c) {
-        var when = c.days == null ? 'Samples on the way' : 'Ask in ' + (ASK_DAYS - c.days) + (ASK_DAYS - c.days === 1 ? ' day' : ' days');
+        var when = c.noSamples ? 'No samples yet' : c.days == null ? 'Samples on the way' : 'Ask in ' + (ASK_DAYS - c.days) + (ASK_DAYS - c.days === 1 ? ' day' : ' days');
         return '<a href="/person/' + c.id + '" data-nav class="row" style="min-height:68px">' + candRing(c, c.days)
           + '<span class="grow"><span class="t ellip">' + esc(c.name) + '</span><span class="sub ellip">' + (c.clinic ? nb(c.clinic) + ' · ' : '') + when + '</span></span>' + CHEV + '</a>';
       }).join('') + '</section>';
@@ -868,7 +873,9 @@
         + '<section class="hero pcard"><span class="pring" aria-hidden="true"></span>'
         + '<span style="position:relative;display:flex;align-items:center;gap:16px"><span data-avtap>' + AV(p.role, p.name, 88, 'ring card ' + avState(p), p.id) + '</span>'
         + '<span style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column">'
-        + '<span class="stagepill"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '</span>'
+        + (p.stage === 'fifty'
+          ? '<span class="stagepill"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '</span>'
+          : '<button type="button" data-stage class="stagepill tap" aria-label="Stage: ' + esc(label) + '. Change"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '<span class="pchev" aria-hidden="true">›</span></button>')
         + '<h1 class="display" style="font-size:25px;font-weight:800;line-height:1.1;letter-spacing:-1px">' + esc(p.name) + '</h1>'
         + (p.clinic ? '<span style="margin-top:2px;font-size:15px;opacity:.75">' + nb(p.clinic) + '</span>' : '') + '</span></span>'
         + '<span class="pstats">' + p.stats.map(function (s) { return '<span><span class="num">' + esc(s[0]) + '</span><span class="pl">' + esc(s[1]) + '</span></span>'; }).join('') + '</span></section>';
@@ -900,15 +907,57 @@
       }
       var none = lead ? 'Unknown' : 'None yet';
       h += '<section class="card">'
-        + kvBtn('data-followup', 'Next follow-up', p.followUp ? (p.followUp.date === ymd() ? 'Today' : p.followUp.label) : 'None', !p.followUp)
+        + kvBtn('data-followup', 'Next step', p.followUp ? stepText(p.followUp) : 'None', !p.followUp)
         + kvBtn('data-uses="fillers"', 'Filler they use', p.fillers.length ? names(FILLERS, p.fillers) : none, !p.fillers.length)
         + kvBtn('data-uses="prp"', 'PRP/PRF they use', p.prp.length ? names(PRPS, p.prp) : none, !p.prp.length)
-        + '</section><input type="date" data-followup-input min="' + ymd() + '" value="' + (p.followUp ? p.followUp.date : '') + '" aria-label="Next follow-up date" style="position:absolute;opacity:0;pointer-events:none;width:1px;height:1px">'
+        + '</section>'
         + '<a href="/person/' + p.id + '/history" data-nav class="card row" style="margin-top:10px;min-height:60px">'
         + '<span class="round" style="width:36px;height:36px;border-radius:10px">' + ic('clock', 18, 1.6) + '</span>'
         + '<span class="grow"><span style="font-size:15px;font-weight:600">History</span><span class="sub">' + esc(p.last) + '</span></span>' + CHEV + '</a>';
       return h + '</div>';
     }, 'people', 'card');
+  }
+  // "Drop off samples · Nov 4"; a plain follow-up shows only its day.
+  function stepText(f) {
+    var when = f.date === ymd() ? 'Today' : f.label;
+    return f.title && f.title !== 'Follow up' ? f.title + ' · ' + when : when;
+  }
+  // Next step (owner 2026-10-29: "theres a next follow up date button but no way to mark a next step"): what and when.
+  function stepSheet(p) {
+    var f = p.followUp, tom = new Date(Date.now() + 86400000);
+    var day = f ? f.date : tom.getFullYear() + '-' + String(tom.getMonth() + 1).padStart(2, '0') + '-' + String(tom.getDate()).padStart(2, '0');
+    $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Next step"><span class="grab"></span>'
+      + '<div class="sheet-head" style="align-items:center"><span class="sheet-title">Next step</span><button type="button" data-close class="pillbtn">Cancel</button></div>'
+      + '<div class="well"><input type="text" data-step maxlength="200" placeholder="What to do, e.g. drop off samples" aria-label="What to do" value="' + esc(f && f.title !== 'Follow up' ? f.title : '') + '">'
+      + '<span class="hr"></span><input type="date" data-step-date min="' + ymd() + '" value="' + esc(day) + '" aria-label="When"></div>'
+      + '<button type="button" data-save class="btn">Save</button></div>';
+    setTimeout(function () { var i = $sheet.querySelector('[data-step]'); if (i) i.focus(); }, 60);
+    sheetHandler = function (e, type) {
+      if (type || !e.target.closest('[data-save]')) return;
+      var date = $sheet.querySelector('[data-step-date]').value, title = $sheet.querySelector('[data-step]').value.trim();
+      if (!date) { toast('Pick a day'); return; }
+      act('set_follow_up', { contactId: p.id, date: date, title: title || 'Follow up' })
+        .then(function (r) { closeSheet(); toast('Next step: ' + (title ? title + ' · ' : '') + r.label); screenPerson(p.id); }, function (err) { toast(errText(err)); });
+    };
+  }
+  // Lead or Candidate by hand (v2-017, owner 2026-10-29: the rep's choice sticks; a first order still makes them My Fifty).
+  function stageSheet(p) {
+    var opt = function (v, t, sub) {
+      var on = v === 'auto' ? false : p.stage === v;
+      return '<button type="button" data-pick="' + v + '" class="kv"' + (on ? ' aria-pressed="true"' : '') + '><span class="grow" style="display:flex;flex-direction:column;gap:2px"><span style="font-size:16px;font-weight:600">' + t + '</span>'
+        + '<span class="sub" style="font-size:13px;color:var(--muted)">' + sub + '</span></span>' + (on ? ic('check', 20, 2.2) : '') + '</button>';
+    };
+    $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Stage"><span class="grab"></span>'
+      + '<div class="sheet-head" style="align-items:center"><span class="sheet-title">Stage</span><button type="button" data-close class="pillbtn">Cancel</button></div>'
+      + '<section class="card">' + opt('lead', 'Lead', 'Not trying the products yet') + opt('candidate', 'Candidate', 'Trying the products, close to a first order')
+      + (p.byHand ? opt('auto', 'Let Pulse decide', 'From their samples and orders') : '') + '</section>'
+      + '<span style="font-size:13px;color:var(--muted);padding:0 4px">A first order moves them to My Fifty either way.</span></div>';
+    sheetHandler = function (e, type) {
+      var b = !type && e.target.closest('[data-pick]');
+      if (!b) return;
+      act('set_stage', { contactId: p.id, stage: b.getAttribute('data-pick') })
+        .then(function (r) { closeSheet(); toast(r.stage === 'candidate' ? 'Now a candidate' : r.stage === 'lead' ? 'Now a lead' : 'Stage updated'); screenPerson(p.id); }, function (err) { toast(errText(err)); });
+    };
   }
   function kvBtn(attr, label, value, none) {
     return '<button type="button" ' + attr + ' class="kv"><span class="k">' + label + '</span><span class="v' + (none ? ' none' : '') + '">' + esc(value) + '</span></button>';
@@ -919,19 +968,10 @@
     if (!current) return;
     var b = e.target.closest('[data-quo]');
     if (b) { callOrText(current.id, b.getAttribute('data-quo')); return; }
-    if (e.target.closest('[data-followup]')) {
-      var inp = $app.querySelector('[data-followup-input]');
-      if (inp.showPicker) { try { inp.showPicker(); return; } catch (x) { /* fall through */ } }
-      inp.focus(); inp.click();
-      return;
-    }
+    if (e.target.closest('[data-followup]')) { stepSheet(current); return; }
+    if (e.target.closest('[data-stage]')) { stageSheet(current); return; }
     b = e.target.closest('[data-uses]');
     if (b) openUses(current, b.getAttribute('data-uses'));
-  });
-  $app.addEventListener('change', function (e) {
-    var inp = e.target.closest('[data-followup-input]');
-    if (!inp || !inp.value || !current) return;
-    act('set_follow_up', { contactId: current.id, date: inp.value }).then(function (r) { toast('Next follow-up: ' + r.label); screenPerson(current.id); }, function (err) { toast(errText(err)); });
   });
 
   // Call and Text open the Quo app (Yousef 2026-10-20: "Quo app + Gmail"). The Log sheet is only readied after a call,

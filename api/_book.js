@@ -4,6 +4,9 @@
 // Stages (Edge decisions 2026-10-21, shared with the data-model SOP; worked out, never stored):
 //   stage      fifty      a (non-sample) order placed in the last 3 months (settings fifty_months), paid or not
 //              candidate  has a sample order (every line free), and is not in the Fifty
+//              set by hand  a rep can mark a lead or a candidate (contacts.rep_stage, v2-017, Yousef 2026-10-29: "the
+//                         rep's choice sticks, orders still move it up"): it decides between lead and candidate, but an
+//                         order in the last 3 months still makes them fifty. Empty = worked out as below and above.
 //              lead       otherwise. Someone who left the Fifty (no order for 3 months) is a lead again and shows as
 //                         a WARM lead (leadGroup), whatever their first source. A lead whose onboarding is fully
 //                         signed (the onboarding agreement completed: injector and MD) and who has no order of any
@@ -98,6 +101,7 @@ async function book(sql, me, opts) {
            c.fillers_used::text[] as fillers_used, c.prp_used::text[] as prp_used,
            c.shipping_street, c.shipping_city, c.shipping_province, c.shipping_postal_code,
            c.billing_street, c.billing_city, c.billing_province, c.billing_postal_code,
+           to_jsonb(c)->>'rep_stage' as rep_stage,   -- read this way so the book works before v2-017 is applied
            -- only the onboarding's primary contact (Yousef 2026-10-22): never an injector or medical director who is not
            -- also its primary contact, and never agreements.contact_id on its own
            exists (select 1 from agreements a join onboardings ob on ob.agreement_id = a.id
@@ -159,7 +163,8 @@ async function book(sql, me, opts) {
     p.lastOrderAt = lastOrderAt;
     p.firstOrderAt = ordered.length ? ordered.map(placedAt).reduce((a, x) => (x < a ? x : a)) : null;
     const inFifty = lastOrderAt && new Date(lastOrderAt) > monthsAgo(cfg.fifty_months, now);
-    p.stage = inFifty ? 'fifty' : samples.length && !ordered.length ? 'candidate' : 'lead';
+    p.repStage = ['lead', 'candidate'].includes(c.rep_stage) ? c.rep_stage : null;
+    p.stage = inFifty ? 'fifty' : p.repStage || (samples.length && !ordered.length ? 'candidate' : 'lead');
     p.onboarded = !!c.onboarding_signed;
     // Left the Fifty: a warm lead. Onboarded with no order of any kind yet: the Onboarded group (item B, 2026-10-22).
     p.leadGroup = ordered.length ? 'warm' : p.onboarded && !os.length ? 'onboarded' : p.sourceKind;
@@ -171,9 +176,9 @@ async function book(sql, me, opts) {
       p.goingCold = p.coldDays > cfg.going_cold_days;
     }
     if (p.stage === 'candidate') {
-      const s = samples.find(arrivedAt) || samples[0];   // the newest samples that arrived; else the newest on the way
-      p.sampleOrder = s;
-      p.samplesAt = arrivedAt(s);
+      const s = samples.find(arrivedAt) || samples[0] || null;   // the newest samples that arrived; else the newest on the way
+      p.sampleOrder = s;   // null for a candidate marked by hand with no samples yet
+      p.samplesAt = s ? arrivedAt(s) : null;
       p.sampleDays = p.samplesAt ? T.daysBetween(p.samplesAt, now) : null;
       p.touchedSinceSamples = !!(p.samplesAt && p.lastTouchAt && p.lastTouchAt > p.samplesAt);
     }

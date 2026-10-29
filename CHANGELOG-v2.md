@@ -600,3 +600,14 @@ Application notices: "they fill in application and then we filter it by rep and 
   The rep gets the details by email from info@.
 - settings `inbox_leads` added: `{seen: [gmail ids], log: [last 50 leads]}`. flags `inbox_leads` (default on) is the off switch.
 - Nothing else in v2 is written: no contact is created (the rep adds the person when they reach out).
+
+## 43. A rep can mark a contact Lead or Candidate (`renellence-edge/db/v2-017-rep-stage.sql`), 2026-10-29, approved by Yousef
+
+Owner: "give them ability to make a contact a candidate or a lead"; answer: the rep's choice sticks, orders still move it up.
+- New enum `contacts_rep_stage` (lead · candidate) and column `contacts.rep_stage` (empty = worked out as before). The shared
+  `_book.js` (Pulse, Edge, Compass): an order in the last 3 months still makes them My Fifty whatever it says; otherwise
+  the rep's choice decides between lead and candidate. Read as `to_jsonb(c)->>'rep_stage'`, so the apps work before the
+  column exists. Pulse: the stage pill on the person card opens Lead / Candidate / Let Pulse decide (`act` op `set_stage`).
+- Also (no schema change): the person card's "Next follow-up" is now "Next step", what to do (the open follow-up task's
+  title) and when; `set_follow_up` takes `title`.
+- **Status: applied to v1 (test) 2026-10-29. v2: waiting on the owner** (`node renellence-ops/ops/fixes/apply-v2-017.js v2 --dry`, then without `--dry`).

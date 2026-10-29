@@ -124,7 +124,7 @@ const OPS = {
       fifty: { count: fifty.length, goal: cfg.fifty_goal, warmCount: warm.length, coldCount: cold.length, open: Math.max(0, cfg.fifty_goal - fifty.length),
         warm: warm.map((p) => row(p, (p.clinic ? p.clinic + ' · ' : '') + p.lastActiveKind + ' ' + T.short(p.lastActiveAt))),
         cold: cold.map((p) => row(p, (p.clinic ? p.clinic + ' · ' : '') + p.coldDays + ' days')) },
-      candidates: cands.map((p) => Object.assign(row(p, p.clinic), { initials: initials(p.name), days: p.sampleDays,
+      candidates: cands.map((p) => Object.assign(row(p, p.clinic), { initials: initials(p.name), days: p.sampleDays, noSamples: !p.sampleOrder,
         ring: p.sampleDays == null ? 0 : Math.min(1, p.sampleDays / 30) })),
       leads: groups, newWeek,
       all: people.map((p) => ({ id: p.id, name: p.name, clinic: p.clinic, stage: p.stage })),
@@ -167,11 +167,11 @@ const OPS = {
     const stats = p.stage === 'fifty'
       ? [[money(p.totalBought), 'Total bought'], [p.lastPaid ? money(p.lastPaid.total) : '$0', p.lastPaid ? T.short(B.paidAt(p.lastPaid)) + ' order' : 'Last order'], [since(lastContact), 'Since contact']]
       : p.stage === 'candidate'
-        ? [[String(sampleLines.reduce((a, l) => a + (Number(l.qty) || 0), 0)), 'Samples sent'], [p.sampleDays == null ? 'On the way' : since(p.samplesAt), 'Since samples'], [since(lastContact), 'Since contact']]
+        ? [[String(sampleLines.reduce((a, l) => a + (Number(l.qty) || 0), 0)), 'Samples sent'], [!p.sampleOrder ? 'None yet' : p.sampleDays == null ? 'On the way' : since(p.samplesAt), 'Since samples'], [since(lastContact), 'Since contact']]
         : [[p.sourceKind === 'event' && p.eventName ? p.eventName : SOURCE[p.sourceKind] || SOURCE[p.leadGroup] || 'Unknown', 'Came from'], [B.ago(p.createdAt).replace(' ago', ''), 'Since added'], [String(p.touches), 'Contacts']];
     return {
       role: p.role, leadGroup: p.leadGroup, stats, samples: sampleLines.length ? { lines: sampleLines, sent: T.short(B.placedAt(p.sampleOrder)) } : null,
-      id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold,
+      id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold, byHand: !!p.repStage,
       label: p.stage === 'fifty' ? (p.goingCold ? 'MY FIFTY · GOING COLD' : 'MY FIFTY') : p.stage === 'candidate' ? 'CANDIDATE'
         : 'LEAD · ' + ({ onboarded: 'ONBOARDED', social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
       totalBought: p.stage === 'fifty' ? money(p.totalBought) : null,

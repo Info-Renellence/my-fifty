@@ -9,7 +9,8 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 //   visit_missed     Today: an agreed visit marked Missed, or { undo } (account_picks.missed_at)
 //   seen_fifty       L5 has been shown
 //   add_person       L13 Save person
-//   set_follow_up    L7/L8 Next follow-up
+//   set_follow_up    L7/L8 Next step: what (task title) and when
+//   set_stage        the person card: lead or candidate by hand (v2-017)
 //   set_uses         L7/L8 Filler / PRP they use
 //   edit_note        L14 Edit (your own entries)
 //   invoice_email    L10 "+ Add an invoice email" (contacts.secondary_email)
@@ -246,17 +247,34 @@ const OPS = {
     return { ok: true, id };
   },
 
+  // The next step (owner 2026-10-29: "theres a next follow up date button but no way to mark a next step"): what to do
+  // (the open follow-up task's title) and when. Claude's next steps from calls and voice notes still come in as before.
   async set_follow_up(me, b) {
     const sql = db();
     const c = await mine(sql, me, b.contactId);
     const due = followUpAt(b.date);
     if (!due) throw fail(400, 'bad_date');
+    const step = b.title == null ? null : String(b.title).replace(/\s+/g, ' ').trim().slice(0, 200);
     await asUser(me.id, async (tx) => {
       const [t] = await tx`select id from tasks where contact_id = ${c.id} and assignee_id = ${me.id} and status = 'open' and deleted_at is null order by due_at nulls last limit 1`;
-      if (t) await tx`update tasks set due_at = ${due} where id = ${t.id}`;
-      else await tx`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values (${c.id}, ${me.id}, ${me.id}, 'Follow up', 'call', ${due}, 'open', 'manual')`;
+      if (t) await tx`update tasks set due_at = ${due}, title = coalesce(${step || null}, title) where id = ${t.id}`;
+      else await tx`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source) values (${c.id}, ${me.id}, ${me.id}, ${step || 'Follow up'}, 'call', ${due}, 'open', 'manual')`;
     });
-    return { ok: true, label: T.short(due) };
+    return { ok: true, label: T.short(due), title: step || undefined };
+  },
+
+  // Lead or candidate by hand (v2-017, owner 2026-10-29: the rep's choice sticks; a recent order still makes them My
+  // Fifty). stage 'auto' clears it, so it is worked out from orders again.
+  async set_stage(me, b) {
+    const sql = db();
+    const c = await mine(sql, me, b.contactId);
+    const stage = String(b.stage || '');
+    if (!['lead', 'candidate', 'auto'].includes(stage)) throw fail(400, 'bad_stage');
+    const [p] = (await B.book(sql, me, { contactId: c.id, everyone: isAdmin(me) })).people;
+    if (p && p.stage === 'fifty') throw fail(409, 'in_fifty');
+    await asUser(me.id, (tx) => tx`update contacts set rep_stage = ${stage === 'auto' ? null : stage} where id = ${c.id}`);
+    const [after] = (await B.book(sql, me, { contactId: c.id, everyone: isAdmin(me) })).people;
+    return { ok: true, stage: after ? after.stage : stage, byHand: stage !== 'auto' };
   },
 
   async set_uses(me, b) {
