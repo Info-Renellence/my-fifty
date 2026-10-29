@@ -267,12 +267,17 @@ describe('writes: log, undo, snooze, add a person, follow-ups (edge cases)', () 
     await assert.rejects(A.add_person(me, { firstName: 'X', email: 'Taken.Testrun@demo.invalid' }), (e) => e.status === 409 && e.message === 'email_someones' && e.detail === undefined);
     await assert.rejects(A.add_person(me, { firstName: 'X', phone: '416 555 0111' }), (e) => e.status === 409 && e.message === 'already_someones' && e.detail === undefined);
   }));
-  test('two reps adding the same new clinic name share one clinic', () => h.withDb(async (sql) => {
+  // Owner 2026-10-28 (run 4 R4-2): a same-named clinic is shared only with the same city; a name alone makes a new one.
+  test('two reps adding the same new clinic name and city share one clinic; a name with no city does not', () => h.withDb(async (sql) => {
     const me = await h.user(sql), other = await h.user(sql);
-    const a = await A.add_person(me, { firstName: 'One', clinic: 'Testrun Shared Clinic' });
-    const b = await A.add_person(other, { firstName: 'Two', clinic: 'testrun shared clinic' });
+    const a = await A.add_person(me, { firstName: 'One', clinic: 'Testrun Shared Clinic', city: 'Oakville' });
+    const b = await A.add_person(other, { firstName: 'Two', clinic: 'testrun shared clinic', city: 'oakville' });
     const rows = await sql`select clinic_id from contacts where id in (${a.id}, ${b.id})`;
     assert.equal(new Set(rows.map((r) => r.clinic_id)).size, 1);
+    const c = await A.add_person(me, { firstName: 'Three', clinic: 'Testrun Nocity Clinic' });
+    const d = await A.add_person(other, { firstName: 'Four', clinic: 'Testrun Nocity Clinic' });
+    const rows2 = await sql`select clinic_id from contacts where id in (${c.id}, ${d.id})`;
+    assert.equal(new Set(rows2.map((r) => r.clinic_id)).size, 2);
   }));
 });
 

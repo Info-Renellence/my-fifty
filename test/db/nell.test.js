@@ -94,7 +94,9 @@ describe('the 3 pm nudge push', () => {
     assert.equal((await cron._.nudge(sql, T.atLocal('2026-10-31', 15, 10))).skipped, 'not_now', 'Saturday');
   })));
 
-  test('a rep under the goal with nothing since noon gets it; one who logged since noon does not', () => h.withDb(async (sql) => withPush(async (sent) => {
+  // The day's count (book.js dayStats) is today's by the real clock, so this one runs on today, a business day.
+  test('a rep under the goal with nothing since noon gets it; one who logged since noon does not', { skip: !T.isBusinessDay(T.ymd(), []) && 'weekend' }, () => h.withDb(async (sql) => withPush(async (sent) => {
+    const at = (hh, mm) => T.atLocal(T.ymd(), hh, mm);
     const quiet = await h.user(sql), busy = await h.user(sql);
     await phone(sql, quiet); await phone(sql, busy);
     await h.touch(sql, await h.contact(sql, quiet), quiet.id, { at: at(10, 0) });

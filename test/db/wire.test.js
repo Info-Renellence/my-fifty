@@ -69,13 +69,15 @@ describe('the daily wire follow-up (op=wires)', () => {
     assert.match(mine.html, /Otto Overdue/);
     assert.doesNotMatch(mine.html, /Quinn Quiet/);
     assert.doesNotMatch(mine.html, /Mark as received/, 'reps get no button');
-    const info = r.emails.find((e) => e.to[0] === 'info@renellence.com');
+    // info@ can also own customers (the test database has some), so its own rep email may come first: take the overdue one.
+    const info = r.emails.find((e) => e.to[0] === 'info@renellence.com' && /Otto Overdue/.test(e.html));
     assert.ok(info);
     assert.match(info.html, /Otto Overdue/);
     assert.doesNotMatch(info.html, /Hanna Headsup/, 'heads-ups go to the rep only');
-    const url = info.html.match(/href="([^"]+)"/)[1].replace(/&amp;/g, '&');
-    const q = Object.fromEntries(new URL(url).searchParams);
-    assert.equal(q.o, overdue);
+    // the button for this order (the test database's own overdue wires have buttons too)
+    const qs = [...info.html.matchAll(/href="([^"]+)"/g)].map((m) => Object.fromEntries(new URL(m[1].replace(/&amp;/g, '&')).searchParams));
+    const q = qs.find((x) => x.o === overdue);
+    assert.ok(q, 'a Mark as received button for the overdue order');
     assert.equal(W.verify(q, now.getTime()), true);
     void headsUp;
   }));
