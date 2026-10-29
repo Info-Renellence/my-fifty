@@ -57,3 +57,30 @@ test('a new onboarding envelope becomes an agreement, signers and an onboarding;
     } finally { global.fetch = real; delete process.env.SIGNATUREAPI_KEY; }
   });
 });
+
+test('an envelope whose person reaches v2 days later is still added (14-day window, not 3); one older than that is left', async () => {
+  await h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const n = Date.now();
+    const email = 'sig.late' + n + '@demo.invalid';
+    const at = (days) => new Date(n - days * 86400000).toISOString();
+    const late = { id: 'envl-' + n, title: 'Renellence Onboarding Form', status: 'completed', mode: 'live', created_at: at(10), completed_at: at(10),
+      recipients: [{ id: 'r1', key: 'delegate', name: 'Sig Late', email, status: 'completed', completed_at: at(10), type: 'signer' }] };
+    const old = Object.assign({}, late, { id: 'envo-' + n, created_at: at(20), completed_at: at(20) });
+    const real = global.fetch;
+    process.env.SIGNATUREAPI_KEY = 'unit';
+    global.fetch = async (url) => /envelopes\?/.test(String(url)) ? { ok: true, json: async () => ({ data: [late, old], links: {} }) }
+      : { ok: false, status: 404, json: async () => ({ title: 'not found' }) };
+    try {
+      const r1 = await SIG.sync(sql, 10000);
+      assert.equal(r1.unmatched, 1, 'no person yet: counted, not added');
+      await h.contact(sql, me, { email });
+      const r2 = await SIG.sync(sql, 10000);
+      assert.equal(r2.added, 1);
+      const [a] = await sql`select status::text from agreements where signatureapi_envelope_id = ${late.id}`;
+      assert.equal(a.status, 'completed');
+      const [o] = await sql`select 1 from agreements where signatureapi_envelope_id = ${old.id}`;
+      assert.equal(o, undefined, 'older than the window: not read');
+    } finally { global.fetch = real; delete process.env.SIGNATUREAPI_KEY; }
+  });
+});

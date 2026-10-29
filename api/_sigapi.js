@@ -2,8 +2,8 @@
 // Needs SIGNATUREAPI_KEY (the same live key Edge, the forms site and n8n use). Without it nothing runs.
 //
 // Every timer tick (api/cron.js):
-//   1. new envelopes: SignatureAPI's list, newest first, back over the last 3 days (so one whose person reached v2 a
-//      little later is picked up on a later tick). Live, non-test envelopes only. Each becomes an agreement with its
+//   1. new envelopes: SignatureAPI's list, newest first, back over the last 14 days (so one whose person reached v2
+//      later is picked up on a later tick; data-flow audit 2026-10-28: with 3 days, one unmatched longer was never added). Live, non-test envelopes only. Each becomes an agreement with its
 //      signers, and an onboarding envelope also an onboarding, by the same rules as the Oct 22 load
 //      (renellence-ops migration-load/build.js): ids md5('…:agreement:<envelope id>'), kind from the title, the
 //      person found by email. One v2 has no person for is left for a later tick (counted as unmatched).
@@ -13,7 +13,7 @@
 'use strict';
 const M = require('./_hsmap');
 const API = 'https://api.signatureapi.com/v1/';
-const WINDOW_MS = 3 * 86400000;
+const WINDOW_MS = 14 * 86400000;
 const REFRESH = 15;
 const s = (v) => (v == null ? '' : String(v).trim());
 const iso = (v) => { const t = Date.parse(v); return isNaN(t) ? null : new Date(t).toISOString(); };
