@@ -399,9 +399,11 @@
           box = '<div class="notebox typing"><textarea class="note" data-note rows="3" placeholder="What happened? Add a line starting Next: for the next step">' + esc(st.note) + '</textarea>'
             + (BOOT.voice ? '<button type="button" data-mic class="mic" aria-label="Say it instead">' + ic('mic', 20, 2) + '</button>' : '') + '</div>';
         } else if (BOOT.voice && !st.note.trim() && st.rec === null) {
-          // Nothing said or typed yet: two equal choices (owner 2026-10-29: "add a type button for the voice recording area")
-          box = '<div class="notepair"><button type="button" class="notebox" data-say><span class="mic">' + ic('mic', 22, 2) + '</span><span class="nt">Say it</span></button>'
-            + '<button type="button" class="notebox" data-type><span class="mic">' + ic('pen', 20, 2) + '</span><span class="nt">Type it</span></button></div>';
+          // Nothing said or typed yet: the big box says it; a Type button sits inside it (owner 2026-10-29: "have the type it
+          // be a thing within the larger say it, how it used to be")
+          box = '<div class="notebox nbwrap"><button type="button" class="nbmain" data-say><span class="mic">' + ic('mic', 22, 2) + '</span>'
+            + '<span class="grow"><span class="nt">Add a quick note</span><span class="sub">Tap and say what happened</span></span></button>'
+            + '<button type="button" class="typepill" data-type>' + ic('pen', 14, 2) + 'Type</button></div>';
         } else {
           var recording = st.rec === 'on', working = st.rec === 'working', has = !!st.note.trim();
           var title = working ? 'Writing it up…' : recording ? 'Listening… 0:' + String(st.secs).padStart(2, '0') : has ? 'Note added' : 'Add a quick note';
@@ -907,7 +909,7 @@
       }
       var none = lead ? 'Unknown' : 'None yet';
       h += '<section class="card">'
-        + kvBtn('data-followup', 'Next step', p.followUp ? stepText(p.followUp) : 'None', !p.followUp)
+        + kvBtn('data-followup', 'Next step', p.claudeStep ? p.claudeStep.text + (p.followUp ? ' · ' + (p.followUp.date === ymd() ? 'Today' : p.followUp.label) : '') : p.followUp ? stepText(p.followUp) : 'None', !p.followUp && !p.claudeStep)
         + kvBtn('data-uses="fillers"', 'Filler they use', p.fillers.length ? names(FILLERS, p.fillers) : none, !p.fillers.length)
         + kvBtn('data-uses="prp"', 'PRP/PRF they use', p.prp.length ? names(PRPS, p.prp) : none, !p.prp.length)
         + '</section>'
@@ -928,7 +930,7 @@
     var day = f ? f.date : tom.getFullYear() + '-' + String(tom.getMonth() + 1).padStart(2, '0') + '-' + String(tom.getDate()).padStart(2, '0');
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Next step"><span class="grab"></span>'
       + '<div class="sheet-head" style="align-items:center"><span class="sheet-title">Next step</span><button type="button" data-close class="pillbtn">Cancel</button></div>'
-      + '<div class="well"><input type="text" data-step maxlength="200" placeholder="What to do, e.g. drop off samples" aria-label="What to do" value="' + esc(f && f.title !== 'Follow up' ? f.title : '') + '">'
+      + '<div class="well"><input type="text" data-step maxlength="200" placeholder="What to do, e.g. drop off samples" aria-label="What to do" value="' + esc(p.claudeStep ? p.claudeStep.text.slice(0, 200) : f && f.title !== 'Follow up' ? f.title : '') + '">'
       + '<span class="hr"></span><input type="date" data-step-date min="' + ymd() + '" value="' + esc(day) + '" aria-label="When"></div>'
       + '<button type="button" data-save class="btn">Save</button></div>';
     setTimeout(function () { var i = $sheet.querySelector('[data-step]'); if (i) i.focus(); }, 60);

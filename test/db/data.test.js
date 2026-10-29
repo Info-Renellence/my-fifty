@@ -196,8 +196,8 @@ describe('person', () => {
     const [onb] = await sql`insert into onboardings (primary_contact_id, submitted_at, status, agreement_id) values (${c}, now(), 'submitted', ${ag.id}) returning id`;
     assert.equal((await D.person(sql, me, Q({ id: c }))).status.label, 'Waiting on signature');
     await sql`update onboardings set status = 'complete' where id = ${onb.id}`;
-    // Signed and no order yet: the next step is samples (F27 "No samples yet · Send").
-    assert.equal((await D.person(sql, me, Q({ id: c }))).status.label, 'No samples yet');
+    // Signed and no order yet: no bar (owner 2026-10-29 removed the lead's "No samples yet · Send").
+    assert.equal((await D.person(sql, me, Q({ id: c }))).status, null);
   }));
   test('lead labels name the group; a brand-new lead’s history line is "Nothing yet"', () => h.withDb(async (sql) => {
     const me = await h.user(sql);
