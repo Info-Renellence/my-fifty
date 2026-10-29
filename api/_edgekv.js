@@ -97,16 +97,23 @@ async function personFor(tx, a, ctx, create) {
     const r = await tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and (phone = ${phone} or mobile_phone = ${phone}) limit 2`;
     if (r.length === 1) return r[0].id;
   }
+  // Someone the Oct 22 move (or an earlier copy) already made a contact for, from this same list entry.
+  const legacy = 'edge-attendee:' + ctx.shellId + '/' + a.id;
+  if (ctx.shellId) {
+    let [x] = await tx`select id, merged_into_contact_id as into, deleted_at from contacts where legacy_id = ${legacy} limit 1`;
+    for (let n = 0; x && x.into && n < 5; n++) [x] = await tx`select id, merged_into_contact_id as into, deleted_at from contacts where id = ${x.into}`;
+    if (x) return x.deleted_at ? null : x.id;
+  }
   const nm = String(a.attendee || a.name || '').trim();
   if (!create || (!nm && !email && !phone)) return null;
   const key = 'evc:' + (email || phone || nm.toLowerCase().replace(/[^a-z]/g, ''));
   const id = uid('contact:' + key);
   const parts = nm.replace(/^dr\.?\s+/i, '').split(/\s+/).filter(Boolean);
   const md = /^dr\.?\s/i.test(nm);
-  await tx`insert into contacts ${tx({ id, owner_id: ctx.owner, first_name: parts[0] || null, last_name: parts.slice(1).join(' ') || null, email: email || null, phone,
-    designation: md ? 'md' : null, role: md ? 'physician' : null, lead_source: 'event', lead_source_event_id: ctx.eventId, legacy_id: 'edge-attendee:' + ctx.shellId + '/' + a.id })}
-    on conflict (id) do nothing`;
-  return id;
+  const [made] = await tx`insert into contacts ${tx({ id, owner_id: ctx.owner, first_name: parts[0] || null, last_name: parts.slice(1).join(' ') || null, email: email || null, phone,
+    designation: md ? 'md' : null, role: md ? 'physician' : null, lead_source: 'event', lead_source_event_id: ctx.eventId, legacy_id: legacy })}
+    on conflict do nothing returning id`;
+  return made ? made.id : null;   // another unique field already taken: left out, never a failed list
 }
 function statusOf(a, list, past) {
   let s = list === 'rsvp' ? 'rsvp' : (RANK[a.status] ? a.status : 'attended');
@@ -151,7 +158,7 @@ async function applyList(tx, c, prev, actor) {
   if (prev) {
     for (const [id, a] of beforeById) {
       if (nowIds.has(id)) continue;
-      const contact = await personFor(tx, a, {}, false);
+      const contact = await personFor(tx, a, { shellId }, false);
       if (!contact) continue;
       const inviter = await userId(tx, list === 'rsvp' ? a.addedBy : repEmail);
       out.deleted += (await tx`delete from attendees where event_id = ${eventId} and contact_id = ${contact} and status = ${statusOf(a, list, past)}

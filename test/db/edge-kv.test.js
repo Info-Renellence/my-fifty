@@ -104,3 +104,17 @@ test('a commitment: each delivery from today a forecast, skipped when the rep ha
     assert.equal(r.why, 'no dated schedule (cadence only)');
   });
 });
+
+test('a list entry whose person the Oct 22 move already made a contact is matched by that, not created twice', async () => {
+  await h.withDb(async (sql) => {
+    const rep = await h.user(sql, { email: 'kv.dup.' + n + '@unit.invalid' });
+    const te = 'tedup' + n;
+    await send(sql, 'event', 'teamEvents/' + te, { id: te, name: 'Dup Night', date: future, reps: [rep.email] }, rep.email);
+    const old = await h.contact(sql, rep, { email: null });
+    await sql`update contacts set legacy_id = ${'edge-attendee:' + te + '/at9'} where id = ${old}`;
+    const r = await send(sql, 'event_list', 'teamEventRep:' + te + ':' + rep.email, { attendees: [{ id: 'at9', attendee: 'Someone Else Spelled', status: 'invited' }] }, rep.email);
+    assert.equal(r.ok, true, JSON.stringify(r));
+    const [a] = await sql`select contact_id from attendees where event_id = ${K.uid('event:' + te)}`;
+    assert.equal(a.contact_id, old);
+  });
+});
