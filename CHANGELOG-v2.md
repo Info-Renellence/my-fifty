@@ -595,6 +595,8 @@ Application notices: "they fill in application and then we filter it by rep and 
   (renellence-edge `supabase/functions/claude-jobs/jobs/inbox.ts`, Sonnet then Haiku, runs in `ai_runs`), which marks the
   leads and pulls out their details. The rep is chosen in code: the person's owner if already in the book, else the
   postal code's territory rule, else BC / Alberta / Quebec by province or city; a shared area goes to both; none -> info@.
+  Owner 2026-10-29: "if the location is unclear, google it": with no postal code in the email Claude searches the web for
+  the clinic's address (its own site, Google listing or a directory) and the rep's email says it was found online, with the page.
   The rep gets the details by email from info@.
 - settings `inbox_leads` added: `{seen: [gmail ids], log: [last 50 leads]}`. flags `inbox_leads` (default on) is the off switch.
 - Nothing else in v2 is written: no contact is created (the rep adds the person when they reach out).

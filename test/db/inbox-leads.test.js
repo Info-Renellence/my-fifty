@@ -41,7 +41,7 @@ async function setup(sql) {
   await sql`delete from settings where key = 'inbox_leads'`;
   return reps;
 }
-const result = (code, o) => Object.assign({ code, lead: true, kind: 'enquiry', name: '', clinic: '', email: '', phone: '', city: '', province: '', postal: '', registration: '', wants: '', summary: 'Wants to start.' }, o);
+const result = (code, o) => Object.assign({ code, lead: true, kind: 'enquiry', name: '', clinic: '', email: '', phone: '', city: '', province: '', postal: '', registration: '', wants: '', summary: 'Wants to start.', location_source: '', location_url: '' }, o);
 
 test('an application, an enquiry with no area, a person already in the book; customers and robots never reach Claude', async () => {
   await h.withDb(async (sql) => {
@@ -57,17 +57,19 @@ test('an application, an enquiry with no area, a person already in the book; cus
       { id: 'd' + n, from: 'Dana <dana.' + n + '@unit.invalid>', subject: 'Pricing', body: 'We are a clinic in Toronto, prices?' },
       { id: 'e' + n, from: 'In Book <' + inBook + '>', subject: 'Samples', body: 'Could we get samples?' },
       { id: 'f' + n, from: 'Info Renellence <info@renellence.com>', subject: 'Your Renellence order has shipped', body: 'shipped' },
+      { id: 'g' + n, from: 'Web <web.' + n + '@unit.invalid>', subject: 'Found online', body: 'Hi, we are Web Clinic, interested' },
     ];
     const g = google(msgs, (b) => ({ json: { ok: true, costUsd: 0.01, results: b.emails.map((e) =>
       e.subject.startsWith('New Account') ? result(e.code, { kind: 'application', clinic: 'Unit Spa', name: 'Ann Unit', postal: 'V6B 1A1', registration: '999' })
         : e.subject === 'Pricing' ? result(e.code, { clinic: 'Dana Clinic', city: 'Toronto' })
+        : e.subject === 'Found online' ? result(e.code, { clinic: 'Web Clinic', city: 'Calgary', province: 'AB', postal: 'T2P 1J9', location_source: 'web', location_url: 'https://web.unit.invalid/' })
         : result(e.code, { email: inBook })) } }));
     try {
       const out = await IL.run(sql, 50000);
-      assert.equal(out.candidates, 3, JSON.stringify(out));
-      assert.deepEqual(g.asked[0].emails.map((e) => e.subject).sort(), ['New Account Application - Unit Spa', 'Pricing', 'Samples']);
+      assert.equal(out.candidates, 4, JSON.stringify(out));
+      assert.deepEqual(g.asked[0].emails.map((e) => e.subject).sort(), ['Found online', 'New Account Application - Unit Spa', 'Pricing', 'Samples']);
       assert.match(g.asked[0].emails.find((e) => e.subject === 'Samples').known, /in our book, owner Lucas Unittest/);
-      assert.deepEqual([out.leads, out.sent, out.unassigned], [3, 3, 1]);
+      assert.deepEqual([out.leads, out.sent, out.unassigned], [4, 4, 1]);
       const mails = g.mails();
       const to = (re) => mails.find((m) => re.test(m)) || '';
       assert.match(to(/Unit Spa/), new RegExp('To: ' + reps.Brittany.email));
@@ -76,14 +78,16 @@ test('an application, an enquiry with no area, a person already in the book; cus
       assert.match(to(/Dana Clinic/), /To: info@renellence.com/);
       assert.match(to(/Dana Clinic/), /No rep found, please assign/);
       assert.match(to(/Samples/), new RegExp('To: ' + reps.Lucas.email));
+      assert.match(to(/Web Clinic/), new RegExp('To: ' + reps.Brittany.email));
+      assert.match(to(/Web Clinic/), /found online: https:\/\/web\.unit\.invalid\//);
       assert.ok(mails.every((m) => /^From: Renellence <info@renellence.com>/m.test(m)));
       const [st] = await sql`select value from settings where key = 'inbox_leads'`;
-      assert.equal(st.value.seen.length, 6);
-      assert.equal(st.value.log.length, 3);
+      assert.equal(new Set(st.value.seen).size, 7);
+      assert.equal(st.value.log.length, 4);
 
       // the next tick: nothing new, Claude not asked, nothing sent again
       const again = await IL.run(sql, 50000);
-      assert.deepEqual([again.new, again.candidates, g.asked.length, g.mails().length], [0, 0, 1, 3]);
+      assert.deepEqual([again.new, again.candidates, g.asked.length, g.mails().length], [0, 0, 1, 4]);
     } finally { g.f.restore(); }
   });
 });

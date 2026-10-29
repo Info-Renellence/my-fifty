@@ -75,7 +75,7 @@ module.exports = route(async (req, res) => {
     out.gmail = await require('./_gmail').sync(sql, Math.max(5000, (whole ? 48000 : 45000) - (Date.now() - started))).catch((e) => ({ error: e.message }));
   }
   // info@ inbox leads -> the territory rep (owner 2026-10-29; api/_inboxleads.js), with Claude reading the mail
-  if (part === 'all' || part === 'core') out.inboxLeads = await require('./_inboxleads').run(sql, Math.max(15000, 55000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
+  if (part === 'all' || part === 'core') out.inboxLeads = await require('./_inboxleads').run(sql, 57000 - (Date.now() - started)).catch((e) => ({ error: e.message }));
   // Freshness alarms to tech@ (data-flow improvement 6): read from what is already kept, nothing recorded per tick
   if (part === 'all' || part === 'core') out.alarms = await require('./_alarms').check(sql).catch((e) => ({ error: e.message }));
   send(res, 200, out);

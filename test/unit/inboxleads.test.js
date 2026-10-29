@@ -46,6 +46,13 @@ test('the email has the details, why this rep, and the original mail', () => {
   assert.match(t, /^New account application/);
   for (const s of ['Clinic: Test Clinic', 'Registration #: 123', 'Phone: 5550000000', 'Why you: postal area M5V', 'Also sent to A and B', 'original text']) assert.ok(t.includes(s), s);
   assert.ok(!t.includes('City:'));
+  assert.ok(!t.includes('found online'));
+});
+
+test('an address found online says so, with the page', () => {
+  const t = L.details(lead({ city: 'Toronto', province: 'ON', postal: 'M4W 1A1', location_source: 'web', location_url: 'https://clinic.unit.invalid/contact' }),
+    { subject: 's', from: 'f', date: 'd', body: '' }, { to: [{ name: 'A' }], why: 'postal area M4W (Toronto)' });
+  assert.match(t, /Postal code: M4W 1A1\n\(The address was not in the email; found online: https:\/\/clinic\.unit\.invalid\/contact\)/);
 });
 
 test('website notices from info@ are kept; ordinary subjects are not', () => {

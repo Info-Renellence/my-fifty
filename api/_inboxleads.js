@@ -7,7 +7,9 @@
 //      and existing customers who have ordered are dropped in code; our own website notices (New Account Application
 //      and other form notices sent from info@) are kept.
 //   2. the rest go to Claude (Supabase claude-jobs, job "inbox"), which says which are potential new customers and
-//      pulls out their details. If Claude can't be reached nothing is marked done, so the next tick tries again.
+//      pulls out their details. When the email has no postal code Claude searches the web for the clinic's address
+//      (owner 2026-10-29: "if the location is unclear, google it"). If Claude can't be reached nothing is marked done,
+//      so the next tick tries again.
 //   3. the rep is worked out here, in code, never by Claude: the person's owner when they are already in the book
 //      (by email or phone), else the territory rules from the postal code (api/_territory.js), else the province or
 //      city (BC / Alberta / Quebec). A shared postal area goes to both reps. No rep found -> info@, to assign by hand.
@@ -21,7 +23,7 @@ const INFO = 'info@renellence.com';
 const OURS = /@renellence\.com$/i;
 // Our own website and form notices from info@ that carry someone else's details (New Account Application etc.).
 const NOTICE = /account application|application|submission|enquiry|inquiry|interest form|contact form|sign[- ]?up|registration|register/i;
-const MAX_SEEN = 600, MAX_LOG = 50, BATCH = 15;
+const MAX_SEEN = 600, MAX_LOG = 50, BATCH = 5;   // 5 a tick: web searches take time
 const digits = (p) => String(p || '').replace(/\D/g, '').slice(-10);
 const first = (s) => String(s || '').trim().split(/\s+/)[0].toLowerCase();
 
@@ -78,6 +80,7 @@ function details(lead, m, r) {
     `${lead.kind === 'application' ? 'New account application' : 'New lead'} from the info@ inbox.\n`,
     line('Clinic', lead.clinic) + line('Name', lead.name) + line('Email', lead.email) + line('Phone', lead.phone)
       + line('City', [lead.city, lead.province].filter(Boolean).join(', ')) + line('Postal code', lead.postal)
+      + (lead.location_source === 'web' && lead.location_url ? `(The address was not in the email; found online: ${lead.location_url})\n` : '')
       + line('Registration #', lead.registration) + line('Wants', lead.wants),
     lead.summary ? `\n${lead.summary}\n` : '',
     `\nWhy you: ${r.why}.`,
@@ -86,12 +89,12 @@ function details(lead, m, r) {
   ].join('');
 }
 
-async function askClaude(emails) {
+async function askClaude(emails, timeoutMs) {
   const url = process.env.CLAUDE_JOBS_URL, secret = process.env.CLAUDE_JOBS_SECRET;
   if (!url || !secret) return { error: 'claude_jobs_not_set' };
   try {
     const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Claude-Jobs-Secret': secret },
-      body: JSON.stringify({ job: 'inbox', emails }), signal: AbortSignal.timeout(40000) });
+      body: JSON.stringify({ job: 'inbox', emails }), signal: AbortSignal.timeout(Math.max(10000, timeoutMs)) });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || !j.ok || !Array.isArray(j.results)) return { error: j.error || j.skipped || j.stopped || j.blocked || `claude_jobs_${r.status}` };
     return j;
@@ -101,6 +104,7 @@ async function askClaude(emails) {
 async function run(sql, budgetMs = 45000) {
   const end = Date.now() + budgetMs;
   if (!(await require('./_flags').on(sql, 'inbox_leads'))) return { off: true };
+  if (budgetMs < 40000) return { skipped: 'no_time' };   // Claude may search the web: the next tick has the time
   const [box] = await sql`select c.credentials_encrypted, u.id as user_id, u.full_name from connections c join users u on u.id = c.user_id
     where c.provider = 'gmail' and c.status = 'connected' and lower(u.email) = ${INFO} order by c.updated_at desc limit 1`;
   if (!box) return { skipped: 'info_gmail_not_connected' };
@@ -113,7 +117,7 @@ async function run(sql, budgetMs = 45000) {
   const out = { new: ids.length, candidates: 0, leads: 0, sent: 0, unassigned: 0 };
   const cands = [], done = [];
   for (const id of ids) {
-    if (Date.now() > end - 25000 || cands.length >= BATCH) break;
+    if (Date.now() > end - 35000 || cands.length >= BATCH) break;
     const m = await G._.gget(at, 'messages/' + id + '?format=full');
     done.push(id);
     if (!m || (m.labelIds || []).some((x) => x === 'SPAM' || x === 'TRASH' || x === 'DRAFT')) continue;
@@ -130,7 +134,7 @@ async function run(sql, budgetMs = 45000) {
   out.candidates = cands.length;
   if (cands.length) {
     const a = await askClaude(cands.map((c, i) => ({ code: 'e' + (i + 1), from: c.m.from, to: c.m.to, subject: c.m.subject, date: c.m.date,
-      body: c.m.body.slice(0, 4000), known: c.known })));
+      body: c.m.body.slice(0, 4000), known: c.known })), end - Date.now() - 3000);
     if (a.error) { out.error = a.error; return out; }           // nothing marked done: the next tick tries again
     out.costUsd = a.costUsd;
     const reps = await sql`select email, full_name from users where kind = 'rep' and is_active is not false`;
@@ -152,7 +156,10 @@ async function run(sql, budgetMs = 45000) {
         }
       }
       out.sent += sent;
-      st.log.push({ at: new Date().toISOString(), gmail: c.id, kind: res.kind, who, to: to.map((t) => t.email), why: r.why, sent });
+      st.log.push({ at: new Date().toISOString(), gmail: c.id, kind: res.kind, who, to: to.map((t) => t.email), why: r.why, sent,
+        location: res.location_source || '' });
+      st.seen.push(c.id);
+      await save(sql, st);   // after every lead, so a cut-off run never sends the same lead twice
     }
   }
   st.seen = st.seen.concat(done);
