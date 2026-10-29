@@ -503,3 +503,19 @@ pulled from the onboarding form is the source of truth"; old paperwork and the s
   Girgis, Loredana Litoiu, Olga Gaponenko, Rana Elsabbagh, Tiffany Liu. Designation md and role physician: Loredana, Olga, Rana,
   Tiffany, Neel Bector, Rita Tamas. Stevie Blanchard designation rn. Contacts the form says nothing about were left alone.
 - Left flagged (the form names no MD for them): Bimpe Ayeni (RN), Marlon Navarro (RPN), Samira Rafiei (NP).
+
+## 37. Live Edge forecasts flow into v2 (code, no schema change), 2026-10-29, asked by Yousef
+
+Owner: "if they make a new forecast on old edge will it show on pulse and new edge" ... "do #2 (its necessary for now)".
+Live Edge (renellence-edge `main`) keeps forecasts in its own KV store (`territory:<rep>`), never in HubSpot, so nothing
+carried them into v2 after Oct 22. Now each save in live Edge (`api/_v2forecasts.js`) posts what changed to Pulse
+`/api/intake` (`{wf:'Edge', kind:'forecasts'}`, `api/_edgefc.js`), kept once in `ingest_events` (source n8n, via webhook),
+written to `forecasts` with change_logs source `edge_app`:
+- ids are the Oct 22 migration's (`uid('forecast:territory:<rep>:<rowId>')`), so a loaded forecast changed in live Edge
+  updates the same v2 row (checked: 136 of the 160 rows in the Oct 22 copy found by id; the other 24 were skipped then);
+- a save writes the rows it added or edited and deletes (deleted_at) the rows it removed; rows it didn't change are left
+  as v2 has them (only added if v2 never had them), so edits in Pulse / new Edge are not overwritten;
+- once per rep (first read or save after the change) a catch-up sends the whole list: adds what v2 lacks, updates or
+  deletes only rows untouched in v2 since Oct 22; an empty list never deletes;
+- the migration's skip rules: no quantity, no date, test rows, contact not in v2, admin@'s own rows.
+Test `test/db/edge-forecasts.test.js`; live Edge `test/v2forecasts.test.js`. Undo: revert the two commits.

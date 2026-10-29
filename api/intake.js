@@ -36,9 +36,33 @@ module.exports = route(async (req, res) => {
   if (req.method !== 'POST') throw fail(405, 'method_not_allowed');
   if (!authorised(req)) throw fail(401, 'unauthorized');
   const b = await body(req);
+  if (b.kind === 'forecasts' && b.wf === 'Edge') return send(res, 200, await edgeForecasts(db(), b));
   if (!b.hs || typeof b.hs !== 'object') throw fail(400, 'bad_input');
   send(res, 200, await intake(db(), b));
 });
+
+// Live Edge's forecasts (they live in its own store, not HubSpot; api/_edgefc.js). Kept once in ingest_events like
+// every other copy, so a failed one can be replayed.
+async function edgeForecasts(sql, b) {
+  const copy = { wf: 'Edge', node: 'forecasts ' + (b.mode === 'catchup' ? 'catchup' : 'save'), rep: b.rep || '', by: b.by || '', mode: b.mode || 'save',
+    prev: Array.isArray(b.prev) ? b.prev : [], rows: Array.isArray(b.rows) ? b.rows : [], at: b.at || null };
+  const external = 'edge-forecasts:' + crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex');
+  const [ev] = await sql`
+    insert into ingest_events (source, external_id, payload, received_via, status, attempts, received_at)
+    values ('n8n', ${external}, ${sql.json(copy)}, 'webhook', 'pending', 0, now())
+    on conflict (source, external_id) do nothing returning id`;
+  if (!ev) return { ok: true, duplicate: true };
+  try {
+    const r = await require('./_edgefc').apply(sql, copy);
+    await sql`update ingest_events set status = ${r.skipped ? 'skipped' : 'done'}, attempts = 1, processed_at = now(), error_message = ${r.why || null},
+                result_table = 'forecasts' where id = ${ev.id}`;
+    return Object.assign({ ok: true }, r);
+  } catch (e) {
+    console.error('INTAKE_EDGE_FORECASTS', b.rep, e.message);
+    await sql`update ingest_events set status = 'failed', attempts = 1, error_message = ${String(e.message).slice(0, 500)} where id = ${ev.id}`;
+    return { ok: false, failed: true, error: String(e.message).slice(0, 200) };
+  }
+}
 
 // Kept apart from the route so tests (and a replay script) can call it with a database.
 async function intake(sql, b) {
@@ -411,11 +435,19 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
     const r = await syncOrder(tx, rec.id);
     return r && r.created ? 'added' : r && !r.skipped ? 'updated' : 'skipped';
   }
+  const m = type === 'tasks' ? M.taskRow(rec.id, p) : type === 'calls' ? M.callRow(rec.id, p, o) : type === 'meetings' ? M.meetingRow(rec.id, p) : M.noteRow(rec.id, p, o);
+  if (m.skip) return 'skipped';
+  // A rep's own work (not an automation's) brings in someone left out on Oct 22 (owner 2026-10-29, audit F12).
+  const auto = !o.person && /Automation|Quo/.test(String(p.hs_object_source) + '/' + String(p.hs_object_source_detail_1 || ''));
+  const rep = !!(m.row.user_id || m.row.assignee_id) && !auto && (type !== 'tasks' || m.row.source === 'manual');
   const contacts = [];
-  for (const k of contactHs) { const id = await idOf(tx, 'contacts', k); if (id) contacts.push(id); }
+  for (const k of contactHs) {
+    const id = (await idOf(tx, 'contacts', k)) || (rep ? await bringBack(tx, k, o.src || HS) : null);
+    if (id && !contacts.includes(id)) contacts.push(id);
+  }
   if (!contacts.length) return 'skipped';
   if (type === 'tasks') {
-    const t = M.taskRow(rec.id, p).row;
+    const t = m.row;
     t.contact_id = contacts[0];
     if (!t.assignee_id) { const [o] = await tx`select owner_id from contacts where id = ${contacts[0]}`; t.assignee_id = o && o.owner_id; }
     const [cur] = await tx`select id, status::text, due_at, completed_at from tasks where id = ${t.id}`;
@@ -426,8 +458,6 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
     }
     return 'skipped';
   }
-  const m = type === 'calls' ? M.callRow(rec.id, p, o) : type === 'meetings' ? M.meetingRow(rec.id, p) : M.noteRow(rec.id, p, o);
-  if (m.skip) return 'skipped';
   let result = 'skipped';
   for (const c of contacts) {
     const id = M.intId(m.row.external_id, c);
@@ -443,6 +473,19 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
   }
   return result;
 }
+// A HubSpot contact a rep is working that v2 does not have: a merged-away id resolves to the contact it was merged into
+// (HubSpot answers with that one); anyone else is added, unless v2 removed them on purpose (a deleted row) or the sync
+// never takes them (Quo-made, staff, test, empty).
+async function bringBack(tx, hsId, src) {
+  const rec = await src.contact(hsId);
+  if (!rec || !rec.id) return null;
+  const kept = String(rec.id) !== String(hsId) && (await idOf(tx, 'contacts', rec.id));
+  if (kept) return kept;
+  const [gone] = await tx`select id from contacts where legacy_id = any(${[String(hsId), String(rec.id)]}) and deleted_at is not null limit 1`;
+  if (gone || M.contactSkip(rec.properties || {})) return null;
+  const r = await syncContact(tx, rec.id, null, src);
+  return r ? r.id : null;
+}
 async function insertRow(tx, table, row) {
   const keys = Object.keys(row).filter((k) => row[k] !== undefined);
   await tx.unsafe(`insert into public.${table} (${keys.map((k) => `"${k}"`).join(', ')}) select ${keys.map((k) => `"${k}"`).join(', ')}
@@ -452,3 +495,4 @@ async function insertRow(tx, table, row) {
 module.exports.intake = intake;
 module.exports.apply = apply;
 module.exports.sync = sync;
+module.exports.edgeForecasts = edgeForecasts;
