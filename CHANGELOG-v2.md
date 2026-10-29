@@ -619,3 +619,17 @@ Owner: "zainab ghanims should count to brittany fix that, everything else is ok"
   (`renellence-ops/ops/fixes/credit-zainab-brittany.cjs`, dry run first; change_logs has it). Brittany's Q4 Booster: $513 -> $567.
 - HubSpot still has the order under info@. If that order changes in HubSpot, the 5-minute pull would set it back to Info
   Renellence; changing its owner to Brittany in HubSpot stops that.
+
+## 45. HubSpot cross-check fixes: Ireen Girgis's records, order values less discounts (data + code), 2026-10-29, asked by Yousef
+
+From the HubSpot / v2 / Pulse cross-check (1,576 HubSpot contacts, 227 orders). Owner's answers: "move them back",
+"subtract discounts", lost orders "list them for me to match".
+- One of Sam's customers: the Oct 27 backfill (#21) had put records on her that HubSpot links to two other contacts.
+  `renellence-ops/ops/fixes/ireen-records-2026-10-29.cjs` (HubSpot read only; dry run first; backup in renellence-ops
+  `data/backups/`, names there) moved orders #115065379 (Aug 11, paid) and #123365397 (Oct 4 samples) to the contacts
+  HubSpot has them on, and removed 16 meetings, notes and emails that were copies of records already on the right contact.
+  7 records HubSpot has on her stay. She left Sam's My Fifty; the other contact joined Lucas's.
+- Order values (shared `_book.js`, Pulse / Edge / Compass): an order's total is its paid lines less `orders.discount_amount`
+  (never below 0), as HubSpot and the invoice have it; tax and shipping still not counted. 108 older orders had $284k of
+  discounts, so older customers' Total bought goes down. No order since Oct 1 has a discount: Q4 commission unchanged.
+  Test `test/db/discount.test.js`.

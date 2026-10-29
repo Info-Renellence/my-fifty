@@ -64,7 +64,9 @@ async function ordersFor(sql, contactIds) {
     select o.id, o.contact_id, o.rep_id, o.status, o.order_number, o.payment_method, o.submitted_at, o.approved_at, o.medical_director_contact_id,
            o.medical_director_signed_at, o.invoiced_at, o.sent_to_warehouse_at, o.shipped_at, o.delivered_at, o.tracking_number, o.tracking_url,
            o.created_at,
-           coalesce(l.total, 0)::float8 as total, coalesce(l.n, 0)::int as n_lines, coalesce(l.all_free, false) as all_free,
+           -- what the customer paid for products: the paid lines less the order's discount (owner 2026-10-29: "subtract discounts",
+           -- so Pulse matches HubSpot and the customer's invoice; tax and shipping are not counted)
+           greatest(coalesce(l.total, 0) - coalesce(o.discount_amount, 0), 0)::float8 as total, coalesce(l.n, 0)::int as n_lines, coalesce(l.all_free, false) as all_free,
            l.summary,
            coalesce((o.payment_method is distinct from 'wire' and o.status = any(${PAID_STATUSES}))
              or exists (select 1 from payments p where p.order_id = o.id and p.kind = 'charge' and p.status = 'succeeded' and p.is_test is not true), false) as paid_flag,
