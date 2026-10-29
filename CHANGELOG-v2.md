@@ -544,7 +544,7 @@ From the 28 Oct audit (renellence-ops `data/audit-2026-10-28/report.md`), items 
   `ops/fixes/left-out-3-2026-10-29.js`). change_logs source import, one batch each.
 Undo: soft-delete the 3 contacts and the clinic by legacy_id; set the restored clinic's deleted_at back.
 
-## 39. Every live-Edge record flows into v2: events, attendee lists, marketing requests, commitments (code, no schema change), 2026-10-29, asked by Yousef
+## 40. Every live-Edge record flows into v2: events, attendee lists, marketing requests, commitments (code, no schema change), 2026-10-29, asked by Yousef
 
 Owner: "every change that is made in old edge (forecasts, commitments, whatever else) needs to translate into new pulse and
 new edge until the old edge is shut off". Answers: commitments = a forecast per delivery date (skipped when the rep already
@@ -562,3 +562,14 @@ in `ingest_events` (payload key; compared with the previous copy of the same key
 - Catch-up once per kind (first read after deploy; KV `v2copy:catchup:<kind>`): adds what v2 lacks, updates only rows
   untouched since Oct 22, deletes nothing.
 Tests `test/db/edge-kv.test.js`; live Edge `test/v2copy.test.js`. Undo: revert the commits.
+
+## 41. Data-flow audit approvals, part 2 (data + code, no schema change), 2026-10-29, approved by Yousef
+
+- Code (Pulse 6a13d3a): Academy interest sign-ups (n8n "[REG] Academy Interest Registration", new step "Copy to v2
+  (Academy)") become v2 contacts, lead source event, matched by email or phone like a Meta lead, owned by the rep for the
+  place when one rep has it (else an admin assigns), with the message as a note (interactions source import, external_id
+  `academy:<ingest id>`). Kept once in ingest_events. The sheet and confirmation email are unchanged.
+- Data: two signed onboardings (13 Jul Omorphi Aesthetics, 30 Sep North York Cosmetic Clinic) had been loaded onto a
+  medical director from another clinic; their primary contact, injector and agreement moved to the practitioner named on the
+  form (renellence-ops `ops/fixes/onboarding-owner-2026-10-29.js`, backup in `data/backups/`). Both now show as onboarded.
+Undo: revert 6a13d3a and remove the n8n step; the onboarding backup holds the old rows.
