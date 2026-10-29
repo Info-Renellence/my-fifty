@@ -79,7 +79,7 @@ test('the migration\'s skip rules: test rows, no quantity, unknown contact, admi
   await h.withDb(async (sql) => {
     const { rep } = await setup(sql);
     const r = await send(sql, rep.email, 'save', [], [row({ rowId: 'x1', name: 'Test Person' }), row({ rowId: 'x2', fillers: 0 }), row({ rowId: 'x3', id: '1' })]);
-    assert.deepEqual([r.written, r.skipped], [0, 3]);
+    assert.deepEqual([r.written, r.left], [0, 3]);
     assert.equal((await send(sql, 'admin@renellence.com', 'save', [], [row()])).skipped, true);
     const b = { wf: 'Edge', kind: 'forecasts', mode: 'save', rep: rep.email, prev: [], rows: [row()], at: 1 };
     await I.edgeForecasts(sql, b);

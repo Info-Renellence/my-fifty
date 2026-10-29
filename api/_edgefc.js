@@ -47,7 +47,7 @@ async function apply(sql, b) {
   if (!u) return { skipped: true, why: 'forecaster has no user' };
   const [by] = b.by ? await sql`select id from users where lower(email) = ${String(b.by).trim().toLowerCase()}` : [];
   const actor = (by && by.id) || u.id;
-  const out = { table: 'forecasts', mode, written: 0, deleted: 0, unchanged: 0, skipped: 0 };
+  const out = { table: 'forecasts', mode, written: 0, deleted: 0, unchanged: 0, left: 0 };
   return sql.begin(async (tx) => {
     await tx`select set_config('app.source', 'edge_app', true), set_config('app.user_id', ${actor}, true), set_config('app.batch_id', '', true)`;
     await tx`select pg_advisory_xact_lock(hashtext(${'edge-forecasts:' + rep}))`;
@@ -72,7 +72,7 @@ async function apply(sql, b) {
       if (!contact) {
         // Emptied or no longer usable: what v2 has for it goes (a save only; a catch-up never deletes for this).
         if (mode === 'save' && old) out.deleted += (await tx`update forecasts set deleted_at = now() where id = ${id} and deleted_at is null returning id`).length;
-        out.skipped++;
+        out.left++;
         continue;
       }
       const f = { contact_id: contact, rep_id: u.id, due_date: r.date, syringes: int(r.fillers), syringe_price: num(r.price), needle_boxes: int(r.needles),

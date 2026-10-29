@@ -543,3 +543,22 @@ From the 28 Oct audit (renellence-ops `data/audit-2026-10-28/report.md`), items 
   clinic (HubSpot contacts 273712214972, 281173117937, 257908976581; company 225279604714;
   `ops/fixes/left-out-3-2026-10-29.js`). change_logs source import, one batch each.
 Undo: soft-delete the 3 contacts and the clinic by legacy_id; set the restored clinic's deleted_at back.
+
+## 39. Every live-Edge record flows into v2: events, attendee lists, marketing requests, commitments (code, no schema change), 2026-10-29, asked by Yousef
+
+Owner: "every change that is made in old edge (forecasts, commitments, whatever else) needs to translate into new pulse and
+new edge until the old edge is shut off". Answers: commitments = a forecast per delivery date (skipped when the rep already
+has a forecast for that customer that month); people not in v2 added to an event become contacts; admin settings not copied.
+HubSpot records (contacts, clinics, owners, orders, calls, meetings, notes, tasks) already come through the 5-minute pull.
+Live Edge (`api/_v2copy.js`) now copies every write of its KV records to Pulse `/api/intake` (`api/_edgekv.js`), kept once
+in `ingest_events` (payload key; compared with the previous copy of the same key), change_logs source edge_app:
+- `teamEvents` -> `events` (ids `uid('event:<id>')` as Oct 22; 7/7 found), deleted -> deleted_at;
+- `teamEventRep:<event>:<rep>` / `teamEventRsvp:<event>` -> `attendees` (one row per event + person; a higher status from
+  another list stays; an entry removed from a list deletes that list's row); a person v2 lacks -> new contact (owner = rep,
+  lead source event, legacy_id `edge-attendee:<event>/<entry>`);
+- `mkt:req:<id>` -> `marketing_requests` (ids `uid('mkt:<id>')`; 15/21 found, the 6 Oct 22 test requests kept out);
+- `commitTerms:<HubSpot contact>` -> `forecasts`, one per scheduled delivery from today (`uid('commitment:<contact>:<date>')`),
+  rep = the contact's owner; a date taken off the schedule deletes its forecast; cadence-only terms (3 of 34) have no dates.
+- Catch-up once per kind (first read after deploy; KV `v2copy:catchup:<kind>`): adds what v2 lacks, updates only rows
+  untouched since Oct 22, deletes nothing.
+Tests `test/db/edge-kv.test.js`; live Edge `test/v2copy.test.js`. Undo: revert the commits.

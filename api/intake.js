@@ -37,9 +37,40 @@ module.exports = route(async (req, res) => {
   if (!authorised(req)) throw fail(401, 'unauthorized');
   const b = await body(req);
   if (b.kind === 'forecasts' && b.wf === 'Edge') return send(res, 200, await edgeForecasts(db(), b));
+  if (b.wf === 'Edge' && require('./_edgekv').KINDS.includes(b.kind)) return send(res, 200, await edgeKv(db(), b));
   if (!b.hs || typeof b.hs !== 'object') throw fail(400, 'bad_input');
   send(res, 200, await intake(db(), b));
 });
+
+// Live Edge's other KV records (events, attendee lists, marketing requests, commitments; api/_edgekv.js). Each copy is
+// kept once in ingest_events with its key, so the next copy of the same key is compared with it and a failed one can
+// be replayed.
+async function edgeKv(sql, b) {
+  const key = String(b.key || '').slice(0, 200);
+  if (!key) return { ok: false, skipped: true, why: 'no key' };
+  const copy = { wf: 'Edge', node: b.kind + ' ' + (b.mode === 'catchup' ? 'catchup' : 'save'), kind: b.kind, key, by: b.by || '', mode: b.mode === 'catchup' ? 'catchup' : 'save',
+    value: b.value === undefined ? null : b.value, at: b.at || null };
+  const external = 'edge-kv:' + crypto.createHash('sha256').update(JSON.stringify(copy)).digest('hex');
+  const [ev] = await sql`
+    insert into ingest_events (source, external_id, payload, received_via, status, attempts, received_at)
+    values ('n8n', ${external}, ${sql.json(copy)}, 'webhook', 'pending', 0, clock_timestamp())
+    on conflict (source, external_id) do nothing returning id`;
+  if (!ev) return { ok: true, duplicate: true };
+  try {
+    // The previous copy of this key that was applied (none for the first copy or a catch-up).
+    const [last] = copy.mode === 'catchup' ? [] : await sql`select payload->'value' as v from ingest_events
+      where source = 'n8n' and payload->>'wf' = 'Edge' and payload->>'key' = ${key} and status = 'done' and id <> ${ev.id}
+      order by received_at desc, id desc limit 1`;
+    const r = await require('./_edgekv').apply(sql, copy, last ? last.v : undefined);
+    await sql`update ingest_events set status = ${r.failed ? 'failed' : r.skipped ? 'skipped' : 'done'}, attempts = 1, processed_at = now(),
+                error_message = ${r.why || null}, result_table = ${r.table || null}, result_id = ${r.id || null} where id = ${ev.id}`;
+    return Object.assign({ ok: !r.failed }, r);
+  } catch (e) {
+    console.error('INTAKE_EDGE_KV', b.kind, key, e.message);
+    await sql`update ingest_events set status = 'failed', attempts = 1, error_message = ${String(e.message).slice(0, 500)} where id = ${ev.id}`;
+    return { ok: false, failed: true, error: String(e.message).slice(0, 200) };
+  }
+}
 
 // Live Edge's forecasts (they live in its own store, not HubSpot; api/_edgefc.js). Kept once in ingest_events like
 // every other copy, so a failed one can be replayed.
@@ -497,3 +528,4 @@ module.exports.intake = intake;
 module.exports.apply = apply;
 module.exports.sync = sync;
 module.exports.edgeForecasts = edgeForecasts;
+module.exports.edgeKv = edgeKv;
