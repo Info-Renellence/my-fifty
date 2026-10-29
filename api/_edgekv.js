@@ -105,6 +105,14 @@ async function personFor(tx, a, ctx, create) {
     if (x) return x.deleted_at ? null : x.id;
   }
   const nm = String(a.attendee || a.name || '').trim();
+  // A list entry with only a name (audit 2026-10-29: two people already in v2 were made again from their names): the one live
+  // contact with that full name, when there is exactly one. A first name alone could be anyone, so it never matches.
+  const words = nm.replace(/^dr\.?\s+/i, '').split(/\s+/).filter((w) => /[a-z]/i.test(w));
+  if (!email && !phone && words.length >= 2) {
+    const r = await tx`select id from contacts where deleted_at is null and merged_into_contact_id is null
+      and lower(trim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) = ${words.join(' ').toLowerCase()} limit 2`;
+    if (r.length === 1) return r[0].id;
+  }
   if (!create || (!nm && !email && !phone)) return null;
   const key = 'evc:' + (email || phone || nm.toLowerCase().replace(/[^a-z]/g, ''));
   const id = uid('contact:' + key);

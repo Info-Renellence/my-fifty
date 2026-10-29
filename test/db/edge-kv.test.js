@@ -118,3 +118,22 @@ test('a list entry whose person the Oct 22 move already made a contact is matche
     assert.equal(a.contact_id, old);
   });
 });
+
+test('a list entry with only a name finds the one person of that full name instead of making them again (audit 2026-10-29)', async () => {
+  await h.withDb(async (sql) => {
+    const rep = await h.user(sql, { email: 'kv.name.' + n + '@unit.invalid' });
+    const known = await h.contact(sql, rep, { first: 'Namematch', last: 'Unit' + n });
+    const te = 'tn' + n;
+    await send(sql, 'event', 'teamEvents/' + te, { id: te, name: 'Unit Name Night', date: future, reps: [rep.email], createdBy: rep.email }, rep.email);
+    const r = await send(sql, 'event_list', 'teamEventRep:' + te + ':' + rep.email, { attendees: [
+      { id: 'nm1', attendee: 'Namematch Unit' + n, status: 'invited' },
+      { id: 'nm2', attendee: 'Namematch', status: 'invited' },   // a first name alone never matches
+    ] }, rep.email);
+    assert.equal(r.written, 2, JSON.stringify(r));
+    const evId = K.uid('event:' + te);
+    const at = await sql`select contact_id from attendees where event_id = ${evId}`;
+    assert.ok(at.some((x) => x.contact_id === known), 'the full name went to the person already there');
+    const [{ n: made }] = await sql`select count(*)::int n from contacts where lower(first_name) = 'namematch' and deleted_at is null`;
+    assert.equal(made, 2, 'only the first-name-only entry made a new contact');
+  });
+});

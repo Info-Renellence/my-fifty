@@ -227,6 +227,14 @@ const idOf = async (tx, table, legacy) => {
   const [r] = await tx.unsafe(`select id from public.${table} where legacy_id = $1 and deleted_at is null`, [String(legacy)]);
   return r ? r.id : null;
 };
+// The person a HubSpot contact id stands for, following a v2 merge (merged_into_contact_id) to the kept contact (audit
+// 2026-10-29: activity and orders on a merged-away HubSpot id were dropped, or made the person again). Only for linking
+// activity and orders; a contact's own details are still read and written by its own row (idOf).
+const personOf = async (tx, legacy) => {
+  let [r] = await tx`select id, merged_into_contact_id as into, deleted_at from contacts where legacy_id = ${String(legacy)} order by deleted_at nulls first limit 1`;
+  for (let n = 0; r && r.into && n < 5; n++) [r] = await tx`select id, merged_into_contact_id as into, deleted_at from contacts where id = ${r.into}`;
+  return r && !r.deleted_at ? r.id : null;
+};
 // Insert a new row, or update an existing one: `cols` = the columns to overwrite (a PATCH), null = fill blanks only.
 async function upsert(tx, table, row, cols) {
   const [cur] = await tx.unsafe(`select * from public.${table} where legacy_id = $1`, [row.legacy_id]);
@@ -310,7 +318,7 @@ async function syncOrder(tx, hsId, src = HS) {
   if (rec.partial) return patchOrder(tx, hsId, rec.properties || {});   // only changes on file, not the create: those fields only
   const cids = H.assocIds(rec, 'contacts');
   let contactId = null;
-  for (const k of cids) { contactId = await idOf(tx, 'contacts', k); if (contactId) break; }
+  for (const k of cids) { contactId = await personOf(tx, k); if (contactId) break; }
   if (!contactId && cids[0]) contactId = ((await syncContact(tx, cids[0], null, src)) || {}).id || null;   // a customer is always wanted
   if (!contactId) return { skipped: true, why: 'order has no customer' };
   const lis = await src.lineItems(H.assocIds(rec, 'line_items'));
@@ -481,7 +489,7 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
   const rep = !!(m.row.user_id || m.row.assignee_id) && !auto && (type !== 'tasks' || m.row.source === 'manual');
   const contacts = [];
   for (const k of contactHs) {
-    const id = (await idOf(tx, 'contacts', k)) || (rep ? await bringBack(tx, k, o.src || HS) : null);
+    const id = (await personOf(tx, k)) || (rep ? await bringBack(tx, k, o.src || HS) : null);
     if (id && !contacts.includes(id)) contacts.push(id);
   }
   if (!contacts.length) return 'skipped';
@@ -522,6 +530,17 @@ async function bringBack(tx, hsId, src) {
   if (kept) return kept;
   const [gone] = await tx`select id from contacts where legacy_id = any(${[String(hsId), String(rec.id)]}) and deleted_at is not null limit 1`;
   if (gone || M.contactSkip(rec.properties || {})) return null;
+  // Someone v2 already has under another HubSpot record (audit 2026-10-29: an Oct 22 duplicate merge folded this HubSpot id into
+  // the kept one, and the rep's new call made the person again): the same email, else the same phone, else the one live contact
+  // with that full name. Only a person with none of these is added.
+  const p = rec.properties || {};
+  const em = String(p.email || '').trim().toLowerCase(), ph = M.e164(p.mobilephone || p.phone);
+  const nm = [p.firstname, p.lastname].map((x) => String(x || '').trim()).filter(Boolean).join(' ').toLowerCase();
+  for (const q of [
+    em && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and (lower(email::text) = ${em} or lower(secondary_email::text) = ${em}) limit 2`,
+    ph && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and (phone = ${ph} or mobile_phone = ${ph}) limit 2`,
+    nm.split(' ').length >= 2 && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and lower(trim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) = ${nm} limit 2`,
+  ]) { if (!q) continue; const r = await q; if (r.length === 1) return r[0].id; }
   const r = await syncContact(tx, rec.id, null, src);
   return r ? r.id : null;
 }

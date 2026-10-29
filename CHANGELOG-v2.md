@@ -633,3 +633,19 @@ From the HubSpot / v2 / Pulse cross-check (1,576 HubSpot contacts, 227 orders). 
   (never below 0), as HubSpot and the invoice have it; tax and shipping still not counted. 108 older orders had $284k of
   discounts, so older customers' Total bought goes down. No order since Oct 1 has a discount: Q4 commission unchanged.
   Test `test/db/discount.test.js`.
+
+## 46. Full audit against HubSpot / Stripe / Shopify / SignatureAPI: fixes (data + code, no schema change), 2026-10-29, asked by Yousef
+
+Owner: "cover everything ... consider hubspot, stripe, and shopify as the current source of truth", then "make all the fixes you
+deem necessary". Report and every name: renellence-ops `data/audit-2026-10-29-customers/REPORT.md` (local only).
+- Data (`renellence-ops/ops/fixes/audit-fixes-2026-10-29.cjs`, dry run first, backup in `data/backups/`): the Oct 27 duplicate-
+  renumbering bug in signatures (3 agreements' signers back to the people SignatureAPI has; one medical director from an
+  onboarding form added as a contact), a copied mobile and a copied second email removed, a missing email added, one meeting
+  moved, one order moved to the customer Shopify and HubSpot billing have, 14 customers' other emails (Stripe / Shopify /
+  SignatureAPI) saved, 11 signers linked to the contact they are (full-name match, one live contact only).
+- HubSpot records the pull missed since Oct 22 (1 call, 1 meeting, 6 emails) added as the pull would
+  (`ops/fixes/audit-sync-gaps-2026-10-29.cjs`). 4 people entered twice merged (`ops/fixes/merge-contact.cjs`).
+- Code, so it does not happen again: `api/intake.js` links HubSpot activity and orders through a v2 merge to the kept contact
+  (personOf), and before adding a person for a rep's activity looks for the same email, phone or full name; `api/_edgekv.js`
+  matches a name-only old-Edge list entry to the one live contact of that full name. Migration builds only apply a duplicate
+  decision when the records it names are in that group. Test `test/db/edge-kv.test.js`.
