@@ -38,6 +38,7 @@ module.exports = route(async (req, res) => {
   const b = await body(req);
   if (b.kind === 'forecasts' && b.wf === 'Edge') return send(res, 200, await edgeForecasts(db(), b));
   if (b.wf === 'Edge' && require('./_edgekv').KINDS.includes(b.kind)) return send(res, 200, await edgeKv(db(), b));
+  if (b.kind === 'academy' && b.wf === 'Academy') return send(res, 200, await require('./_academy').academy(db(), b));
   if (!b.hs || typeof b.hs !== 'object') throw fail(400, 'bad_input');
   send(res, 200, await intake(db(), b));
 });
