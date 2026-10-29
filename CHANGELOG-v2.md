@@ -610,4 +610,4 @@ Owner: "give them ability to make a contact a candidate or a lead"; answer: the 
   column exists. Pulse: the stage pill on the person card opens Lead / Candidate / Let Pulse decide (`act` op `set_stage`).
 - Also (no schema change): the person card's "Next follow-up" is now "Next step", what to do (the open follow-up task's
   title) and when; `set_follow_up` takes `title`.
-- **Status: applied to v1 (test) 2026-10-29. v2: waiting on the owner** (`node renellence-ops/ops/fixes/apply-v2-017.js v2 --dry`, then without `--dry`).
+- **Status: applied to v1 (test) and v2 2026-10-29** (`renellence-ops/ops/fixes/apply-v2-017.js`, dry run first; 0 contacts set).
