@@ -585,3 +585,16 @@ Undo: revert 6a13d3a and remove the n8n step; the onboarding backup holds the ol
   again once from the Oct 22 export (settings `hubspot_sync.edge_notes_reread`). Notes already in v2 or deleted there are
   not touched (ids per note and contact). Test `test/unit/hsmap.test.js`.
 - Imen Azabou -> Espace Skins: already done at 2026-10-29 13:43 UTC (source import, a clean-up run), nothing changed now.
+
+## 42. info@ inbox leads go to the territory rep (settings + code, no schema change), 2026-10-29, asked by Yousef
+
+Owner: "make a claude job that watches info@Renellence for potential leads", including the website's New Account
+Application notices: "they fill in application and then we filter it by rep and send the rep the details".
+- Pulse's timer (core part, `api/_inboxleads.js`) reads info@'s new inbox mail through its Gmail connection; robots, our
+  own non-form mail and customers who have ordered are dropped in code. The rest go to claude-jobs job `inbox`
+  (renellence-edge `supabase/functions/claude-jobs/jobs/inbox.ts`, Sonnet then Haiku, runs in `ai_runs`), which marks the
+  leads and pulls out their details. The rep is chosen in code: the person's owner if already in the book, else the
+  postal code's territory rule, else BC / Alberta / Quebec by province or city; a shared area goes to both; none -> info@.
+  The rep gets the details by email from info@.
+- settings `inbox_leads` added: `{seen: [gmail ids], log: [last 50 leads]}`. flags `inbox_leads` (default on) is the off switch.
+- Nothing else in v2 is written: no contact is created (the rep adds the person when they reach out).

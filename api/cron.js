@@ -12,6 +12,7 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 //   3. orders n8n did not accept when they were placed are sent again (resendOrders, once-only key; F22). With the
 //      order_dispatch switch on (api/_dispatch.js, 2026-10-23) queued orders are retried with counted tries instead.
 //   4. the Gmail pull (api/_gmail.js), with what is left of the time.
+//   5. info@ inbox leads to the territory rep (api/_inboxleads.js).
 const crypto = require('crypto');
 const { db, asUser } = require('./_db');
 const { send, query, route, fail } = require('./_http');
@@ -73,6 +74,8 @@ module.exports = route(async (req, res) => {
     out.signatureapi = await require('./_sigapi').sync(sql, whole ? 15000 : Math.min(12000, Math.max(4000, 40000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
     out.gmail = await require('./_gmail').sync(sql, Math.max(5000, (whole ? 48000 : 45000) - (Date.now() - started))).catch((e) => ({ error: e.message }));
   }
+  // info@ inbox leads -> the territory rep (owner 2026-10-29; api/_inboxleads.js), with Claude reading the mail
+  if (part === 'all' || part === 'core') out.inboxLeads = await require('./_inboxleads').run(sql, Math.max(15000, 55000 - (Date.now() - started))).catch((e) => ({ error: e.message }));
   // Freshness alarms to tech@ (data-flow improvement 6): read from what is already kept, nothing recorded per tick
   if (part === 'all' || part === 'core') out.alarms = await require('./_alarms').check(sql).catch((e) => ({ error: e.message }));
   send(res, 200, out);
