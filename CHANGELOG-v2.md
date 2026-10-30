@@ -689,3 +689,11 @@ one-minute signed link (`file_url` op); needs `SUPABASE_URL` + `SUPABASE_SERVICE
 - Pulse samples order: the medical director typed on the order becomes the customer's `medical_director_contact_id` when
   none is set (Edge's New order reads it there); Pulse pre-fills it from the customer.
 - Pulse orders need a shipping postal code, as Edge does (owner rule RD11).
+
+## 51. Wire payments marked received; Quo lines on their reps (data + code), 2026-10-30, asked by Yousef
+
+Owner's go-live answers. Q4 "They were paid ... mark them as paid in v2, dont change anything in qbo or hubspot": the 13 pending
+wire payments on delivered orders ($52,770.55) set to succeeded, paid_at = each order's delivered date (Jun 3 - Sep 30, so no Q4
+booster commission changes); the one wire on an invoiced order is untouched. Logged in change_logs as admin@ (source import).
+Script `renellence-ops/ops/fixes/golive-answers-2026-10-30.cjs` (dry run first). Q1: `api/quo.js` maps every Quo line to its rep
+(438 Angela, 778 Brittany, 365-700 Emily, 365-360 Lucas, 647 Sam; automated 647 texts still skipped); no past call or text needed a rep.
