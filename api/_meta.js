@@ -64,11 +64,28 @@ async function save(sql, feed, since) {
       });
     } catch (e) { console.error('META lead', s(l.id), e.message); r = 'skipped'; }
     out[r] = (out[r] || 0) + 1;
+    if (r === 'added') await welcome(l).catch((e) => console.error('META welcome', s(l.id), e.message));
     if (l.ts > latest) latest = l.ts;
   }
   await sql`insert into settings (key, value) values ('meta_sync', ${sql.json({ sinceMs: latest + 1 })}) on conflict (key) do update set value = excluded.value`;
   if (feed && feed.failed && feed.failed.length) out.failedForms = feed.failed.map((f) => f.form);
   return out;
+}
+
+// The 48-hour welcome email to a brand-new ad lead (owner 2026-10-14; it lives in n8n's [DIGEST] on /ad-lead-welcome, which
+// sends each address once). HubSpot used to start it (renellence-onboarding enrich.js on a HubSpot webhook); with HubSpot
+// going (owner 2026-10-30) Pulse starts it when it adds the lead, with the same fields. Only on Vercel (never from tests), and
+// only for leads from the last two days, so a catch-up never mails old leads.
+const WELCOME = () => process.env.LEAD_WELCOME_URL || (process.env.VERCEL ? 'https://renellence.app.n8n.cloud/webhook/ad-lead-welcome' : '');
+async function welcome(l) {
+  const url = WELCOME();
+  const email = M.email(l.email);
+  if (!url || !email || !(l.at && Date.now() - new Date(l.at).getTime() < 2 * 86400000)) return;
+  const parts = s(l.name).replace(/^dr\.?\s+/i, '').split(/\s+/).filter(Boolean);
+  const owner = ownerOf(l.rep);
+  await fetch(url, { method: 'POST', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, firstName: parts[0] || '', lastName: parts.slice(1).join(' '), phone: s(l.phone), clinic: s(l.clinic), city: s(l.city),
+      province: s(l.province), ownerId: owner ? s(require('./_hsapi').OWNER_OF[owner]) : '', source: 'pulse' }) });
 }
 
 async function one(tx, l) {
