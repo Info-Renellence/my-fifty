@@ -26,6 +26,31 @@ function isfKey(req) {
   const a = Buffer.from(got), b = Buffer.from(want);
   return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// The new Edge's calls (go-live 2026-10-30): Edge cannot hold Pulse's sales-form key or Gmail secret (Vercel never hands
+// back a "sensitive" value), so it asks Pulse to do these with the intake secret both already share (X-Intake-Secret).
+function intakeKey(req) {
+  const want = String(process.env.N8N_INTAKE_SECRET || '');
+  const got = String(req.headers['x-intake-secret'] || '');
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+// POST /api/cron?op=edge_send  { what: 'order' | 'paylink', orderId } | { what: 'email', userId, to, subject, text }
+// -> the same answer Pulse's own send gives (api/_isf.js send / resendPayLink, api/_gmail.js send).
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function edgeSend(sql, b) {
+  if (b.what === 'order' || b.what === 'paylink') {
+    if (!UUID.test(String(b.orderId || ''))) throw fail(400, 'bad_id');
+    const I = require('./_isf');
+    return b.what === 'order' ? I.send(sql, b.orderId) : I.resendPayLink(sql, b.orderId);
+  }
+  if (b.what === 'email') {
+    if (!UUID.test(String(b.userId || ''))) throw fail(400, 'bad_id');
+    const [u] = await sql`select id, email::text as email, full_name as name from users where id = ${b.userId} and is_active`;
+    if (!u) throw fail(404, 'not_found');
+    return require('./_gmail').send(sql, u, { to: String(b.to || ''), subject: String(b.subject || ''), text: String(b.text || '') });
+  }
+  throw fail(400, 'bad_what');
+}
 function authorised(req) {
   const want = process.env.CRON_SECRET || '';
   const got = String(req.headers['x-cron-key'] || (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || '');
@@ -49,6 +74,7 @@ module.exports = route(async (req, res) => {
   if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   // What n8n looks up, from v2 instead of HubSpot (data-flow improvement 4; api/_lookup.js): read only, Pulse ISF key.
   if (op === 'lookup' && req.method === 'GET' && isfKey(req)) return send(res, 200, await require('./_lookup').lookup(db(), query(req)));
+  if (op === 'edge_send' && req.method === 'POST' && intakeKey(req)) return send(res, 200, await edgeSend(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
   // The tick in parts (data-flow improvement 5, owner 2026-10-28): pg_cron calls each part on its own every 5 minutes, so the
@@ -390,4 +416,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, appAlerts, pingRsvp, morningTitle, wires, resendOrders, sendOrders };
+module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, appAlerts, pingRsvp, morningTitle, wires, resendOrders, sendOrders, edgeSend, intakeKey };
