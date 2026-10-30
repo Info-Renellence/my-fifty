@@ -103,3 +103,18 @@ test('a contact made in Pulse (no HubSpot id) is shown under a stable alias and 
     assert.equal(x.secondary_email, 'second.' + c.email);
   });
 });
+
+test('reorders due (owner Q9): a forecast in the next 21 days, and the 45-business-day clock after the last paid order', async () => {
+  await h.withDb(async (sql) => {
+    const rep = await h.user(sql);
+    const a = await h.contact(sql, rep, { email: em(), first: 'Fore' }), b = await h.contact(sql, rep, { email: em(), first: 'Clock' });
+    const due = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+    await sql`insert into forecasts (contact_id, rep_id, due_date, syringes, syringe_price) values (${a.id || a}, ${rep.id}, ${due}, 4, 155)`;
+    await h.order(sql, b.id || b, rep, { status: 'paid', days: 60, lines: [['SAL400', 2]] });
+    const day = (n) => String(new Date(new Date().setUTCHours(0, 0, 0, 0) + n * 86400000).getTime());
+    const r = await call(sql, 'POST', 'crm/v3/objects/deals/search', { filterGroups: [{ filters: [{ propertyName: 'next_order_date', operator: 'GTE', value: day(0) }, { propertyName: 'next_order_date', operator: 'LTE', value: day(21) }] }], properties: ['dealname', 'next_order_date', 'purchase_frequency', 'hubspot_owner_id'], limit: 100 });
+    const fore = r.results.find((x) => /^Fore/.test(x.properties.dealname)), clock = r.results.find((x) => /^Clock/.test(x.properties.dealname));
+    assert.ok(fore, 'the forecast'); assert.equal(fore.properties.next_order_date.slice(0, 10), due); assert.equal(fore.properties.purchase_frequency, 'Forecast');
+    assert.ok(clock, 'the clock: 60 days ago is about 42 business days, due within 3 weeks'); assert.equal(clock.properties.purchase_frequency, 'Every 45 business days');
+  });
+});

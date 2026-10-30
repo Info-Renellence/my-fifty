@@ -324,6 +324,41 @@ async function attachFiles(sql, body) {
   for (const f of files) if (ids.includes(alias(f.id))) await sql`update files set contact_id = ${contact.id} where id = ${f.id}`;
 }
 
+// ---- reorders due (owner Q9, 2026-10-30) -----------------------------------------------------------------------------------
+// The digest asked HubSpot for commitment deals whose next_order_date falls in the next 21 days. From v2 instead, one row per
+// customer: a forecast due in that window, else the reorder clock (45 business days after the last paid order, weekends and
+// the settings' holidays left out: the KPI's own clock) ending in that window or in the last 30 days.
+async function reordersDue(sql, body) {
+  const T = require('./_time');
+  const f = (body.filterGroups || [])[0] ? body.filterGroups[0].filters || [] : [];
+  const val = (op) => { const x = f.find((y) => y.propertyName === 'next_order_date' && y.operator === op); return x ? T.ymd(new Date(asNum(x.value))) : null; };
+  const from = val('GTE') || T.ymd(), to = val('LTE') || T.addDays(from, 21);
+  const [h] = await sql`select value from settings where key = 'holidays'`;
+  const holidays = Array.isArray(h && h.value) ? h.value : [];
+  const plusBiz = (d, n) => { let x = d; while (n > 0) { x = T.addDays(x, 1); if (T.isBusinessDay(x, holidays)) n--; } return x; };
+  const people = new Map();
+  const fc = await sql`select f.contact_id, f.due_date::text as due, c.first_name, c.last_name, c.owner_id, cl.name as clinic
+    from forecasts f join contacts c on c.id = f.contact_id left join clinics cl on cl.id = c.clinic_id
+    where f.deleted_at is null and c.deleted_at is null and f.due_date between ${from} and ${to} order by f.due_date`;
+  for (const r of fc) if (!people.has(r.contact_id)) people.set(r.contact_id, { due: r.due, why: 'Forecast', r });
+  const last = await sql`select o.contact_id, max(coalesce(o.submitted_at, o.created_at)) as at, c.first_name, c.last_name, c.owner_id, cl.name as clinic
+    from orders o join contacts c on c.id = o.contact_id left join clinics cl on cl.id = c.clinic_id
+    where o.deleted_at is null and c.deleted_at is null and o.status::text not in ('cancelled', 'rejected')
+      and exists (select 1 from order_lines l where l.order_id = o.id and l.is_free is not true)
+    group by o.contact_id, c.first_name, c.last_name, c.owner_id, cl.name`;
+  const floor = T.addDays(from, -30);
+  for (const r of last) {
+    if (people.has(r.contact_id)) continue;
+    const due = plusBiz(T.ymd(r.at), 45);
+    if (due >= floor && due <= to) people.set(r.contact_id, { due, why: 'Every 45 business days', r });
+  }
+  const results = [...people.entries()].map(([id, x]) => {
+    const name = [x.r.first_name, x.r.last_name].filter(Boolean).join(' ') + (x.r.clinic ? ' - ' + x.r.clinic : '');
+    return { id: alias(id), properties: { hs_object_id: alias(id), dealname: name, next_order_date: x.due + 'T00:00:00.000Z', purchase_frequency: x.why, hubspot_owner_id: s(OWNER_OF[x.r.owner_id]) }, archived: false };
+  }).sort((a, b) => a.properties.next_order_date.localeCompare(b.properties.next_order_date));
+  return { total: results.length, results: results.slice(0, Math.min(Number(body.limit) || 100, 200)) };
+}
+
 // ---- the router -----------------------------------------------------------------------------------------------------------
 const TYPES = { contacts: 'contacts', contact: 'contacts', companies: 'companies', company: 'companies', orders: 'orders', order: 'orders', line_items: 'line_items',
   deals: 'deals', deal: 'deals', notes: 'notes', calls: 'calls', meetings: 'meetings', tasks: 'tasks' };
@@ -364,8 +399,10 @@ async function handle(sql, method, path, query, body, ctx) {
   // PUT a link: /crm/v3/objects/{from}/{id}/associations/{to}/{toId}/{type} or /crm/v4/objects/{from}/{id}/associations/{to}/{toId}
   if ((m = path.match(/^\/crm\/v[34]\/objects\/(\w+)\/([\w-]+)\/associations\/(\w+)\/([\w-]+)/)) && method === 'PUT') return link(sql, ctx, T(m[1]), m[2], T(m[3]), m[4], path);
   if ((m = path.match(/^\/crm\/v[34]\/objects\/(\w+)\/([\w-]+)\/associations\/(\w+)\/([\w-]+)/)) && method === 'DELETE') return {};
-  // deals: not in v2 (owner Q8) - an empty search, a harmless id
+  // deals: not in v2 (owner Q8) - an empty search, a harmless id. The one exception: the daily digest's "reorders due"
+  // search on next_order_date is answered from v2 (owner Q9), as deal-shaped rows.
   if ((m = path.match(/^\/crm\/v3\/objects\/deals(?:\/(.*))?$/))) {
+    if (m[1] === 'search' && JSON.stringify(body.filterGroups || []).includes('next_order_date')) return reordersDue(sql, body);
     if (m[1] === 'search') return { total: 0, results: [] };
     if (m[1] && m[1].startsWith('batch')) return { status: 'COMPLETE', results: [] };
     const id = m[1] || newId();
