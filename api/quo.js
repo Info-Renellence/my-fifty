@@ -14,7 +14,15 @@ const { send, route, fail } = require('./_http');
 const M = require('./_hsmap');
 
 // Which rep uses each Quo line (phone number id). Lines not listed are logged with no rep.
-const LINE_REP = { PNEka6s0zF: 'emily@renellence.com' };
+// Owner 2026-10-30 (go-live Q1): 438 Angela, 778 Brittany, 365-700 Emily, 365-360 Lucas, 647 Sam. The 647 line is also
+// n8n's automated customer texts: those (message.delivered) stay skipped below, so only Sam's calls and texts received land.
+const LINE_REP = {
+  PNzHizd2SY: 'angela.tuzzolino@renellence.com',   // +1 438 448 3612
+  PNWjvgQaj4: 'brittany.houston@renellence.com',   // +1 778 800 0216
+  PNEka6s0zF: 'emily@renellence.com',              // +1 365 700 5795
+  PNHQOQfwvL: 'lucas.stockley@renellence.com',     // +1 365 360 3629
+  PNMnOzgxCz: 'sam.almas@renellence.com',          // +1 647 584 0040 (also the automated texts)
+};
 const AUTOMATED_LINE = 'PNMnOzgxCz';   // +1 647 584 0040, n8n's customer texts
 const s = (v) => (v == null ? '' : String(v));
 const digits10 = (p) => { const d = s(p).replace(/\D/g, ''); return d.length >= 10 ? d.slice(-10) : ''; };
