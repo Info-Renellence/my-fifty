@@ -660,3 +660,11 @@ a record of every added row in `data/backups/`):
   sales rep on the Stripe customer, else the territory rep, else head office; 17 clinics added; Stripe customer ids saved.
 - 4 account (delegate) signers added as contacts of their account's rep and clinic; 2 linked to people already in v2.
 - 3 HubSpot tasks (4 of the 7 were already in v2 under other titles). Old Stripe invoices and medical directors left out.
+
+## 48. Customer rewards from Events: `events.customer_reward` (`renellence-edge/db/v2-018-event-reward.sql`), 2026-10-30, approved by Yousef
+
+Owner: "approve the field" (the Oct 23 plan, `renellence-edge/docs/event-rewards-plan.md`, section 1 only; `forecast_activities`
+is not dropped). New enum `events_customer_reward` (vienna · training) and column `events.customer_reward` (empty = not a reward).
+Admins set it (for now in the Supabase table editor; an admin control belongs in renellence-admin). Edge's Forecast shows the
+label on a customer whose RSVP is yes or who attended, in the event's month; never money. **Status: applied to v1 and v2
+2026-10-30** (`renellence-ops/ops/fixes/apply-v2-018.js`, dry run first). Test `renellence-edge/test/run/db-event-rewards.test.js`.
