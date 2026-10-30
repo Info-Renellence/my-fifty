@@ -92,6 +92,9 @@ module.exports = route(async (req, res) => {
     out.stripe = await require('./_stripe').retryPending(sql).catch((e) => ({ error: e.message }));
   }
   if (part === 'all' || part === 'hubspot') {
+    // 4b. v2 -> HubSpot first (owner 2026-10-30, api/_hspush.js): new records and changes made outside HubSpot, so reps still in
+    // HubSpot see them, and so the pull below finds HubSpot's copy already linked. Off with the flag hubspot_push on switch day.
+    out.hubspotPush = !(await require('./_flags').on(sql, 'hubspot_push')) ? { off: true } : await require('./_hspush').push(sql, 15000).catch((e) => ({ error: e.message }));
     // 5. what reps and integrations wrote to HubSpot since the last tick (owner 2026-10-27: everything hooked up), read only: the bridge
     out.hubspot = !(await require('./_flags').on(sql, 'hubspot_pull')) ? { off: true } : await require('./intake').sync(sql, whole ? 40000 : Math.min(25000, Math.max(5000, 35000 - (Date.now() - started)))).catch((e) => ({ error: e.message }));
   }

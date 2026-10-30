@@ -2,22 +2,76 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "cleanUrls": true,
   "functions": {
-    "api/act.js": { "maxDuration": 60 },
-    "api/cron.js": { "maxDuration": 60 },
-    "api/intake.js": { "maxDuration": 60 },
-    "api/quo.js": { "maxDuration": 60 }
+    "api/act.js": {
+      "maxDuration": 60
+    },
+    "api/cron.js": {
+      "maxDuration": 60
+    },
+    "api/intake.js": {
+      "maxDuration": 60
+    },
+    "api/quo.js": {
+      "maxDuration": 60
+    },
+    "api/hs.js": {
+      "maxDuration": 60
+    }
   },
   "rewrites": [
-    { "source": "/((?!api/|icons/|.*\\..*).*)", "destination": "/" }
+    {
+      "source": "/api/hs/:path*",
+      "destination": "/api/hs?p=:path*"
+    },
+    {
+      "source": "/((?!api/|icons/|.*\\..*).*)",
+      "destination": "/"
+    }
   ],
   "headers": [
-    { "source": "/sw.js", "headers": [{ "key": "Cache-Control", "value": "no-cache, max-age=0" }] },
-    { "source": "/(app.js|lib.js|app.css|index.html|avatars.js|avatar-motion.js|avatar-motion.css|staging.js)", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] },
-    { "source": "/manifest.webmanifest", "headers": [{ "key": "Content-Type", "value": "application/manifest+json" }] },
-    { "source": "/(.*)", "headers": [
-      { "key": "X-Content-Type-Options", "value": "nosniff" },
-      { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-      { "key": "Permissions-Policy", "value": "microphone=(self), camera=(), geolocation=()" }
-    ] }
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/(app.js|lib.js|app.css|index.html|avatars.js|avatar-motion.js|avatar-motion.css|staging.js)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/manifest+json"
+        }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        },
+        {
+          "key": "Permissions-Policy",
+          "value": "microphone=(self), camera=(), geolocation=()"
+        }
+      ]
+    }
   ]
 }

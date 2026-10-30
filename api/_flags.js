@@ -15,12 +15,14 @@
 //   friday_checkin      Edge's Friday Check In tab (read by Edge; listed so both apps agree)              live -> on
 'use strict';
 
+//   hubspot_push        the timer's v2 -> HubSpot copy (api/_hspush.js, owner 2026-10-30) while reps still use HubSpot;
+//                       off on switch day, with hubspot_pull                                                       on
 //   hubspot_pull        the timer's HubSpot -> v2 read (api/intake.js sync): the safety net while live Edge's own
 //                       copies (renellence-edge main api/_mirror.js) are proven; off once they are             on
 //   edge_alerts         the timer's visit reminders and new order / RSVP alerts (api/cron.js appAlerts), live Edge's alerts on
 //                       v2; off until the Edge cut-over, so info@ is not told twice (owner 2026-10-28)           not yet -> off
 //   inbox_leads         the timer's info@ inbox leads -> the territory rep by email (api/_inboxleads.js, owner 2026-10-29) live -> on
-const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true, edge_alerts: false, inbox_leads: true });
+const DEFAULTS = Object.freeze({ week_view: true, voice_notes: true, order_dispatch: true, claude_suggestions: false, friday_checkin: true, hubspot_pull: true, edge_alerts: false, inbox_leads: true, hubspot_push: true });
 const TTL_MS = 30 * 1000;   // a switch flipped in the database is seen within 30 seconds
 
 let cache = null;   // { at, flags }
