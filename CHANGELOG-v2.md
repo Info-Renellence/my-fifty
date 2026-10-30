@@ -649,3 +649,14 @@ deem necessary". Report and every name: renellence-ops `data/audit-2026-10-29-cu
   (personOf), and before adding a person for a rep's activity looks for the same email, phone or full name; `api/_edgekv.js`
   matches a name-only old-Edge list entry to the one live contact of that full name. Migration builds only apply a duplicate
   decision when the records it names are in that group. Test `test/db/edge-kv.test.js`.
+
+## 47. Audit follow-up: customers and orders added from Stripe, HubSpot and SignatureAPI (data, no schema change), 2026-10-30, asked by Yousef
+
+Owner: "mb clinic is headoffice, add those 20 stripe customers to v2, forget the old stripe invoices, forget the 35 mds (unless they
+signed as the primary account ...), bring over those tasks". `renellence-ops/ops/fixes/audit-adds-2026-10-30.cjs` (dry run first;
+a record of every added row in `data/backups/`):
+- 1 head-office customer (owner Info Renellence) with its 6 HubSpot orders that had no customer (built as the pull builds orders).
+- 21 Stripe customers v2 did not have (13 of them deleted in the Oct 22 clean-up, added back by the owner's choice): owner = the
+  sales rep on the Stripe customer, else the territory rep, else head office; 17 clinics added; Stripe customer ids saved.
+- 4 account (delegate) signers added as contacts of their account's rep and clinic; 2 linked to people already in v2.
+- 3 HubSpot tasks (4 of the 7 were already in v2 under other titles). Old Stripe invoices and medical directors left out.
