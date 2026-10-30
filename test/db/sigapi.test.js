@@ -84,3 +84,28 @@ test('an envelope whose person reaches v2 days later is still added (14-day wind
     } finally { global.fetch = real; delete process.env.SIGNATUREAPI_KEY; }
   });
 });
+
+test('a model form with nobody in v2 is still kept (training, no customer) and linked once the person arrives (final audit 2026-10-30)', async () => {
+  await h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const n = Date.now();
+    const email = 'sig.model' + n + '@demo.invalid';
+    const env = { id: 'envm-' + n, title: 'Renellence — Photo Permission (Pat Model)', status: 'completed', mode: 'live', created_at: new Date(n - 86400000).toISOString(),
+      completed_at: new Date(n - 86400000).toISOString(), metadata: { participant_email: email },
+      recipients: [{ id: 'r1', key: 'participant', name: 'Pat Model', email, status: 'completed', completed_at: new Date(n - 86400000).toISOString(), type: 'signer' }] };
+    const real = global.fetch;
+    process.env.SIGNATUREAPI_KEY = 'unit';
+    global.fetch = async (url) => /envelopes\?/.test(String(url)) ? { ok: true, json: async () => ({ data: [env], links: {} }) }
+      : { ok: false, status: 404, json: async () => ({ title: 'not found' }) };
+    try {
+      await SIG.sync(sql, 10000);
+      const [a] = await sql`select kind::text, contact_id, status::text from agreements where signatureapi_envelope_id = ${env.id}`;
+      assert.deepEqual([a.kind, a.contact_id, a.status], ['training', null, 'completed']);
+      const c = await h.contact(sql, me, { email });
+      await sql`update agreements set status = 'waiting' where signatureapi_envelope_id = ${env.id}`;   // so the refresh reads it again
+      await SIG.upsert(sql, env);
+      const [b] = await sql`select contact_id from agreements where signatureapi_envelope_id = ${env.id}`;
+      assert.equal(b.contact_id, c.id || c, 'linked once the person is in v2');
+    } finally { global.fetch = real; delete process.env.SIGNATUREAPI_KEY; }
+  });
+});

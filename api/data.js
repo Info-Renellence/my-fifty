@@ -212,8 +212,11 @@ const OPS = {
     const p = await one(sql, me, q.get('id'));
     const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active from products where is_active = ${true} or product_line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
+    // The customer's MD on file fills the samples MD (final audit 2026-10-30: the same MD Edge's New order uses).
+    const [md] = await sql`select m.first_name, m.last_name, m.email::text as email from contacts c join contacts m on m.id = c.medical_director_contact_id where c.id = ${p.id} and m.deleted_at is null`;
     return {
-      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
+      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing,
+        md: md && md.email ? { name: [md.first_name, md.last_name].filter(Boolean).join(' '), email: md.email } : null },
       card,
       cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
       products: products.map((x) => {

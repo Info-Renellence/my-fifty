@@ -370,8 +370,9 @@ const OPS = {
       if (!mdName || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mdEmail)) throw fail(400, 'md_required');
       md = { name: mdName, email: mdEmail };
     }
-    // No shipping address, no order (RD11, Yousef 2026-10-23): Send waits until one is added on Review.
-    const [ship] = await sql`select coalesce(shipping_street, '') <> '' and coalesce(shipping_city, '') <> '' as ok from contacts where id = ${c.id}`;
+    // No shipping address, no order (RD11, Yousef 2026-10-23): a street, city and postal code, as Edge asks (final audit
+    // 2026-10-30: Pulse took street and city only). Send waits until one is added on Review.
+    const [ship] = await sql`select coalesce(shipping_street, '') <> '' and coalesce(shipping_city, '') <> '' and coalesce(shipping_postal_code, '') <> '' as ok from contacts where id = ${c.id}`;
     if (!ship.ok) throw fail(409, 'no_shipping_address');
     const terms = method === 'wire' ? await require('./_wire').termsFor(sql, c.id) : null;
     // Order dispatch (risk #4, 2026-10-23): with settings order_dispatch.pulse on, the order is saved as queued and
@@ -393,6 +394,8 @@ const OPS = {
           [{ id: mdId }] = await tx`insert into contacts (clinic_id, first_name, last_name, email, is_medical_director, role, designation)
             values (${c.clinic_id}, ${parts[0]}, ${parts.slice(1).join(' ') || null}, ${md.email}, true, 'physician', ${/^dr\.?\s/i.test(md.name) ? 'md' : null}) returning id`;   // designation list is lower case (v2 part B)
         }
+        // ...and becomes the customer's MD when they have none, so Edge's New order (which reads it there) agrees (final audit 2026-10-30).
+        if (mdId !== c.id) await tx`update contacts set medical_director_contact_id = ${mdId} where id = ${c.id} and medical_director_contact_id is null`;
       }
       const [o] = await tx`
         insert into orders (contact_id, rep_id, placed_by_id, channel, status, submitted_at, medical_director_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)

@@ -680,3 +680,12 @@ no v2 customer (no association, or a contact / clinic not in v2) and were left i
 `renellence-ops/data/hubspot-note-files-2026-10-30.json`. Email attachments (invites, brochures) were not moved.
 Script: `renellence-ops/ops/migration/hubspot-note-files.cjs` (dry run by default). Edge's customer page downloads them through a
 one-minute signed link (`file_url` op); needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in the edge-sandbox env.
+
+## 50. Final go-live audit fixes (code; no table change), 2026-10-30, asked by Yousef
+
+- SignatureAPI sync (`api/_sigapi.js`): a Renellence training or model form whose signers are not customers is now kept as a
+  `training` agreement with no `contact_id` (models are never contacts), and linked once a signer becomes a customer.
+  40 such envelopes since Oct 28 were missing from v2; the next ticks add them. Other envelopes with nobody in v2 stay out.
+- Pulse samples order: the medical director typed on the order becomes the customer's `medical_director_contact_id` when
+  none is set (Edge's New order reads it there); Pulse pre-fills it from the customer.
+- Pulse orders need a shipping postal code, as Edge does (owner rule RD11).

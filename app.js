@@ -1531,8 +1531,9 @@
       var lines = orderLines(d, dft);
       if (!lines.length) { setTimeout(function () { go('/order/' + contactId, true); }, 0); return loading(); }
       var sum = L.draftSummary(d.products, dft), samples = sum.samples, who = d.person;
+      if (who.md && !dft.mdName && !dft.mdEmail) { dft.mdName = who.md.name; dft.mdEmail = who.md.email; }   // the customer's MD on file (final audit 2026-10-30)
       function info(label, value, first) { return '<div class="kv" style="min-height:48px' + (first ? '' : '') + '"><span class="k">' + label + '</span><span class="v">' + value + '</span></div>'; }
-      var noShip = dft.noShip = !(who.shipping.street && who.shipping.city);
+      var noShip = dft.noShip = !(who.shipping.street && who.shipping.city && who.shipping.postal);
       // No email at all: the pay link or wire invoice would have nowhere to go (samples and a saved card don't need one).
       dft.emailless = !(who.email || who.secondaryEmail); dft.samplesOnly = !!samples; dft.cardSaved = !!(d.card && d.card.saved);
       var h = '<div class="scr">' + backLink('/order/' + contactId, 'Edit order')

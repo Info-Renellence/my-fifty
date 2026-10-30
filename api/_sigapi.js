@@ -60,8 +60,11 @@ async function contactFor(tx, e, kind) {
 async function upsert(tx, e) {
   const [have] = await tx`select id, contact_id, kind::text from agreements where signatureapi_envelope_id = ${e.id}`;
   const kind = have ? have.kind : kindOf(s(e.title));
-  const contact = have ? have.contact_id : await contactFor(tx, e, kind);
-  if (!contact) return 'unmatched';
+  // A training or model form is kept even when nobody on it is a customer (models are never contacts, owner 2026-10-30; Edge's
+  // Send forms records them the same way), and is linked once one is (final audit 2026-10-30: 45 such envelopes were never in v2).
+  const contact = have && have.contact_id ? have.contact_id : await contactFor(tx, e, kind);
+  if (!contact && !(kind === 'training' && /^Renellence\b/i.test(s(e.title)))) return 'unmatched';   // only our own forms, never any envelope
+  if (have && !have.contact_id && contact) await tx`update agreements set contact_id = ${contact}, updated_at = now() where id = ${have.id}`;
   const status = statusOf(e), rs = e.recipients || [];
   const cancelledAt = status === 'cancelled' ? iso(rs.map((r) => r.status_updated_at).filter(Boolean).sort().pop()) : null;
   const aid = have ? have.id : M.uid('agreement:' + e.id);
