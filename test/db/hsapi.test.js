@@ -118,3 +118,22 @@ test('reorders due (owner Q9): a forecast in the next 21 days, and the 45-busine
     assert.ok(clock, 'the clock: 60 days ago is about 42 business days, due within 3 weeks'); assert.equal(clock.properties.purchase_frequency, 'Every 45 business days');
   });
 });
+
+test('website enquiries (owner Q11): the territory rep by postal or province, and the message kept on the person', async () => {
+  await h.withDb(async (sql) => {
+    const web = { wf: 'Website contact form', node: 'unit' };
+    const mk = (props) => A.handle(sql, 'POST', 'crm/v3/objects/contacts', new URLSearchParams(), { properties: Object.assign({ email: em(), firstname: 'Web' }, props) }, web);
+    const owner = async (c) => (await sql`select u.email::text from contacts x join users u on u.id = x.owner_id where x.legacy_id = ${c.id}`)[0];
+    const onLucas = await mk({ province: 'Ontario', zip: 'L7T 1A2' });   // Burlington: Lucas
+    assert.equal((await owner(onLucas) || {}).email, 'lucas.stockley@renellence.com');
+    assert.equal((await owner(await mk({ province: 'Quebec' })) || {}).email, 'angela.tuzzolino@renellence.com');
+    assert.equal((await owner(await mk({ province: 'Manitoba' })) || {}).email, 'emily@renellence.com');
+    assert.equal(await owner(await mk({ province: 'Ontario' })), undefined, 'Ontario with no postal code: info@ assigns it');
+    const plain = await call(sql, 'POST', 'crm/v3/objects/contacts', { properties: { email: em(), province: 'Quebec' } });
+    assert.equal(await owner(plain), undefined, 'not a website enquiry (e.g. onboarding): no rep');
+    await A.handle(sql, 'POST', 'crm/v3/objects/notes', new URLSearchParams(), { properties: { hs_note_body: '<strong>Website contact form — Samples</strong><br>Hello', hs_timestamp: new Date().toISOString() },
+      associations: [{ to: { id: onLucas.id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 202 }] }] }, web);
+    const [n] = await sql`select i.body, i.source::text from interactions i join contacts c on c.id = i.contact_id where c.legacy_id = ${onLucas.id} and i.kind = 'note'`;
+    assert.ok(n && /Hello/.test(n.body) && n.source === 'import', JSON.stringify(n));
+  });
+});

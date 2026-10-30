@@ -201,6 +201,13 @@ async function createContact(sql, ctx, body) {
   }
   const id = newId();
   const row = Object.assign({ id: M.uid('contact:' + id) }, M.contactRow(id, p));
+  // A website enquiry (renellence-page /api/contact) gets its territory rep, as Meta leads do (owner Q11, 2026-10-30): Ontario by
+  // postal area, BC / Alberta / Quebec by province, the other provinces Emily (the website's own rule). Never for n8n's
+  // onboarding contacts, which stay without a rep until the form is fully signed (owner 2026-10-15).
+  if (!row.owner_id && ctx.wf === WEBSITE) {
+    const rep = websiteRep(p);
+    if (rep) { row.owner_id = M.uid('user:' + rep); p.hubspot_owner_id = s(OWNER_OF[row.owner_id]); }
+  }
   if (!row.owner_id) delete row.owner_id;
   if (p.lifecyclestage === 'lead' || p.hs_lead_status) row.lead_source = row.lead_source || 'warm';
   const coId = linkTo(body, 'companies');
@@ -210,6 +217,30 @@ async function createContact(sql, ctx, body) {
   });
   const out = { id, properties: Object.assign({ hs_object_id: id, createdate: new Date().toISOString(), lastmodifieddate: new Date().toISOString() }, p), createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), archived: false };
   await keep(sql, ctx, { method: 'POST', url: '/crm/v3/objects/contacts', body, response: out });
+  return out;
+}
+const WEBSITE = 'Website contact form';
+const REP_EMAIL = { Lucas: 'lucas.stockley@renellence.com', Sam: 'sam.almas@renellence.com', Emily: 'emily@renellence.com', Brittany: 'brittany.houston@renellence.com', Angela: 'angela.tuzzolino@renellence.com' };
+const EMILY_PROVINCES = /^(manitoba|saskatchewan|new brunswick|nova scotia|prince edward island|newfoundland and labrador|mb|sk|nb|ns|pe|nl)$/i;
+function websiteRep(p) {
+  const Tr = require('./_territory');
+  const prov = s(p.province || p.state);
+  const r = Tr.ruleFor(Tr.fsaOf(p.zip)) || Tr.placeRule(prov, p.city);
+  if (r && !r.split) return REP_EMAIL[r.reps[0]] || null;
+  if (!r && EMILY_PROVINCES.test(prov.trim())) return REP_EMAIL.Emily;
+  return null;   // Ontario without a postal code, or a split area: info@ assigns it
+}
+// The enquiry itself, kept on the person in v2 (a note; source import with a website: id, no new source value).
+async function websiteNote(sql, ctx, body) {
+  const cId = linkTo(body, 'contacts');
+  const c = cId ? await rowOf(sql, 'contacts', cId) : null;
+  if (!c) return null;
+  const text = M.strip(s((body.properties || {}).hs_note_body));
+  const id = newId();
+  await txOf(sql, (tx) => tx`insert into interactions (kind, contact_id, user_id, occurred_at, status, body, needs_review, source, external_id)
+    values ('note', ${c.id}, ${c.owner_id || null}, now(), 'completed', ${text}, false, 'import', ${'website:' + id})`);
+  const out = { id, properties: { hs_object_id: id, hs_note_body: s((body.properties || {}).hs_note_body) }, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), archived: false };
+  await keep(sql, ctx, { method: 'POST', url: '/crm/v3/objects/notes', body, response: out });
   return out;
 }
 async function patchContact(sql, ctx, id, body) {
@@ -450,6 +481,7 @@ async function handle(sql, method, path, query, body, ctx) {
     const t = T(m[1]);
     if (t === 'contacts') return createContact(sql, ctx, body);
     if (t === 'companies') return createCompany(sql, ctx, body);
+    if (t === 'notes' && ctx.wf === WEBSITE) { const n = await websiteNote(sql, ctx, body); if (n) return n; }
     if (t === 'notes') await attachFiles(sql, body);
     if (t === 'orders') {   // its customer and line items, as ids intake can follow
       for (const a of body.associations || []) if (a.to && a.to.id && Number(((a.types || [])[0] || {}).associationTypeId) === 507) a.to.id = await ensureNumeric(sql, 'contacts', a.to.id);
