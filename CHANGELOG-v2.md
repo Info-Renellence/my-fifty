@@ -668,3 +668,15 @@ is not dropped). New enum `events_customer_reward` (vienna · training) and colu
 Admins set it (for now in the Supabase table editor; an admin control belongs in renellence-admin). Edge's Forecast shows the
 label on a customer whose RSVP is yes or who attended, in the event's month; never money. **Status: applied to v1 and v2
 2026-10-30** (`renellence-ops/ops/fixes/apply-v2-018.js`, dry run first). Test `renellence-edge/test/run/db-event-rewards.test.js`.
+
+## 49. HubSpot note files moved into v2 Storage (data + new private bucket `files`, no table change), 2026-10-30, asked by Yousef
+
+Owner: "Move only the 350" (go-live #79). The 350 HubSpot notes with attachments hold 221 distinct files. **124** belong to a v2
+customer and were moved (137 MB, none failed): uploaded to the new **private Storage bucket `files`** and one `files` row each,
+named by the rule in `api/_files.js` (`contacts/<contact id>/<file id>.<ext>`; the file id is derived from the HubSpot file id,
+so a re-run skips them). Attached to the note's imported interaction when there is one (`interaction_id`), else the note's
+contact; notes filed only on a clinic go on the clinic's main customer (latest order, else first added). The other **97** have
+no v2 customer (no association, or a contact / clinic not in v2) and were left in HubSpot; listed in
+`renellence-ops/data/hubspot-note-files-2026-10-30.json`. Email attachments (invites, brochures) were not moved.
+Script: `renellence-ops/ops/migration/hubspot-note-files.cjs` (dry run by default). Edge's customer page downloads them through a
+one-minute signed link (`file_url` op); needs `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` in the edge-sandbox env.
