@@ -697,3 +697,19 @@ wire payments on delivered orders ($52,770.55) set to succeeded, paid_at = each 
 booster commission changes); the one wire on an invoiced order is untouched. Logged in change_logs as admin@ (source import).
 Script `renellence-ops/ops/fixes/golive-answers-2026-10-30.cjs` (dry run first). Q1: `api/quo.js` maps every Quo line to its rep
 (438 Angela, 778 Brittany, 365-700 Emily, 365-360 Lucas, 647 Sam; automated 647 texts still skipped); no past call or text needed a rep.
+
+## 52. n8n writes v2 directly (no HubSpot); v2 -> HubSpot copy; Stripe charges linked (code + data, no table change), 2026-10-30, asked by Yousef
+
+Owner: "everything that writes to hubspot will now only write to v2. everything that reads from hubspot will now only read from v2",
+plus a sync so reps still in HubSpot see new leads and orders until switch day.
+- Pulse `/api/hs` (`api/hs.js`, `api/_hsapi.js`): HubSpot's API shape answered from v2. The 103 HubSpot steps of the six live n8n
+  workflows call it instead of HubSpot (renellence-ops/ops/n8n/remove-hubspot.cjs; backups data/backups/n8n-2026-10-30-before-hubspot-removal).
+  New records n8n makes get a 13-digit legacy_id starting with 9 until the HubSpot copy gives them HubSpot's id. Records made in Pulse/Edge
+  are shown under a stable alias (8 + 12 digits, never stored). Every write is kept in ingest_events (source n8n, payload.via v2api).
+  Signed PDFs from n8n go to Storage under `unfiled/` and onto the customer when the note attaches them. Website enquiries
+  (renellence-page api/contact.js) get their territory rep and keep their message as a note (source import, external_id `website:<id>`).
+- New settings row `hubspot_push` (`api/_hspush.js`): the v2 -> HubSpot copy's clock, cursor and old-id -> HubSpot-id map. Flag
+  `hubspot_push` (default on) in settings.flags; needs HUBSPOT_WRITE_TOKEN. Its own v2 writes (taking HubSpot's id) are logged as import.
+- Data: 23 Stripe charges linked to their payment rows (provider stripe, external_id = the charge id; amounts equal), from the
+  audit's list (renellence-ops/ops/fixes/link-stripe-charges.cjs). The 14 Nov 2025 - Mar 2026 Stripe invoices stay out (owner).
+- Retired n8n workflows (deactivated): Internal Sales Form Platform, [REG] Onboarding Form Submission (old), [HS] Order-Deal Association Sync.
