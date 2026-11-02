@@ -8,7 +8,9 @@
 //      (renellence-ops migration-load/build.js): ids md5('…:agreement:<envelope id>'), kind from the title, the
 //      person found by email. One v2 has no person for is left for a later tick (counted as unmatched).
 //   2. waiting agreements: the oldest-checked ones are read again (up to 15 a tick), so signed, cancelled or failed
-//      envelopes, and each signer's status, reach v2 (and the onboarding becomes signed / abandoned).
+//      envelopes, and each signer's status, reach v2 (and the onboarding becomes signed / abandoned). Signer rows are kept
+//      one per recipient (syncSigners), and a completed envelope's signed PDF goes to v2 Storage (keepSignedPdf).
+//   3. completed agreements still without their signed PDF: a few a tick.
 // change_logs source 'import' (there is no 'signatureapi' change_logs source; adding one is a v2 change to ask about).
 'use strict';
 const M = require('./_hsmap');
@@ -35,8 +37,10 @@ async function sa(path, opts) {
 
 const kindOf = (title) => (/Onboarding|ouverture de compte/i.test(title) ? 'onboarding' : /Product Distribution Record/i.test(title) ? 'md_pdr' : 'training');
 const statusOf = (e) => (e.status === 'completed' ? 'completed' : e.status === 'canceled' ? 'cancelled' : e.status === 'failed' ? 'failed' : 'waiting');
+// 'awaiting' is a later signer on a sequential envelope who has not been emailed yet (Yousef 2026-11-02, full audit: 30 MDs
+// read as "sent" before the first signature).
 const signerStatus = (r, e) => (r.status === 'completed' ? 'signed' : r.status === 'declined' || r.status === 'rejected' ? 'declined'
-  : r.status === 'bounced' ? 'bounced' : e.status === 'canceled' ? 'not_sent' : 'sent');
+  : r.status === 'bounced' ? 'bounced' : e.status === 'canceled' || r.status === 'awaiting' ? 'not_sent' : 'sent');
 const signerRole = (k) => (k === 'delegate' ? 'practitioner' : k === 'medical_director' || k === 'md' ? 'md' : k || null);
 const isTest = (e) => e.mode !== 'live' || (e.metadata && (e.metadata.test === true || e.metadata.test === 'true'));
 
@@ -54,6 +58,80 @@ async function contactFor(tx, e, kind) {
       : [md.participant_email, md.customer_email, md.model_email, md.patient_email, md.provider_email, md.clinic_email].concat(rs.map((r) => r.email));
   for (const x of tries) { const id = await byEmail(tx, x); if (id) return id; }
   return null;
+}
+
+// The envelope's signers are the agreement's signer rows, one row per recipient (Yousef 2026-11-02, full audit: Catrina Peters
+// had a stale "sent" row next to her "signed" one, so Edge asked to resend a form she had signed). Rows came in three ways
+// with different ids: this sync (md5 of the recipient id), the Oct 22 / Oct 27 loads, and Edge's Send forms (random ids); and
+// SignatureAPI gives a recipient a new id when their email is corrected. So a recipient's row is: its own id, else an unclaimed
+// row for the same step with the same email, else one with the same email, else the same step's row of a recipient that is no
+// longer on the envelope (the corrected one). Rows left over stand for nobody on the envelope and are removed. A name or a
+// contact already set in v2 stays (v2 wins: names were cleaned and signers linked by hand); blanks are filled.
+async function syncSigners(tx, aid, e) {
+  const rs = e.recipients || [];
+  const own = rs.map((r, i) => M.uid('signer:' + e.id + ':' + (r.id || i)));
+  const rows = await tx`select id, name, email, signing_order, contact_id from agreement_signers where agreement_id = ${aid}`;
+  const kept = new Set();
+  const free = (x) => !kept.has(x.id) && !own.includes(x.id);
+  for (let i = 0; i < rs.length; i++) {
+    const r = rs[i], em = M.email(r.email);
+    const row = rows.find((x) => x.id === own[i])
+      || (em && rows.find((x) => free(x) && x.signing_order === i + 1 && M.email(x.email) === em))
+      || (em && rows.find((x) => free(x) && M.email(x.email) === em))
+      || rows.find((x) => free(x) && x.signing_order === i + 1 && !rs.some((y) => M.email(y.email) && M.email(y.email) === M.email(x.email)));
+    const st = signerStatus(r, e), at = iso(r.completed_at);
+    if (row) {
+      kept.add(row.id);
+      const contact = row.contact_id || await byEmail(tx, r.email);
+      await tx`update agreement_signers set name = coalesce(name, ${s(r.name) || null}), email = coalesce(${em}, email), role = ${signerRole(r.key)},
+                 signing_order = ${i + 1}, status = ${st}, signed_at = ${at}, contact_id = ${contact}
+               where id = ${row.id} and (status::text is distinct from ${st} or signed_at is distinct from ${at} or signing_order is distinct from ${i + 1}
+                 or email is distinct from coalesce(${em}, email) or role is distinct from ${signerRole(r.key)} or contact_id is distinct from ${contact}
+                 or (name is null and ${s(r.name) || null}::text is not null))`;
+    } else {
+      kept.add(own[i]);
+      await tx`insert into agreement_signers (id, agreement_id, contact_id, name, email, role, signing_order, status, signed_at)
+               values (${own[i]}, ${aid}, ${await byEmail(tx, r.email)}, ${s(r.name) || null}, ${em}, ${signerRole(r.key)}, ${i + 1}, ${st}, ${at})
+               on conflict (id) do nothing`;
+    }
+  }
+  const gone = rows.filter((x) => !kept.has(x.id));
+  if (!gone.length || !rs.length) return;
+  // a contact someone linked on a row that goes (the MD before her email was corrected) moves to the same step's row
+  for (const g of gone) if (g.contact_id) await tx`update agreement_signers set contact_id = ${g.contact_id} where agreement_id = ${aid} and signing_order = ${g.signing_order} and contact_id is null and id in ${tx([...kept])}`;
+  await tx`delete from agreement_signers where agreement_id = ${aid} and id in ${tx(gone.map((x) => x.id))}`;
+}
+
+// The signed PDF into v2 Storage (Yousef 2026-11-02, full audit: no agreement had its signed file). SignatureAPI's deliverable
+// of a completed envelope is a short-lived link; the file goes to the private bucket `files` by the naming rule in _files.js
+// (agreements/<agreement id>/<file id>.pdf, file id fixed per envelope so a retry overwrites), one files row, and
+// agreements.signed_file_id. Needs SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (v2), as the n8n file upload does; else skipped.
+async function keepSignedPdf(tx, aid, e) {
+  const base = s(process.env.SUPABASE_URL).replace(/\/$/, ''), skey = s(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const d = e.deliverable || {};
+  if (!base || !skey || d.status !== 'generated' || !d.url) return false;
+  const [a] = await tx`select signed_file_id from agreements where id = ${aid}`;
+  if (!a || a.signed_file_id) return false;
+  const ctl = new AbortController(), t = setTimeout(() => ctl.abort(), 20000);
+  try {
+    const r = await fetch(d.url, { signal: ctl.signal });
+    if (!r.ok) return false;
+    const buf = Buffer.from(await r.arrayBuffer());
+    if (buf.slice(0, 4).toString() !== '%PDF') return false;
+    const F = require('./_files');
+    const fileId = M.uid('signedpdf:' + e.id);
+    // the name SignatureAPI gives the download (encoded twice inside the link), else the envelope's title
+    const dec = (x) => { try { return decodeURIComponent(x); } catch (_) { return x; } };
+    const original = (dec(dec((/filename%3D([^&]+)/i.exec(d.url) || [])[1] || '')).replace(/\+/g, ' ').match(/^([^/\\]*\.pdf)$/i) || [])[1] || (s(e.title) || 'Signed agreement') + '.pdf';
+    const { storagePath } = F.fileNames({ table: 'agreements', parentId: aid, fileId, originalName: original, mimeType: 'application/pdf' });
+    const up = await fetch(base + '/storage/v1/object/files/' + storagePath, { method: 'POST', signal: ctl.signal,
+      headers: { Authorization: 'Bearer ' + skey, apikey: skey, 'Content-Type': 'application/pdf', 'x-upsert': 'true' }, body: buf });
+    if (!up.ok) return false;
+    await tx`insert into files (id, storage_path, file_name, mime_type, size_bytes, agreement_id)
+             values (${fileId}, ${storagePath}, ${original.slice(0, 200)}, 'application/pdf', ${buf.length}, ${aid}) on conflict (id) do nothing`;
+    await tx`update agreements set signed_file_id = ${fileId}, updated_at = now() where id = ${aid} and signed_file_id is null`;
+    return true;
+  } finally { clearTimeout(t); }
 }
 
 // One envelope into v2 (new or refreshed). Returns 'added', 'updated' or 'unmatched'.
@@ -76,19 +154,26 @@ async function upsert(tx, e) {
              values (${aid}, ${kind}, ${contact}, ${e.id}, ${status}, ${iso(e.created_at)}, ${iso(e.completed_at)}, ${cancelledAt},
                      ${kind === 'training' ? s(e.title) || null : null}, ${iso(e.created_at) || new Date().toISOString()}, now())`;
   }
-  for (let i = 0; i < rs.length; i++) {
-    const r = rs[i], sid = M.uid('signer:' + e.id + ':' + (r.id || i));
-    await tx`insert into agreement_signers (id, agreement_id, contact_id, name, email, role, signing_order, status, signed_at)
-             values (${sid}, ${aid}, ${await byEmail(tx, r.email)}, ${s(r.name) || null}, ${M.email(r.email)}, ${signerRole(r.key)}, ${i + 1}, ${signerStatus(r, e)}, ${iso(r.completed_at)})
-             on conflict (id) do update set status = excluded.status, signed_at = excluded.signed_at
-             where agreement_signers.status is distinct from excluded.status or agreement_signers.signed_at is distinct from excluded.signed_at`;
-  }
+  await syncSigners(tx, aid, e);
+  if (status === 'completed') await keepSignedPdf(tx, aid, e).catch(() => null);   // a missed PDF is caught up by a later tick
   if (kind === 'onboarding') {
     const ob = status === 'completed' ? 'signed' : status === 'cancelled' ? 'abandoned' : 'submitted';
     const [onb] = await tx`select id, status::text from onboardings where agreement_id = ${aid}`;
     if (onb) {
       // never step back: 'complete' (card saved, set elsewhere) stays
       if (onb.status !== 'complete' && onb.status !== ob) await tx`update onboardings set status = ${ob}, completed_at = ${status === 'completed' ? iso(e.completed_at) : null}, updated_at = now() where id = ${onb.id}`;
+      // A signer who reached v2 after the form came in (Yousef 2026-11-02, full audit: 5 injectors left as the account, 3 MDs
+      // blank): the injector that was only the account stand-in, and an empty MD, are filled; anything else set stays.
+      const deleg = rs.find((r) => r.key === 'delegate'), mdr = rs.find((r) => r.key === 'medical_director');
+      const inj = deleg ? await byEmail(tx, deleg.email) : null, mdc = mdr ? await byEmail(tx, mdr.email) : null;
+      // not when the signer is the account under another email (George Addoumieh: his email sits on a second, nameless record)
+      const nm = (v) => s(v).toLowerCase().replace(/^dr\.?\s+/, '').replace(/\s+/g, ' ');
+      const [acct] = await tx`select first_name, last_name from contacts where id = ${contact}`;
+      const self = acct && deleg && nm(deleg.name) === nm([acct.first_name, acct.last_name].filter(Boolean).join(' '));
+      if (inj && !self) await tx`update onboardings set injector_contact_id = ${inj}, updated_at = now()
+                         where id = ${onb.id} and injector_contact_id is not distinct from primary_contact_id and injector_contact_id is distinct from ${inj}`;
+      if (mdc) await tx`update onboardings set medical_director_contact_id = ${mdc}, updated_at = now()
+                         where id = ${onb.id} and medical_director_contact_id is null and primary_contact_id is distinct from ${mdc}`;
     } else {
       const deleg = rs.find((r) => r.key === 'delegate'), mdr = rs.find((r) => r.key === 'medical_director');
       const inj = (deleg && await byEmail(tx, deleg.email)) || contact;
@@ -153,6 +238,16 @@ async function sync(sql, budgetMs) {
     } catch (x) { out.errors++; }
   }
   if (last) await sql`insert into settings (key, value) values ('sigapi_sync', ${sql.json({ after: last })}) on conflict (key) do update set value = excluded.value`;
+  // 3. signed PDFs that did not make it when the agreement completed (storage not set up, a timeout): a few a tick, in random
+  //    order so one that keeps failing never holds the others back (Yousef 2026-11-02, full audit)
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const done = await sql`select id, signatureapi_envelope_id as env from agreements where status = 'completed' and signed_file_id is null
+                             and signatureapi_envelope_id is not null and completed_at > now() - interval '60 days' order by random() limit 3`;
+    for (const d of done) {
+      if (Date.now() > until) break;
+      try { const e = await sa('envelopes/' + encodeURIComponent(d.env)); if (await inTx(sql, (tx) => keepSignedPdf(tx, d.id, e))) out.pdfs = (out.pdfs || 0) + 1; } catch (x) { out.errors++; }
+    }
+  }
   return out;
 }
 
@@ -172,4 +267,4 @@ async function remind(envelopeId) {
   }
 }
 
-module.exports = { sync, remind, upsert, _: { kindOf, statusOf, signerStatus } };
+module.exports = { sync, remind, upsert, syncSigners, keepSignedPdf, _: { kindOf, statusOf, signerStatus } };

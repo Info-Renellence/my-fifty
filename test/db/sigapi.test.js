@@ -109,3 +109,30 @@ test('a model form with nobody in v2 is still kept (training, no customer) and l
     } finally { global.fetch = real; delete process.env.SIGNATUREAPI_KEY; }
   });
 });
+
+test('one signer row per recipient: a stale copy and a replaced recipient\'s row are folded in, a later MD reads not sent (full audit 2026-11-02)', async () => {
+  await h.withDb(async (sql) => {
+    const me = await h.user(sql);
+    const n = Date.now();
+    const email = 'sig.dup' + n + '@demo.invalid';
+    await h.contact(sql, me, { email });
+    const env = { id: 'envd-' + n, title: 'Renellence Customer Onboarding Form', status: 'in_progress', mode: 'live', created_at: new Date().toISOString(), metadata: { customer_email: email },
+      recipients: [{ id: 'r1', key: 'delegate', name: 'Sig Dup', email, status: 'completed', completed_at: new Date().toISOString(), type: 'signer' },
+        { id: 'r2', key: 'medical_director', name: 'Dr Old', email: 'md.old' + n + '@demo.invalid', status: 'awaiting', type: 'signer' }] };
+    await SIG.upsert(sql, env);
+    const [a] = await sql`select id from agreements where signatureapi_envelope_id = ${env.id}`;
+    let ss = await sql`select role, status::text from agreement_signers where agreement_id = ${a.id} order by signing_order`;
+    assert.deepEqual(ss.map((x) => x.role + ':' + x.status), ['practitioner:signed', 'md:not_sent'], 'a later signer not emailed yet is not_sent');
+    // an older load's copy of the first signer, still "sent" (Catrina Peters), and Edge's random-id row for the MD
+    await sql`insert into agreement_signers (agreement_id, name, email, role, signing_order, status) values (${a.id}, 'Sig Dup', ${email}, 'practitioner', 1, 'sent')`;
+    // the MD's email corrected in SignatureAPI: a new recipient id
+    const env2 = Object.assign({}, env, { recipients: [env.recipients[0], { id: 'r3', key: 'medical_director', name: 'Dr New', email: 'md.new' + n + '@demo.invalid', status: 'sent', type: 'signer' }] });
+    await SIG.upsert(sql, env2);
+    ss = await sql`select name, email, role, status::text from agreement_signers where agreement_id = ${a.id} order by signing_order`;
+    assert.deepEqual(ss.map((x) => x.role + ':' + x.status + ':' + x.email), ['practitioner:signed:' + email, 'md:sent:md.new' + n + '@demo.invalid']);
+    assert.equal(ss[1].name, 'Dr Old', 'a name already in v2 stays');
+    await SIG.upsert(sql, env2);
+    const [c] = await sql`select count(*)::int as n from agreement_signers where agreement_id = ${a.id}`;
+    assert.equal(c.n, 2, 'a second read adds nothing');
+  });
+});

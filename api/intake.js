@@ -22,8 +22,10 @@ const M = require('./_hsmap');
 const H = require('./_hubspot');
 const P = require('./_payload');
 // Where a record comes from: HubSpot (the bridge: the 5-minute pull and its repairs) or n8n's own data (api/_payload.js).
-const HS = { contact: (id) => H.contact(id), company: (id) => H.company(id), order: (id) => H.order(id), activity: (t, id) => H.activity(t, id, PROPS[t]),
-  lineItems: (ids) => H.lineItems(ids) };
+// Yousef 2026-11-02 (orders audit): an order is read with its stage history, because HubSpot never fills hs_closed_date on
+// orders: without the history 148 delivered orders had no delivered date and none had a shipped date.
+const HS = { contact: (id) => H.contact(id), company: (id) => H.company(id), activity: (t, id) => H.activity(t, id, PROPS[t]), lineItems: (ids) => H.lineItems(ids),
+  order: (id) => H.call('GET', `/crm/v3/objects/orders/${encodeURIComponent(id)}?properties=${H.ORDER_PROPS.join(',')}&propertiesWithHistory=hs_pipeline_stage&associations=contacts,line_items`) };
 
 function authorised(req) {
   const want = String(process.env.N8N_INTAKE_SECRET || '');
@@ -284,7 +286,7 @@ async function syncClinic(tx, hsId, patched, src = HS) {
 // the fields the change carries, and the status only ever moves forward (never back from paid, never off rejected/cancelled).
 const RANK = ['submitted', 'approved', 'awaiting_md', 'invoiced', 'paid', 'sent_to_warehouse', 'shipped', 'delivered'];
 async function patchOrder(tx, hsId, p) {
-  const [cur] = await tx`select id, status::text as status, payment_method::text as pm from orders where legacy_id = ${String(hsId)} and deleted_at is null`;
+  const [cur] = await tx`select id, status::text as status, payment_method::text as pm, shipped_at from orders where legacy_id = ${String(hsId)} and deleted_at is null`;
   if (!cur) return { skipped: true, why: 'order not in v2 yet (the 5-minute pull brings it)' };
   const set = {};
   if (p.qbo_id) set.quickbooks_invoice_id = String(p.qbo_id);
@@ -301,7 +303,11 @@ async function patchOrder(tx, hsId, p) {
     : stage === 'processed' ? (p.hs_payment_status === 'Paid' && !wire ? 'paid' : 'invoiced') : p.hs_payment_status === 'Paid' && !wire ? 'paid' : null;
   if (to && !['rejected', 'cancelled'].includes(cur.status)) {
     if (to === 'cancelled') { set.status = 'cancelled'; set.cancelled_at = new Date().toISOString(); }
-    else if (RANK.indexOf(to) > RANK.indexOf(cur.status)) { set.status = to; if (to === 'delivered') set.delivered_at = p.hs_closed_date || new Date().toISOString(); }
+    else if (RANK.indexOf(to) > RANK.indexOf(cur.status)) {
+      set.status = to;
+      if (to === 'delivered') set.delivered_at = p.hs_closed_date || new Date().toISOString();
+      if (to === 'shipped' && !cur.shipped_at) set.shipped_at = new Date().toISOString();   // Yousef 2026-11-02: shipped orders had no shipped date
+    }
   }
   if (!Object.keys(set).length) return { table: 'orders', id: cur.id, changed: [] };
   await tx`update orders set ${tx(set)} where id = ${cur.id}`;
@@ -310,8 +316,41 @@ async function patchOrder(tx, hsId, p) {
 
 // HubSpot is where these orders live (the Internal Sales Form, the daily digest's tracking): its status, dates,
 // tracking and QuickBooks id always win; lines and payments are added once.
-const ORDER_OWNED = ['status', 'delivered_at', 'cancelled_at', 'tracking_number', 'tracking_url', 'quickbooks_invoice_id', 'shipment_method', 'payment_method', 'payment_terms_days',
+const ORDER_OWNED = ['status', 'delivered_at', 'shipped_at', 'cancelled_at', 'tracking_number', 'tracking_url', 'quickbooks_invoice_id', 'shipment_method', 'payment_method', 'payment_terms_days',
   'tax_amount', 'shipping_amount', 'discount_amount', 'contact_id', 'rep_id', 'order_number'];
+const STALE_PROCESSED_DAYS = 30;
+// Yousef 2026-11-02 (orders audit): the rules the Oct 22 load used that the live pull did not, so orders it added later came
+// in differently (Peyvand Malek's and Mirna Gomez's May orders stuck at "paid"; free extras counted as bought):
+//  - an order still "Processed" in HubSpot more than 30 days after it was placed went out long ago (the sales form never
+//    moved Shopify-era orders on): delivered, with no date unless HubSpot has one;
+//  - delivered / shipped dates come from when HubSpot's stage changed (stage history), as hs_closed_date is never set;
+//  - a line HubSpot discounted to $0 (price set, amount 0: the free extras of the Shopify-era sales form) is a free line at
+//    $0, and the order's discount drops by the same amount, so the order's value is unchanged.
+// `cur` = the v2 order as it is (or null): its dates are only filled, never moved; its status only moves forward.
+function orderFixes(rec, rows, lis, cur, now = Date.now()) {
+  const { order, lines } = rows;
+  const p = (rec && rec.properties) || {};
+  const stage = M.stageOf(p.hs_pipeline_stage);
+  const placed = Date.parse(order.submitted_at || order.created_at || '');
+  if (stage === 'processed' && ['paid', 'invoiced'].includes(order.status) && placed && now - placed > STALE_PROCESSED_DAYS * 864e5) order.status = 'delivered';
+  const hist = ((rec && rec.propertiesWithHistory) || {}).hs_pipeline_stage || [];
+  const first = (st) => hist.filter((e) => M.stageOf(e.value) === st && e.timestamp).map((e) => new Date(e.timestamp).toISOString()).sort()[0] || null;
+  if (order.status === 'delivered' && !order.delivered_at) order.delivered_at = first('delivered');
+  if (['shipped', 'delivered'].includes(order.status)) order.shipped_at = first('shipped');
+  if (cur && cur.delivered_at) delete order.delivered_at;
+  if (cur && cur.shipped_at) delete order.shipped_at;
+  if (cur && order.status !== 'cancelled' && (['rejected', 'cancelled'].includes(cur.status) || RANK.indexOf(order.status) < RANK.indexOf(cur.status))) delete order.status;
+  const byId = Object.fromEntries((lis || []).map((li) => ['hubspot:' + li.id, li.properties || {}]));
+  let freed = 0;
+  for (const l of lines) {
+    const lp = byId[l.external_id];
+    if (!lp || l.is_free || !(Number(l.unit_price) > 0) || !(Number(l.quantity) > 0) || lp.amount == null || lp.amount === '' || Number(lp.amount) !== 0) continue;
+    freed += Number(l.unit_price) * Number(l.quantity || 0);
+    l.unit_price = 0; l.is_free = true;
+  }
+  if (freed && order.discount_amount != null) order.discount_amount = Math.max(0, Math.round((Number(order.discount_amount) - freed) * 100) / 100);
+  return rows;
+}
 async function syncOrder(tx, hsId, src = HS) {
   const rec = await src.order(hsId);
   if (!rec) return null;
@@ -322,7 +361,8 @@ async function syncOrder(tx, hsId, src = HS) {
   if (!contactId && cids[0]) contactId = ((await syncContact(tx, cids[0], null, src)) || {}).id || null;   // a customer is always wanted
   if (!contactId) return { skipped: true, why: 'order has no customer' };
   const lis = await src.lineItems(H.assocIds(rec, 'line_items'));
-  const { order, lines, payments } = M.orderRows(hsId, rec.properties || {}, lis, contactId);
+  const [was] = await tx`select status::text as status, delivered_at, shipped_at from orders where legacy_id = ${String(hsId)} and deleted_at is null`;
+  const { order, lines, payments } = orderFixes(rec, M.orderRows(hsId, rec.properties || {}, lis, contactId), lis, was || null);
   for (const k of Object.keys(order)) if (order[k] == null) delete order[k];
   // A Pulse order sent to the Internal Sales Form (api/_isf.js) comes back here as a HubSpot order: link it to the Pulse
   // order (same customer, same paid items, placed in Pulse in the last week, not linked yet) instead of adding a second.
@@ -469,6 +509,10 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
     const have = await idOf(tx, 'contacts', rec.id);
     if (!have) {
       if (!p.createdate || new Date(p.createdate) < new Date(EXPORT_AT) || M.contactSkip(p)) return 'skipped';
+      // Yousef 2026-11-02: a rep's second HubSpot record for someone v2 already has (Kendra Norris, Anne-Marie Pion) was added
+      // as a new person. Same email, or the one live contact with that full name (not the phone: colleagues share the clinic's
+      // line); a later call or email on it links to that person through bringBack.
+      if (await samePerson(tx, p, { phone: false })) return 'skipped';
       return ((await syncContact(tx, rec.id, null)) || {}).created ? 'added' : 'skipped';
     }
     const row = Object.assign({ id: have }, M.contactRow(rec.id, p));
@@ -533,19 +577,23 @@ async function bringBack(tx, hsId, src) {
   if (kept) return kept;
   const [gone] = await tx`select id from contacts where legacy_id = any(${[String(hsId), String(rec.id)]}) and deleted_at is not null limit 1`;
   if (gone || M.contactSkip(rec.properties || {})) return null;
-  // Someone v2 already has under another HubSpot record (audit 2026-10-29: an Oct 22 duplicate merge folded this HubSpot id into
-  // the kept one, and the rep's new call made the person again): the same email, else the same phone, else the one live contact
-  // with that full name. Only a person with none of these is added.
-  const p = rec.properties || {};
-  const em = String(p.email || '').trim().toLowerCase(), ph = M.e164(p.mobilephone || p.phone);
+  const same = await samePerson(tx, rec.properties || {});
+  if (same) return same;
+  const r = await syncContact(tx, rec.id, null, src);
+  return r ? r.id : null;
+}
+// Someone v2 already has under another HubSpot record (audit 2026-10-29: an Oct 22 duplicate merge folded this HubSpot id into
+// the kept one, and the rep's new call made the person again): the same email, else the same phone, else the one live contact
+// with that full name. Only a person with none of these is added.
+async function samePerson(tx, p, o = {}) {
+  const em = String(p.email || '').trim().toLowerCase(), ph = o.phone === false ? null : M.e164(p.mobilephone || p.phone);
   const nm = [p.firstname, p.lastname].map((x) => String(x || '').trim()).filter(Boolean).join(' ').toLowerCase();
   for (const q of [
     em && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and (lower(email::text) = ${em} or lower(secondary_email::text) = ${em}) limit 2`,
     ph && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and (phone = ${ph} or mobile_phone = ${ph}) limit 2`,
     nm.split(' ').length >= 2 && tx`select id from contacts where deleted_at is null and merged_into_contact_id is null and lower(trim(coalesce(first_name,'') || ' ' || coalesce(last_name,''))) = ${nm} limit 2`,
   ]) { if (!q) continue; const r = await q; if (r.length === 1) return r[0].id; }
-  const r = await syncContact(tx, rec.id, null, src);
-  return r ? r.id : null;
+  return null;
 }
 async function insertRow(tx, table, row) {
   const keys = Object.keys(row).filter((k) => row[k] !== undefined);
@@ -558,3 +606,4 @@ module.exports.apply = apply;
 module.exports.sync = sync;
 module.exports.edgeForecasts = edgeForecasts;
 module.exports.edgeKv = edgeKv;
+module.exports.orderFixes = orderFixes;

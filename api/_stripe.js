@@ -6,6 +6,7 @@
 //                                  the same charge from HubSpot without a Stripe id gets the id added, never a second row
 //   charge.refunded                a refund row against that payment
 //   payment_intent.payment_failed  a failed charge on its order, with Stripe's reason
+//   charge.dispute.*               the payment disputed while a dispute is open (succeeded again if won)
 // The order is found by the Stripe payment id: already on one of its payments, or in the order note the sales form writes
 // ("CARD ON FILE (Stripe pi_...)"), or by the order number Stripe carries in its metadata. The sales form charges the card
 // BEFORE it creates the order, so an event whose order is not in v2 yet waits (status pending) and every tick tries it
@@ -29,9 +30,13 @@ function signatureOk(header, raw, secret, now = Date.now()) {
   return v1.some((x) => { const got = Buffer.from(String(x || '')); return got.length === want.length && crypto.timingSafeEqual(got, want); });
 }
 
-async function orderFor(tx, pi, meta) {
+// Yousef 2026-11-02 (orders audit): a payment may hold the charge id (ch_..., how the Oct 30 link set 23 of them) or the
+// payment intent (pi_..., how this file writes them): look for both, or a refund or a resent charge event is not found
+// (refund left pending) or makes a second succeeded row for the same money.
+const idsOf = (o) => [...new Set([s(o.payment_intent), s(o.charge && o.charge.id ? o.charge.id : o.charge), s(o.id)].filter((x) => /^(pi|ch|py)_/.test(x)))];
+async function orderFor(tx, pi, meta, ids) {
   if (pi) {
-    const [p] = await tx`select order_id from payments where external_id = ${pi} limit 1`;
+    const [p] = await tx`select order_id from payments where external_id = any(${ids && ids.length ? ids : [pi]}) limit 1`;
     if (p) return p.order_id;
     const [o] = await tx`select id from orders where deleted_at is null and approval_note like ${'%' + pi + '%'} order by created_at desc limit 1`;
     if (o) return o.id;
@@ -51,13 +56,19 @@ async function apply(sql, ev) {
     await tx`select set_config('app.source', 'stripe_webhook', true), set_config('app.user_id', '', true), set_config('app.batch_id', '', true)`;
     if (ev.type === 'charge.succeeded') {
       const pi = s(o.payment_intent) || s(o.id);
-      const orderId = await orderFor(tx, pi, o.metadata);
+      const ids = idsOf(o);
+      const orderId = await orderFor(tx, pi, o.metadata, ids);
       if (!orderId) return { pending: true, why: 'order not in v2 yet (the sales form charges before it makes the order)' };
       const card = (o.payment_method_details && o.payment_method_details.card) || {};
       const row = { status: 'succeeded', provider: 'stripe', external_id: pi, paid_at: when(o.created), card_brand: s(card.brand) || null, card_last4: s(card.last4) || null,
         receipt_url: s(o.receipt_url) || null, fee_amount: null };
-      const [have] = await tx`select id from payments where external_id = ${pi}`;
-      if (have) { await tx`update payments set ${tx(row)} where id = ${have.id}`; return { table: 'payments', id: have.id }; }
+      const [have] = await tx`select id, status::text as status from payments where external_id = any(${ids}) and kind = 'charge' limit 1`;
+      if (have) {   // keep the id it is filed under; a disputed payment stays disputed until the dispute closes
+        const keep = Object.assign({}, row); delete keep.external_id;
+        if (have.status === 'disputed') delete keep.status;
+        for (const k of ['card_brand', 'card_last4', 'receipt_url']) if (keep[k] == null) delete keep[k];
+        await tx`update payments set ${tx(keep)} where id = ${have.id}`; return { table: 'payments', id: have.id };
+      }
       // the same charge already came in from HubSpot (no Stripe id): add the id and the card, never a second row
       const [same] = await tx`select id from payments where order_id = ${orderId} and kind = 'charge' and external_id is null and status in ('succeeded', 'pending')
                                 and abs(coalesce(amount, 0) - ${money(o.amount)}) < 1 order by created_at limit 1`;
@@ -70,7 +81,7 @@ async function apply(sql, ev) {
     }
     if (ev.type === 'charge.refunded') {
       const pi = s(o.payment_intent) || s(o.id);
-      const [paid] = await tx`select id, order_id from payments where external_id = ${pi} and kind = 'charge'`;
+      const [paid] = await tx`select id, order_id from payments where external_id = any(${idsOf(o)}) and kind = 'charge' limit 1`;
       if (!paid) return { pending: true, why: 'the charge is not in v2 yet' };
       const refunds = ((o.refunds && o.refunds.data) || []).filter((r) => r && r.id);
       let last = null;
@@ -84,13 +95,23 @@ async function apply(sql, ev) {
     }
     if (ev.type === 'payment_intent.payment_failed') {
       const pi = s(o.id);
-      const orderId = await orderFor(tx, pi, o.metadata);
+      const orderId = await orderFor(tx, pi, o.metadata, idsOf(o));
       if (!orderId) return { skipped: true, why: 'a failed charge with no order (the sales form sends a pay link instead)' };
       const reason = s(o.last_payment_error && (o.last_payment_error.message || o.last_payment_error.code)) || 'failed';
       const [x] = await tx`insert into payments (order_id, kind, method, amount, currency, status, failure_reason, provider, external_id, is_test)
         values (${orderId}, 'charge', 'card_on_file', ${money(o.amount)}, ${s(o.currency).toUpperCase() || 'CAD'}, 'failed', ${reason.slice(0, 300)}, 'stripe', ${pi + ':failed:' + s(ev.id)}, ${o.livemode === false})
         on conflict (external_id) do nothing returning id`;
       return { table: 'payments', id: x ? x.id : null, failed: true };
+    }
+    // Yousef 2026-11-02 (orders audit): disputes were not handled, so a chargeback left the payment "succeeded".
+    // Opened -> the payment is disputed; closed won (or an inquiry closed) -> succeeded again; lost -> stays disputed.
+    if (/^charge\.dispute\.(created|updated|closed|funds_withdrawn|funds_reinstated)$/.test(s(ev.type))) {
+      const [paid] = await tx`select id from payments where external_id = any(${idsOf(o)}) and kind = 'charge' limit 1`;
+      if (!paid) return { pending: true, why: 'the disputed charge is not in v2 yet' };
+      const st = s(o.status);
+      const status = ['won', 'warning_closed'].includes(st) ? 'succeeded' : 'disputed';
+      await tx`update payments set status = ${status}, failure_reason = ${status === 'disputed' ? ('dispute: ' + (s(o.reason) || st)).slice(0, 300) : null} where id = ${paid.id}`;
+      return { table: 'payments', id: paid.id, disputed: status === 'disputed' };
     }
     return { skipped: true, why: 'not a payment event (' + s(ev.type) + ')' };
   });
