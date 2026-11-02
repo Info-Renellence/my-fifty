@@ -342,7 +342,8 @@ async function resendOrders(sql, notQueued) {
        and coalesce(o.legacy_id, '') not like 'demo%' and coalesce(c.legacy_id, '') not like 'demo%'
        and coalesce(c.email::text, '') not like '%@demo.invalid' and coalesce(u.email::text, '') not like '%@demo.invalid'
        and not exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'send')
-       and exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'create' and l.source = 'my_fifty')   -- only orders Pulse placed (Edge's go to the form themselves)
+       -- orders Pulse or Edge placed: Edge's too since its go-live (2026-11-02); before that they were sandbox orders
+       and exists (select 1 from change_logs l where l.entity_type = 'orders' and l.entity_id = o.id and l.action = 'create' and l.source in ('my_fifty', 'edge_app'))
        ${notQueued ? sql`and o.dispatch_status is null` : sql``}
      order by o.submitted_at limit 20`;
   let sent = 0;
