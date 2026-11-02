@@ -1680,14 +1680,14 @@
   function podium(t) {
     var rows = t.rows.slice(0, 3), order = [rows[1], rows[0], rows[2]].filter(Boolean);
     // A podium (owner 2026-10-28): fixed steps for 1st, 2nd and 3rd with the place on each, not bars sized by accounts,
-    // and no account counts under the reps.
+    // and no account counts under the reps. Anyone behind you shows as "?" (x.hidden, Yousef 2026-11-02): you see who is ahead only.
     var STEP = { 1: 84, 2: 60, 3: 44 };
     return '<div class="podium">' + order.map(function (x) {
       var place = rows.indexOf(x) + 1, first = place === 1, hgt = STEP[place];
       var avs = x.you ? 'background:#FFFFFF;color:#1170C0;box-shadow:0 0 0 3px #3596EA' : first ? 'background:var(--gold);color:#3A2400;box-shadow:0 0 0 3px rgba(247,201,72,0.35),0 6px 14px rgba(227,162,26,0.4)' : 'background:rgba(255,255,255,0.16);color:#FFFFFF';
       var bar = x.you && !first ? 'background:linear-gradient(180deg,#3596EA,#1170C0);color:#fff' : first ? 'background:linear-gradient(180deg,#F7C948,#C98612);color:#3A2400' : 'background:linear-gradient(180deg,rgba(255,255,255,0.22),rgba(255,255,255,0.08));color:#fff';
       return '<span class="pod"><span style="height:20px;color:#F7C948">' + (first ? '<svg width="20" height="16" viewBox="0 0 24 18" aria-hidden="true"><path d="M2 16l2-12 5 5 3-7 3 7 5-5 2 12z" fill="#F7C948"/></svg>' : '') + '</span>'
-        + '<span class="podav num" style="' + avs + '">' + esc(x.initials || '') + '</span><span style="font-size:13px;font-weight:700">' + esc(x.name) + '</span>'
+        + '<span class="podav num" style="' + avs + '"' + (x.hidden ? ' aria-label="Hidden"' : '') + '>' + (x.hidden ? '?' : esc(x.initials || '')) + '</span><span style="font-size:13px;font-weight:700' + (x.hidden ? ';opacity:0.55' : '') + '">' + (x.hidden ? '???' : esc(x.name)) + '</span>'
         + '<span class="podbar" style="height:' + hgt + 'px;' + bar + '"><span class="num" aria-label="' + ['', 'First', 'Second', 'Third'][place] + ' place">' + place + '</span></span></span>';
     }).join('') + '</div>';
   }

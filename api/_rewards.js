@@ -32,6 +32,13 @@ function leaderboard(reps, me, count, { repsOnly = false } = {}) {
   return { top, mine, bestOther };
 }
 
+// Race to Vienna visibility (Yousef 2026-11-02): a rep sees who is ahead of them, never who is behind. Anyone ranked below
+// the asking person keeps their place and count but loses their name and initials (hidden: true). The ranking is unchanged.
+const viennaRow = (r, mine) => {
+  const hidden = !!mine && !r.you && r.rank > mine.rank;
+  return { rank: r.rank, name: r.you ? 'You' : hidden ? '' : r.name, initials: hidden ? '' : r.initials, n: r.n, you: r.you, hidden };
+};
+
 const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-CA');
 const inRange = (at, p) => { const d = T.ymd(at); return d >= p.from && d <= p.to; };
 
@@ -96,7 +103,7 @@ async function rewards(sql, me) {
     syringes, exprecell,
     trip: { name: t.name, sub: t.metric + ' · ends ' + T.short(t.to + 'T12:00:00Z'),
       line: toLead ? toLead + ' more new ' + (toLead === 1 ? 'person' : 'people') + ' to take the lead' : 'You are in the lead',
-      rows: top.map((r) => ({ rank: r.rank, name: r.you ? 'You' : r.name, initials: r.initials, n: r.n, you: r.you })),
+      rows: top.map((r) => viennaRow(r, mine)),
       daysLeft: Math.max(0, T.daysBetween(today + 'T12:00:00Z', t.to + 'T12:00:00Z')), toLead, leader: top.length ? top[0].n : 0, mine: mine ? mine.n : 0 },
     race: { name: RACE.name, goal, sub: RACE.metric,
       line: !race.mine ? '' : race.mine.n >= goal ? 'You reached ' + goal : (goal - race.mine.n) + ' more to reach ' + goal,
@@ -110,3 +117,4 @@ async function rewards(sql, me) {
 }
 
 module.exports = { rewards, PROGRAMS, RACE };
+module.exports._ = { leaderboard, viennaRow };
