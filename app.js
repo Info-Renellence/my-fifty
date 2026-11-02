@@ -1736,7 +1736,15 @@
         h += '<div class="sect" style="padding:2px 4px 8px"><span class="kicker">' + esc(g[0]) + '</span><span class="num" style="font-size:13px;font-weight:800;color:#F7C948">+' + money2(sum(g[1])) + '</span></div>'
           + '<section class="card r20" style="margin-bottom:14px">' + g[1].map(winRow).join('') + '</section>';
       });
-      if (rest.length) h += '<div class="card r18" style="display:flex;justify-content:space-between;align-items:center;min-height:52px;padding:0 16px;background:var(--field)"><span style="font-size:14px;color:var(--muted)">Earlier this quarter · ' + rest.length + (rest.length === 1 ? ' win' : ' wins') + '</span><span class="num" style="font-size:16px;font-weight:800;color:#F7C948">+' + money2(sum(rest)) + '</span></div>';
+      // Earlier months listed in full, one section per month, newest first (Yousef 2026-11-02: "show the whole list";
+      // it was one "Earlier this quarter" summary line).
+      var byMonth = {};
+      rest.forEach(function (w) { (byMonth[w.date.slice(0, 7)] = byMonth[w.date.slice(0, 7)] || []).push(w); });
+      Object.keys(byMonth).sort().reverse().forEach(function (m) {
+        var name = L.longDate(m + '-15').split(', ')[1].split(' ')[0], list = byMonth[m];
+        h += '<div class="sect" style="padding:2px 4px 8px"><span class="kicker">' + esc(name.toUpperCase()) + '</span><span class="num" style="font-size:13px;font-weight:800;color:#F7C948">+' + money2(sum(list)) + '</span></div>'
+          + '<section class="card r20" style="margin-bottom:14px">' + list.map(winRow).join('') + '</section>';
+      });
       return h + '</div>';
     }, 'rewards');
   }
