@@ -60,8 +60,8 @@ async function contactFor(tx, e, kind) {
   return null;
 }
 
-// The envelope's signers are the agreement's signer rows, one row per recipient (Yousef 2026-11-02, full audit: Catrina Peters
-// had a stale "sent" row next to her "signed" one, so Edge asked to resend a form she had signed). Rows came in three ways
+// The envelope's signers are the agreement's signer rows, one row per recipient (Yousef 2026-11-02, full audit: a customer
+// had a stale "sent" row next to their "signed" one, so Edge asked to resend a form they had signed). Rows came in three ways
 // with different ids: this sync (md5 of the recipient id), the Oct 22 / Oct 27 loads, and Edge's Send forms (random ids); and
 // SignatureAPI gives a recipient a new id when their email is corrected. So a recipient's row is: its own id, else an unclaimed
 // row for the same step with the same email, else one with the same email, else the same step's row of a recipient that is no

@@ -123,7 +123,7 @@ test('one signer row per recipient: a stale copy and a replaced recipient\'s row
     const [a] = await sql`select id from agreements where signatureapi_envelope_id = ${env.id}`;
     let ss = await sql`select role, status::text from agreement_signers where agreement_id = ${a.id} order by signing_order`;
     assert.deepEqual(ss.map((x) => x.role + ':' + x.status), ['practitioner:signed', 'md:not_sent'], 'a later signer not emailed yet is not_sent');
-    // an older load's copy of the first signer, still "sent" (Catrina Peters), and Edge's random-id row for the MD
+    // an older load's copy of the first signer, still "sent", and Edge's random-id row for the MD
     await sql`insert into agreement_signers (agreement_id, name, email, role, signing_order, status) values (${a.id}, 'Sig Dup', ${email}, 'practitioner', 1, 'sent')`;
     // the MD's email corrected in SignatureAPI: a new recipient id
     const env2 = Object.assign({}, env, { recipients: [env.recipients[0], { id: 'r3', key: 'medical_director', name: 'Dr New', email: 'md.new' + n + '@demo.invalid', status: 'sent', type: 'signer' }] });

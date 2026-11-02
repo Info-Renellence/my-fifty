@@ -42,7 +42,7 @@ function recordsIn(hs) {
   const resp = hs.response || {}, body = parse(hs.body);
   const out = [];
   if (resp.id) out.push({ id: String(resp.id), properties: Object.assign({}, resp.properties || {}, body.properties || {}), associations: merge(resp.associations, linksOf(body)) });
-  // A batch answer is not in the order of the request (Yousef 2026-11-02, final audit: #123365471 and #123365474 had every
+  // A batch answer is not in the order of the request (Yousef 2026-11-02, final audit: two orders had every
   // line's HubSpot id on another product). Each answer goes with the input whose fields it echoes; by position only if none.
   const inputs = body.inputs || [], taken = new Set();
   const echoes = (r, b) => { const bp = (b && b.properties) || {}, rp = r.properties || {}; const ks = Object.keys(bp).filter((k) => rp[k] != null);

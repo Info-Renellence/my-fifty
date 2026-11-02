@@ -320,7 +320,7 @@ const ORDER_OWNED = ['status', 'delivered_at', 'shipped_at', 'cancelled_at', 'tr
   'tax_amount', 'shipping_amount', 'discount_amount', 'contact_id', 'rep_id', 'order_number'];
 const STALE_PROCESSED_DAYS = 30;
 // Yousef 2026-11-02 (orders audit): the rules the Oct 22 load used that the live pull did not, so orders it added later came
-// in differently (Peyvand Malek's and Mirna Gomez's May orders stuck at "paid"; free extras counted as bought):
+// in differently (two May orders stuck at "paid"; free extras counted as bought):
 //  - an order still "Processed" in HubSpot more than 30 days after it was placed went out long ago (the sales form never
 //    moved Shopify-era orders on): delivered, with no date unless HubSpot has one;
 //  - delivered / shipped dates come from when HubSpot's stage changed (stage history), as hs_closed_date is never set;
@@ -509,7 +509,7 @@ async function syncOne(tx, type, rec, contactHs, o = {}) {
     const have = await idOf(tx, 'contacts', rec.id);
     if (!have) {
       if (!p.createdate || new Date(p.createdate) < new Date(EXPORT_AT) || M.contactSkip(p)) return 'skipped';
-      // Yousef 2026-11-02: a rep's second HubSpot record for someone v2 already has (Kendra Norris, Anne-Marie Pion) was added
+      // Yousef 2026-11-02: a rep's second HubSpot record for someone v2 already has was added
       // as a new person. Same email, or the one live contact with that full name (not the phone: colleagues share the clinic's
       // line); a later call or email on it links to that person through bringBack.
       if (await samePerson(tx, p, { phone: false })) return 'skipped';
