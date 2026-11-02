@@ -42,9 +42,17 @@ function recordsIn(hs) {
   const resp = hs.response || {}, body = parse(hs.body);
   const out = [];
   if (resp.id) out.push({ id: String(resp.id), properties: Object.assign({}, resp.properties || {}, body.properties || {}), associations: merge(resp.associations, linksOf(body)) });
+  // A batch answer is not in the order of the request (Yousef 2026-11-02, final audit: #123365471 and #123365474 had every
+  // line's HubSpot id on another product). Each answer goes with the input whose fields it echoes; by position only if none.
+  const inputs = body.inputs || [], taken = new Set();
+  const echoes = (r, b) => { const bp = (b && b.properties) || {}, rp = r.properties || {}; const ks = Object.keys(bp).filter((k) => rp[k] != null);
+    return ks.length > 0 && ks.every((k) => String(rp[k]).trim() === String(bp[k]).trim() || Number(rp[k]) === Number(bp[k])); };
   (resp.results || []).forEach((r, i) => {
     if (!r || !r.id) return;
-    const b = (body.inputs || [])[i] || {};
+    let j = inputs.findIndex((b, k) => !taken.has(k) && echoes(r, b));
+    if (j < 0) j = !taken.has(i) ? i : -1;
+    if (j >= 0) taken.add(j);
+    const b = inputs[j] || {};
     out.push({ id: String(r.id), properties: Object.assign({}, r.properties || {}, b.properties || {}), associations: linksOf(b) });
   });
   // a PATCH whose answer is short (HubSpot answers some changes with the id only): the id from the address

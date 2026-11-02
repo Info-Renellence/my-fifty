@@ -209,6 +209,8 @@ function taskRow(id, p) {
 function contactSkip(p) {
   const src = String(p.hs_object_source_label || p.hs_object_source || '') + ' ' + String(p.hs_object_source_detail_1 || '');
   if (/openphone|quo/i.test(src)) return 'created by Quo (Quo never makes contacts)';
+  // Yousef 2026-11-02 (final audit): HubSpot's inbox made "The Quo Team" (quo@quo.com) from Quo's own email; the vendor is no customer
+  if (/@(quo|openphone)\.com$/i.test(s(p.email))) return 'Quo itself (a vendor, not a customer)';
   if (/@renellence\.com$/i.test(s(p.email))) return 'staff';
   if (/test|demo/i.test(s(p.firstname) + ' ' + s(p.lastname)) && /test|demo|example/i.test(s(p.email))) return 'test record';
   if (!s(p.email) && !s(p.phone) && !s(p.mobilephone) && !s(p.firstname) && !s(p.lastname)) return 'empty';

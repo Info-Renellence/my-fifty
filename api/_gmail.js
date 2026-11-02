@@ -148,6 +148,12 @@ async function syncMailbox(sql, user, c, budgetEnd) {
                 ${bodyText(m.payload).slice(0, 8000) || m.snippet || ''}, ${m.threadId}, ${sql.json({ from: hdr(m, 'From'), to: hdr(m, 'To'), cc: hdr(m, 'Cc') })},
                 'gmail', ${messageId}, ${user.id})
         on conflict (source, external_id, contact_id) do nothing returning id`;
+      // Yousef 2026-11-02 (final audit): emails logged in HubSpot were also loaded from there (source import, up to Oct 29), so a
+      // mailbox connected later brought 50 of them in twice. Gmail's copy is kept (its real thread); HubSpot's copy of the same
+      // email (same person, subject and direction, within a minute) is archived.
+      if (row) await sql`update interactions set deleted_at = now() where contact_id = ${ct.id} and kind = 'email' and source = 'import'
+        and deleted_at is null and direction = ${direction} and subject = ${hdr(m, 'Subject').slice(0, 500)}
+        and occurred_at between ${new Date(occurred.getTime() - 60000)} and ${new Date(occurred.getTime() + 60000)}`;
       first = first || (row && row.id);
     }
     await sql`update ingest_events set status = 'done', processed_at = now(), result_table = 'interactions', result_id = ${first} where id = ${ev.id}`;
