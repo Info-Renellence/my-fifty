@@ -76,6 +76,8 @@ module.exports = route(async (req, res) => {
   // What n8n looks up, from v2 instead of HubSpot (data-flow improvement 4; api/_lookup.js): read only, Pulse ISF key.
   if (op === 'lookup' && req.method === 'GET' && isfKey(req)) return send(res, 200, await require('./_lookup').lookup(db(), query(req)));
   if (op === 'edge_send' && req.method === 'POST' && intakeKey(req)) return send(res, 200, await edgeSend(db(), await require('./_http').body(req)));
+  // A receipt from the expense bot (n8n "Renellence Invoice Organizer v2", 2026-11-02) into the rep's "To submit" on Edge.
+  if (op === 'expense_intake' && req.method === 'POST' && isfKey(req)) return send(res, 200, await require('./_expenseintake').intake(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
   if (op !== 'tick') throw fail(400, 'unknown_op');
   // The tick in parts (data-flow improvement 5, owner 2026-10-28): pg_cron calls each part on its own every 5 minutes, so the
