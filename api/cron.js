@@ -90,6 +90,8 @@ module.exports = route(async (req, res) => {
     Object.assign(out, { leads: await newLeads(sql), morning: await morning(sql), nudge: await nudge(sql), alerts: await appAlerts(sql).catch((e) => ({ error: e.message })), forecast: await forecastSnapshot(sql).catch((e) => ({ error: e.message })), orders: await sendOrders(sql) });
     // Stripe events still waiting for their order (data-flow improvement 1)
     out.stripe = await require('./_stripe').retryPending(sql).catch((e) => ({ error: e.message }));
+    // Stripe customer ids and saved cards onto contacts and onboardings (audit item 7, owner 2026-11-02)
+    out.stripeLinks = await require('./_stripelinks').sync(sql, 8000).catch((e) => ({ error: e.message }));
   }
   if (part === 'all' || part === 'hubspot') {
     // 4b. v2 -> HubSpot first (owner 2026-10-30, api/_hspush.js): new records and changes made outside HubSpot, so reps still in

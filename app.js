@@ -1347,7 +1347,7 @@
       var prices = list.map(function (p) { return p.price; }), lo = Math.min.apply(null, prices), hi = Math.max.apply(null, prices);
       return { key: key, name: name, family: true, items: list, base: list.length + ' sizes · ' + (lo === hi ? money2(lo) : money2(lo) + '–' + money2(hi)), icon: 'needle' };
     };
-    var one = function (p) { return { key: p.sku, name: p.fullName || p.name, items: [p], base: p.unavailable ? 'Unavailable right now' : p.freeOnly ? 'Free item' : p.cat === 'saypha' ? '' : money2(p.price) }; };
+    var one = function (p) { return { key: p.sku, name: p.fullName || p.name, items: [p], base: p.unavailable ? 'Unavailable right now' : p.freeOnly ? 'Free item' : p.cat === 'saypha' ? '' : CHOICES[p.sku] ? CHOICES[p.sku].map(money2).join(' or ') : money2(p.price) }; };
     return [
       ['saypha', by('saypha').map(one)],
       ['Needles and cannulas', [fam('cannula', 'Magic Needle cannula', by('cannula')), fam('mesbio', 'Mesbio needle', by('mesbio'))].filter(Boolean)],
@@ -1393,13 +1393,15 @@
   // The product sheet (F9): size (Magic Needle, Mesbio), quantity, free, and for saypha the price each.
   // saypha's price each (owner 2026-10-27): $135, $155, the product's list price ($225; $245 for volume plus), or Custom.
   var TIERS = function (p) { return [135, 155, p.price].filter(function (v, i, a) { return a.indexOf(v) === i; }); };
+  // Products whose price the rep picks each time, with nothing filled in (owner 2026-11-02: the face mask is $85 or $115).
+  var CHOICES = { MSK100: [85, 115] };
   // after: the screen to show once saved (Review edits its items in place, owner 2026-10-27); default the products list.
   function productSheet(row, after) {
     var dft = draft, fam = row.family;
     var pickSku = fam ? (row.items.filter(function (p) { return (dft.qty[p.sku] || dft.free[p.sku]); })[0] || row.items[0]).sku : row.items[0].sku;
     var st = { sku: pickSku, op: null };
     function prod() { return row.items.filter(function (p) { return p.sku === st.sku; })[0]; }
-    function load() { var p = prod(); st.q = dft.qty[p.sku] || (fam || p.freeOnly ? 0 : 0); st.f = dft.free[p.sku] || 0; st.price = dft.price[p.sku] != null ? dft.price[p.sku] : p.price; st.had = !!(dft.qty[p.sku] || dft.free[p.sku]); st.custom = TIERS(p).indexOf(st.price) < 0; if (!st.had && !p.freeOnly) st.q = 1; if (!st.had && p.freeOnly) st.f = 1; }
+    function load() { var p = prod(); st.q = dft.qty[p.sku] || (fam || p.freeOnly ? 0 : 0); st.f = dft.free[p.sku] || 0; st.price = dft.price[p.sku] != null ? dft.price[p.sku] : CHOICES[p.sku] ? null : p.price; st.had = !!(dft.qty[p.sku] || dft.free[p.sku]); st.custom = !CHOICES[p.sku] && TIERS(p).indexOf(st.price) < 0; if (!st.had && !p.freeOnly) st.q = 1; if (!st.had && p.freeOnly) st.f = 1; }
     load();
     function field(op, label, value) {
       return '<button type="button" class="pfield' + (st.op === op ? ' on' : '') + '" data-op="' + op + '" aria-expanded="' + (st.op === op) + '"><span class="pl">' + label + '</span><span class="pv num">' + esc(value) + '</span>'
@@ -1408,12 +1410,13 @@
     function opts() {
       var p = prod();
       if (st.op === 'size') return row.items.map(function (x) { return [x.sku, x.name + (row.key === 'mesbio' ? ' · ' + money2(x.price) : '')]; });
+      if (st.op === 'price' && CHOICES[p.sku]) return CHOICES[p.sku].map(function (v) { return [String(v), money2(v)]; });
       if (st.op === 'price') return TIERS(p).map(function (v) { return [String(v), money2(v)]; }).concat([['custom', 'Custom']]);
       var a = []; for (var i = 0; i <= 100; i++) a.push([String(i), String(i)]); return a;
     }
     function cur() { return st.op === 'size' ? st.sku : st.op === 'price' ? (st.custom ? 'custom' : String(st.price)) : String(st.op === 'q' ? st.q : st.f); }
     function draw() {
-      var p = prod(), say = p.cat === 'saypha', unit = p.freeOnly ? 0 : st.price, total = (st.q || 0) * unit;
+      var p = prod(), say = p.cat === 'saypha', pick = !!CHOICES[p.sku], unit = p.freeOnly ? 0 : (st.price || 0), total = (st.q || 0) * unit;
       var h = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(row.name) + '"><span class="grab"></span>'
         + '<div class="sheet-head" style="align-items:center"><span class="display" style="font-size:24px;font-weight:800;letter-spacing:-0.6px">' + esc(row.name) + '</span><button type="button" data-close class="pillbtn">Cancel</button></div>';
       if (fam) h += field('size', 'Size', p.name);
@@ -1421,7 +1424,8 @@
       if (say) h += field('price', 'Price each', st.custom ? 'Custom' : money2(st.price));
       if (say && st.custom) h += '<label class="pfield on" style="display:flex;align-items:center"><span class="pl">Custom price each</span><span style="padding:18px 0 0 0;font-size:17px;font-weight:600">$</span>'
         + '<input type="text" inputmode="decimal" data-custom value="' + (st.price ? String(st.price) : '') + '" placeholder="0" aria-label="Custom price each" class="num" style="flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font-size:17px;font-weight:600;padding:18px 0 0 2px;outline:none"></label>';
-      if (!say && !p.freeOnly) h += '<span style="font-size:14px;color:var(--muted);padding:0 2px">' + money2(p.price) + ' each</span>';
+      if (pick) h += field('price', 'Price each', st.price == null ? 'Choose' : money2(st.price));
+      if (!say && !pick && !p.freeOnly) h += '<span style="font-size:14px;color:var(--muted);padding:0 2px">' + money2(p.price) + ' each</span>';
       if (st.op) {
         var c = cur();
         h += '<div class="picker"><div class="pscroll noscroll" role="listbox">' + opts().map(function (o) {
@@ -1442,7 +1446,7 @@
       else {
         if (st.q) dft.qty[p.sku] = st.q; else delete dft.qty[p.sku];
         if (st.f) dft.free[p.sku] = st.f; else delete dft.free[p.sku];
-        if (p.cat === 'saypha' && st.price !== p.price) dft.price[p.sku] = st.price; else delete dft.price[p.sku];
+        if (CHOICES[p.sku] ? st.price != null : p.cat === 'saypha' && st.price !== p.price) dft.price[p.sku] = st.price; else delete dft.price[p.sku];
       }
       closeSheet(); keepScroll(after || function () { return screenProducts(dft.contactId); });
     }
@@ -1462,6 +1466,7 @@
       }
       if (e.target.closest('[data-premove]')) { save(true); return; }
       if (e.target.closest('[data-psave]')) { if ((st.q || 0) + (st.f || 0) === 0 && !st.had) return;
+        if (CHOICES[prod().sku] && (st.q || 0) > 0 && st.price == null) { toast('Pick a price: ' + CHOICES[prod().sku].map(money2).join(' or ') + '.'); st.op = 'price'; draw(); return; }
         if (!L.priceChoiceOk(st.custom && prod().cat === 'saypha', st.q, st.price)) { toast('Enter a price above $0, or pick another price.'); var ci = $sheet.querySelector('[data-custom]'); if (ci) ci.focus(); return; } save((st.q || 0) + (st.f || 0) === 0); }
     };
   }
