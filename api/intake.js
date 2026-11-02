@@ -356,7 +356,10 @@ async function syncOrder(tx, hsId, src = HS) {
     return { table: 'orders', id: orderId, linked: 'pulse' };
   }
   const prod = Object.fromEntries((await tx`select id, sku, list_price from products where sku = any(${lines.map((l) => l.product_sku)})`).map((p) => [p.sku, p]));
-  for (const l of lines) {
+  // Lines only for an order that has none yet (audit 2026-11-02): an order n8n made through the v2 API already has its lines,
+  // and the v2 -> HubSpot copy (api/_hspush.js) gives them new HubSpot ids, so adding by id here doubled two orders' lines.
+  const hasLines = (await tx`select 1 from order_lines where order_id = ${orderId} limit 1`).length > 0;
+  for (const l of hasLines ? [] : lines) {
     const p = prod[l.product_sku];
     const row = Object.assign({}, l, { order_id: orderId, product_id: p ? p.id : null, list_price: p ? p.list_price : null });
     await tx.unsafe(`insert into public.order_lines (${Object.keys(row).map((k) => `"${k}"`).join(', ')}) select ${Object.keys(row).map((k) => `"${k}"`).join(', ')}
