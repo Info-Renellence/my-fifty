@@ -60,7 +60,11 @@ const OPS = {
       .sort((a, b) => new Date(b.firstOrderAt) - new Date(a.firstOrderAt));
     const joined = seenAt && fresh.length ? { id: fresh[0].id, name: fresh[0].name, role: fresh[0].role, count: fifty.length, goal: cfg.fifty_goal, next: B.nextMilestone(fifty.length) } : null;
     const gmail = await sql`select status from connections where user_id = ${me.id} and provider = 'gmail' order by updated_at desc limit 1`;
-    return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, joined, firstVisit: !seenAt,
+    // View as a rep (2026-11-02): who is really looking, and for info@ the reps they can pick under their initials.
+    const viewing = me.viewer ? { name: me.viewer.name } : null;
+    const viewAs = me.viewer || require('./_auth').canViewAs(me)
+      ? (await sql`select id, full_name as name from users where kind = 'rep' and is_active is not false order by full_name`).map((r) => ({ id: r.id, name: r.name })) : null;
+    return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, viewing, viewAs, joined: me.viewer ? null : joined, firstVisit: !seenAt && !me.viewer,
       gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() && flags.voice_notes,
       // Feature switches (settings 'flags', api/_flags.js) the page may need; already-live features default on.
       features: { weekView: flags.week_view, voiceNotes: flags.voice_notes, claudeSuggestions: flags.claude_suggestions } };

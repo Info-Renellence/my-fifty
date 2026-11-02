@@ -35,6 +35,15 @@ async function supabaseUser(token) {
 const initials = (name) => String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('');
 
 // -> { id, email, name, first, initials, kind, settings, authUserId } or throws { status }.
+// View as a rep (Yousef 2026-11-02): info@ picks a rep under their initials and sees Pulse exactly as that rep does, look
+// only. The page sends X-View-As: <the rep's users.id>; anyone else sending it is ignored. The answer is the rep, with
+// `viewer` (who is really looking); api/act.js refuses every write while `viewer` is set.
+const VIEWERS = new Set(['info@renellence.com']);
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const person = (row, authUserId) => ({ id: row.id, email: row.email, name: row.full_name || row.email, first: String(row.full_name || row.email).split(/\s+/)[0],
+  initials: initials(row.full_name || row.email), kind: row.kind, preferences: row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences) ? row.preferences : {}, authUserId });
+const canViewAs = (me) => !!me && VIEWERS.has(String(me.email || '').toLowerCase());
+
 async function signedIn(req) {
   const token = String((req.headers && req.headers.authorization) || '').replace(/^Bearer\s+/i, '').trim();
   if (!token) throw fail(401, 'signed_out');
@@ -53,10 +62,15 @@ async function signedIn(req) {
   if (row.kind === 'head_office') throw fail(403, 'reps_only');
   // Staging Pulse (STAGING=1, api/_staging.js): admins only, so no rep works in the test copy by mistake.
   if (require('./_staging').on() && row.kind !== 'admin') throw fail(403, 'staging_admins_only');
-  return { id: row.id, email: row.email, name: row.full_name || email, first: String(row.full_name || email).split(/\s+/)[0],
-    initials: initials(row.full_name || email), kind: row.kind, preferences: row.preferences && typeof row.preferences === 'object' && !Array.isArray(row.preferences) ? row.preferences : {}, authUserId: u.id };
+  const me = person(Object.assign({}, row, { email: row.email || email }), u.id);
+  const as = String((req.headers && req.headers['x-view-as']) || '').trim();
+  if (as && canViewAs(me) && UUID.test(as) && as !== me.id) {
+    const [t] = await sql`select id, email, full_name, kind, preferences from users where id = ${as} and kind = 'rep' and is_active is not false`;
+    if (t) return Object.assign(person(t, null), { viewer: { id: me.id, name: me.name, email: me.email } });
+  }
+  return me;
 }
 
-module.exports = { signedIn, initials, SUPABASE_URL, ANON };
+module.exports = { signedIn, initials, canViewAs, SUPABASE_URL, ANON };
 // Exposed for the unit tests only.
 module.exports._ = { supabaseUser, seen };

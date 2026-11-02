@@ -43,12 +43,16 @@
 
   // ---- talking to the server -----------------------------------------------------------------------
   function token() { return session && session.access_token; }
+  // View as a rep (Yousef 2026-11-02): info@ picks a rep in the initials sheet; every request then says which rep, and the
+  // server answers as that rep, look only (api/_auth.js). Kept on this device until "Back to my view".
+  function viewAs() { return localStorageGet('mf-view-as') || ''; }
+  function heads(extra) { var h = Object.assign({ Authorization: 'Bearer ' + token() }, extra || {}); if (viewAs()) h['X-View-As'] = viewAs(); return h; }
   function api(op, params) {
     var qs = new URLSearchParams(Object.assign({ op: op }, params || {})).toString();
-    return fetch('/api/data?' + qs, { headers: { Authorization: 'Bearer ' + token() } }).then(answer);
+    return fetch('/api/data?' + qs, { headers: heads() }).then(answer);
   }
   function act(op, body) {
-    return fetch('/api/act', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token() },
+    return fetch('/api/act', { method: 'POST', headers: heads({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(Object.assign({ op: op }, body || {})) }).then(answer).then(function (r) { cache = {}; return r; });
   }
   function answer(r) {
@@ -1822,16 +1826,43 @@
     $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Your account"><span class="grab"></span>'
       + '<div style="display:flex;align-items:center;gap:12px;padding:6px 2px 18px"><span class="me num" style="width:48px;height:48px;font-size:17px;margin:0">' + esc((ME && ME.initials) || '') + '</span>'
       + '<span class="grow"><span class="t" style="display:block;font-size:18px;font-weight:700">' + esc((ME && ME.name) || '') + '</span><span class="sub" style="display:block;font-size:14px;color:var(--muted);overflow-wrap:anywhere">' + esc((ME && ME.email) || '') + '</span></span></div>'
+      + viewAsList()
       + '<div style="display:flex;flex-direction:column;gap:10px"><button type="button" data-signout class="btn soft" style="color:var(--danger)">Sign out</button>'
       + '<button type="button" data-close class="btn soft">Cancel</button></div></div>';
     sheetHandler = function (e, type) {
       if (type) return;
+      var v = e.target.closest('[data-viewas]');
+      if (v) { switchView(v.getAttribute('data-viewas')); return; }
       var b = e.target.closest('[data-signout]');
       if (!b) return;
       b.disabled = true; b.textContent = 'Signing out…';
       sb.auth.signOut().catch(function () {}).then(function () { closeSheet(); history.replaceState({}, '', '/'); signOutLocal(); });
     };
   }
+  // The reps info@ can look at (BOOT.viewAs), the one being viewed marked, and Back to my view.
+  function viewAsList() {
+    if (!BOOT || !BOOT.viewAs || !BOOT.viewAs.length) return '';
+    var cur = viewAs();
+    return '<span class="kicker" style="display:block;padding:0 2px 8px">View as</span><div style="display:flex;flex-wrap:wrap;gap:8px;padding-bottom:18px">'
+      + (cur ? '<button type="button" data-viewas="" class="pillbtn blue">Back to my view</button>' : '')
+      + BOOT.viewAs.map(function (r) { return '<button type="button" data-viewas="' + esc(r.id) + '" class="pillbtn' + (r.id === cur ? ' blue' : '') + '"' + (r.id === cur ? ' aria-current="true"' : '') + '>' + esc(r.name) + '</button>'; }).join('')
+      + '</div>';
+  }
+  function switchView(id) {
+    if (id) localStorageSet('mf-view-as', id); else { try { localStorage.removeItem('mf-view-as'); } catch (e) { /* storage off */ } }
+    cache = {}; closeSheet(); history.replaceState({}, '', '/'); location.reload();
+  }
+  // The bar across the top while viewing as a rep: whose view it is, look only, and the way back.
+  function viewBar() {
+    var bar = document.getElementById('viewbar');
+    if (!BOOT || !BOOT.viewing) { if (bar) { bar.remove(); document.body.style.paddingTop = ''; } return; }
+    document.body.style.paddingTop = '32px';   // the bar never covers the page's own top line
+    if (!bar) { bar = document.createElement('div'); bar.id = 'viewbar'; document.body.appendChild(bar); }
+    bar.setAttribute('role', 'status');
+    bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:60;display:flex;justify-content:center;align-items:center;gap:10px;padding:6px 12px;background:#F7C948;color:#3A2400;font-size:13px;font-weight:700';
+    bar.innerHTML = 'Viewing as ' + esc(ME.name) + ' · look only <button type="button" data-viewas="" style="border:0;background:#3A2400;color:#fff;border-radius:999px;padding:3px 10px;font-weight:700;font-size:12px">Back to my view</button>';
+  }
+  document.addEventListener('click', function (e) { var v = e.target.closest('#viewbar [data-viewas]'); if (v) switchView(''); });
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-me]')) meSheet(); });
   $app.addEventListener('click', function (e) { if (e.target.closest('[data-repsout]')) { signInMessage = ''; sb.auth.signOut().catch(function () {}).then(function () { showSignIn(); }); } });
 
@@ -1853,6 +1884,9 @@
         ? act('gmail_connect', { refreshToken: rt }).then(function () { localStorageSet('mf-gmail', sentKey); }, function () {}) : Promise.resolve();
       return gmail.then(function () { return api('boot'); }).then(function (b) {
         BOOT = b; ME = b.me;
+        // A saved view-as that the server no longer honours (not info@, rep switched off) is dropped.
+        if (viewAs() && !b.viewing) { try { localStorage.removeItem('mf-view-as'); } catch (e) { /* storage off */ } }
+        viewBar();
         var back = null; try { back = sessionStorage.getItem('mf-back'); sessionStorage.removeItem('mf-back'); } catch (e) { /* ignore */ }
         if (back && back !== location.pathname) history.replaceState({}, '', back);
         else if (location.search || location.hash) history.replaceState({}, '', location.pathname);

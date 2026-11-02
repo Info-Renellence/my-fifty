@@ -20,6 +20,7 @@
   function longDate(date) { return LONG_DAYS[new Date(date + 'T12:00:00Z').getUTCDay()] + ', ' + LONG_MONTHS[+date.slice(5, 7) - 1] + ' ' + (+date.slice(8, 10)); }
 
   var ERR = {
+    view_only: 'You’re viewing as a rep: look only. Switch back to your own view to make changes.',
     note_required: 'Say or type what happened first.', pick_a_follow_up: 'Pick a follow-up date.', name_required: 'Add a name.',
     bad_email: 'That email doesn’t look right.', bad_phone: 'That phone number doesn’t look right.',
     already_yours: 'This person is already in your book.', email_yours: 'Someone in your book already has this email.', email_someones: 'Someone in another rep’s book already has this email.', already_someones: 'This person is already in someone else’s book.',

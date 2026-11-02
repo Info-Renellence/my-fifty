@@ -35,6 +35,7 @@ const W = require('./_week');
 module.exports = route(async (req, res) => {
   if (req.method !== 'POST') throw fail(405, 'post_only');
   const me = await signedIn(req);
+  if (me.viewer) throw fail(403, 'view_only');   // viewing as a rep is look only (api/_auth.js, 2026-11-02)
   const b = await body(req);
   const fn = own(OPS, b.op);
   if (!fn) throw fail(400, 'unknown_op');
