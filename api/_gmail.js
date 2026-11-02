@@ -45,8 +45,18 @@ const b64url = (s) => Buffer.from(s, 'utf8').toString('base64').replace(/\+/g, '
 const header = (s) => String(s || '').replace(/[\r\n]+/g, ' ').trim();
 const encodeWord = (s) => (/^[\x20-\x7e]*$/.test(s) ? s : '=?UTF-8?B?' + Buffer.from(s, 'utf8').toString('base64') + '?=');
 
+// The body lines: plain text, or with html (Edge's event invites, 2026-11-02) a multipart/alternative with both, so a
+// mail client that shows no HTML still has the text.
+function bodyLines(text, html) {
+  if (!html) return ['Content-Type: text/plain; charset=UTF-8', 'Content-Transfer-Encoding: 8bit', '', String(text || '')];
+  const b = 'mf_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const part = (type, s) => ['--' + b, 'Content-Type: ' + type + '; charset=UTF-8', 'Content-Transfer-Encoding: base64', '',
+    Buffer.from(String(s || ''), 'utf8').toString('base64').replace(/.{76}/g, '$&\r\n')];
+  return ['Content-Type: multipart/alternative; boundary="' + b + '"', '', ...part('text/plain', text), ...part('text/html', html), '--' + b + '--'];
+}
+
 // to: one address. Returns { id, threadId, messageId }.
-async function send(sql, me, { to, subject, text }) {
+async function send(sql, me, { to, subject, text, html }) {
   if (require('./_staging').blocked()) throw fail(409, 'staging_no_outward');   // staging never emails anyone (api/_staging.js)
   const c = await connection(sql, me.id);
   if (!c) throw fail(409, 'gmail_not_connected');
@@ -61,10 +71,7 @@ async function send(sql, me, { to, subject, text }) {
     'Subject: ' + encodeWord(header(subject)),
     'Message-ID: ' + messageId,
     'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'Content-Transfer-Encoding: 8bit',
-    '',
-    String(text || ''),
+    ...bodyLines(text, html),
   ].join('\r\n');
   const r = await fetch(API + 'messages/send', { method: 'POST', headers: { Authorization: 'Bearer ' + at, 'Content-Type': 'application/json' }, body: JSON.stringify({ raw: b64url(raw) }) })
     .catch(() => { throw fail(502, 'gmail_send_failed'); });
@@ -169,4 +176,4 @@ async function sync(sql, budgetMs) {
 
 module.exports = { connect, send, sync, connection };
 // Exposed for the unit tests only.
-module.exports._ = { accessToken, header, encodeWord, addrs, hdr, bodyText, gget, syncMailbox, ROBOT };
+module.exports._ = { accessToken, header, encodeWord, bodyLines, addrs, hdr, bodyText, gget, syncMailbox, ROBOT };

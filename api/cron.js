@@ -34,7 +34,7 @@ function intakeKey(req) {
   const a = Buffer.from(got), b = Buffer.from(want);
   return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
-// POST /api/cron?op=edge_send  { what: 'order' | 'paylink', orderId } | { what: 'email', userId, to, subject, text }
+// POST /api/cron?op=edge_send  { what: 'order' | 'paylink', orderId } | { what: 'email', userId, to, subject, text, html? }
 // -> the same answer Pulse's own send gives (api/_isf.js send / resendPayLink, api/_gmail.js send).
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function edgeSend(sql, b) {
@@ -47,7 +47,8 @@ async function edgeSend(sql, b) {
     if (!UUID.test(String(b.userId || ''))) throw fail(400, 'bad_id');
     const [u] = await sql`select id, email::text as email, full_name as name from users where id = ${b.userId} and is_active`;
     if (!u) throw fail(404, 'not_found');
-    return require('./_gmail').send(sql, u, { to: String(b.to || ''), subject: String(b.subject || ''), text: String(b.text || '') });
+    return require('./_gmail').send(sql, u, { to: String(b.to || ''), subject: String(b.subject || ''), text: String(b.text || ''),
+      html: b.html ? String(b.html).slice(0, 200000) : '' });   // html: Edge's branded event invites (2026-11-02)
   }
   throw fail(400, 'bad_what');
 }
