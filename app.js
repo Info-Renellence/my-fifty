@@ -47,13 +47,31 @@
   // server answers as that rep, look only (api/_auth.js). Kept on this device until "Back to my view".
   function viewAs() { return localStorageGet('mf-view-as') || ''; }
   function heads(extra) { var h = Object.assign({ Authorization: 'Bearer ' + token() }, extra || {}); if (viewAs()) h['X-View-As'] = viewAs(); return h; }
+  // Staying signed in (2026-11-02: reps were sent to the sign-in screen again and again). Supabase's access token lasts an
+  // hour and is renewed in the background, but an iPhone freezes a Home Screen app, so after an hour away the first request
+  // went out with an expired token, got 401 and showed Sign in. Now a token about to expire is renewed before the request,
+  // and a 401 renews once and tries again; only if renewing fails is the person really signed out.
+  var renewing = null;
+  function renew() {
+    if (!sb) return Promise.resolve(false);
+    if (!renewing) renewing = sb.auth.refreshSession().then(function (r) { if (r && r.data && r.data.session) { session = r.data.session; return true; } return false; }, function () { return false; })
+      .then(function (ok) { renewing = null; return ok; });
+    return renewing;
+  }
+  function fresh() { return session && session.expires_at && session.expires_at * 1000 - Date.now() < 120000 ? renew() : Promise.resolve(true); }
+  function send(go) {
+    return fresh().then(go).then(function (r) {
+      if (r.status !== 401) return r;
+      return renew().then(function (ok) { return ok ? go() : r; });
+    });
+  }
   function api(op, params) {
     var qs = new URLSearchParams(Object.assign({ op: op }, params || {})).toString();
-    return fetch('/api/data?' + qs, { headers: heads() }).then(answer);
+    return send(function () { return fetch('/api/data?' + qs, { headers: heads() }); }).then(answer);
   }
   function act(op, body) {
-    return fetch('/api/act', { method: 'POST', headers: heads({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify(Object.assign({ op: op }, body || {})) }).then(answer).then(function (r) { cache = {}; return r; });
+    return send(function () { return fetch('/api/act', { method: 'POST', headers: heads({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(Object.assign({ op: op }, body || {})) }); }).then(answer).then(function (r) { cache = {}; return r; });
   }
   function answer(r) {
     return r.json().catch(function () { return {}; }).then(function (j) {
@@ -70,7 +88,7 @@
     if (cache[k] && Date.now() - cache[k].at < CACHE_MS) return Promise.resolve(cache[k].j);
     return api(op, params).then(function (j) { cache[k] = { at: Date.now(), j: j }; return j; });
   }
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) cache = {}; });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) { cache = {}; fresh(); } });   // renew a stale token on coming back
   function localStorageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function localStorageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private mode */ } }
 
