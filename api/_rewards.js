@@ -80,7 +80,10 @@ async function rewards(sql, me) {
   const t = PROGRAMS.trip;
   const perRep = {};
   for (const o of Object.values(firstBy)) if (o.rep_id && inRange(B.paidAt(o), t)) perRep[o.rep_id] = (perRep[o.rep_id] || 0) + 1;
-  const reps = await sql`select id, full_name from users where kind = ${'rep'} and is_active is not false`;
+  // Fictional reps (demo and test logins: @demo.invalid, or the seeded de0…-0000-4000-8000-… ids such as admin@'s "Alex
+  // Sample", my-fifty CHANGELOG-v2 #61) are never on a real rep's board (Yousef 2026-11-02); a fictional rep still sees their own row.
+  const reps = await sql`select id, full_name from users where kind = ${'rep'} and is_active is not false
+    and (id = ${me.id} or not (coalesce(email::text, '') like '%@demo.invalid' or id::text like 'de0_____-0000-4000-8000-%'))`;
   const { top, mine, bestOther } = leaderboard(reps, me, (id) => perRep[id] || 0);
   // A tie for first is not the lead: it takes one more than the best of the others.
   const toLead = mine.n > bestOther ? 0 : bestOther - mine.n + 1;
