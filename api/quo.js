@@ -1,6 +1,9 @@
 require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.js)
 // Quo -> v2 (owner 2026-10-27). Quo's webhooks post every call, text and AI call summary here:
-//   POST /api/quo?key=<N8N_INTAKE_SECRET>          (+ Quo's 'openphone-signature', checked when QUO_WEBHOOK_SECRET is set)
+//   POST /api/quo?key=<QUO_INTAKE_KEY>             (+ Quo's 'openphone-signature', checked when QUO_WEBHOOK_SECRET is set)
+// Quo has its own URL key (2026-11-03, Quo key rotation) so the shared N8N_INTAKE_SECRET can change without touching Quo;
+// N8N_INTAKE_SECRET is still accepted until the old settings-screen webhook (pulse-2026) is deleted. Webhooks made through
+// Quo's API each get their own signing key: QUO_WEBHOOK_SECRET holds them comma-separated, and any one of them is enough.
 // Each event is kept once in ingest_events (source quo). Then, by the outside number:
 //   - a contact has it   -> the call or text goes on that contact's history (a shared number: one contact, see contactsFor) (interactions, source quo, external_id = Quo's
 //                           id, the same rows the Oct 22 load made), and a call's AI summary into ai_outputs
@@ -30,22 +33,21 @@ const digits10 = (p) => { const d = s(p).replace(/\D/g, ''); return d.length >= 
 // Equal as bytes (a key with a multi-byte character is just a wrong key, never an error).
 function same(a, b) { const x = Buffer.from(a), y = Buffer.from(b); return x.length === y.length && crypto.timingSafeEqual(x, y); }
 function keyOk(req) {
-  const want = s(process.env.N8N_INTAKE_SECRET), got = s(new URL(req.url, 'http://x').searchParams.get('key'));
-  return !!want && same(got, want);
+  const got = s(new URL(req.url, 'http://x').searchParams.get('key'));
+  return [process.env.QUO_INTAKE_KEY, process.env.N8N_INTAKE_SECRET].map(s).some((want) => !!want && same(got, want));
 }
 // Quo's signature: 'hmac;1;<timestamp>;<base64 HMAC-SHA256 of "<timestamp>.<raw body>" with the base64 signing key>'.
 function signatureOk(header, raw, now = Date.now()) {
-  const secret = s(process.env.QUO_WEBHOOK_SECRET).trim();
-  if (!secret) return true;   // not set up yet: the key in the URL is the check
+  const secrets = s(process.env.QUO_WEBHOOK_SECRET).split(',').map((x) => x.trim()).filter(Boolean);
+  if (!secrets.length) return true;   // not set up yet: the key in the URL is the check
   const parts = s(header).split(';');
   if (parts.length < 4 || parts[0] !== 'hmac') return false;
   let at = Number(parts[2]);
   if (!isFinite(at)) return false;
   if (at < 1e12) at *= 1000;
   if (Math.abs(now - at) > 10 * 60 * 1000) return false;
-  const want = crypto.createHmac('sha256', Buffer.from(secret, 'base64')).update(parts[2] + '.' + raw).digest('base64');
   const got = parts.slice(3).join(';').trim();
-  return same(got, want);
+  return secrets.some((secret) => same(got, crypto.createHmac('sha256', Buffer.from(secret, 'base64')).update(parts[2] + '.' + raw).digest('base64')));
 }
 
 module.exports = route(async (req, res) => {
