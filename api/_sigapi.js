@@ -263,10 +263,21 @@ async function remind(envelopeId) {
     if (e.status !== 'in_progress') return { queued: false, reason: 'not_waiting' };
     const r = (e.recipients || []).find((x) => x.type !== 'viewer' && (x.status === 'sent' || x.status === 'soft_bounced'));
     if (!r) return { queued: false, reason: 'nobody_to_remind' };
-    await sa('recipients/' + encodeURIComponent(r.id) + '/resend', { method: 'POST', body: {} });
+    try {
+      await sa('recipients/' + encodeURIComponent(r.id) + '/resend', { method: 'POST', body: {} });
+    } catch (x) {
+      // Our envelopes sign through our own link (SignatureAPI "custom" ceremony): SignatureAPI refuses to email a resend (409,
+      // found 2026-11-03). The n8n [DIGEST] onboarding-remind webhook emails the pending signer their signing link instead.
+      if (x.status !== 409 && x.status !== 422) throw x;
+      const base = String(process.env.N8N_WEBHOOK_BASE || 'https://renellence.app.n8n.cloud/webhook').replace(/\/+$/, '');
+      const resp = await fetch(base + '/onboarding-remind?envelope=' + encodeURIComponent(envelopeId), { signal: AbortSignal.timeout(30000) });
+      const text = await resp.text();
+      if (!resp.ok || /went wrong|could not build/i.test(text)) return { queued: false, reason: 'reminder_email_failed', detail: text.slice(0, 200) };
+    }
     return { queued: true, to: s(r.name) || s(r.email) };
   } catch (e) {
-    return { queued: false, reason: e.status === 409 || e.status === 429 || e.status === 422 ? 'reminded_recently' : 'signatureapi_error', detail: e.message };
+    // only SignatureAPI's own rate limit means "too soon" (409 used to be read as reminded_recently too)
+    return { queued: false, reason: e.status === 429 ? 'reminded_recently' : 'signatureapi_error', detail: e.message };
   }
 }
 
