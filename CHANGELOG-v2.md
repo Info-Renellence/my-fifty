@@ -713,3 +713,136 @@ plus a sync so reps still in HubSpot see new leads and orders until switch day.
 - Data: 23 Stripe charges linked to their payment rows (provider stripe, external_id = the charge id; amounts equal), from the
   audit's list (renellence-ops/ops/fixes/link-stripe-charges.cjs). The 14 Nov 2025 - Mar 2026 Stripe invoices stay out (owner).
 - Retired n8n workflows (deactivated): Internal Sales Form Platform, [REG] Onboarding Form Submission (old), [HS] Order-Deal Association Sync.
+
+## 53. Audit fixes: HubSpot links, missing orders, doubled lines, Stripe customers (code + data, no table change), 2026-11-02, asked by Yousef
+
+Full cross-check of v2 against HubSpot, Stripe, Shopify and SignatureAPI; Yousef: "fix the 'fix first' things". All writes as source
+import (no v2 -> HubSpot push), dry run first. Backups and scripts: `C:\Users\youse\Documents\renellence-v2-backups\2026-11-02-audit-fixes`.
+- 26 contacts the 10-30 13:15 import made had no legacy_id. 13 now carry their HubSpot contact id (one HubSpot contact with that
+  email, id unused in v2): Ruth Dowling, Yves Hébert, Melina Feudi, Peyvand Malek, Behrooz Barikbin, Grace Dermalyn, Paige Hardy,
+  Jill Tomlinson, Deziree Haynes, Aston Medical Group, Mirna Gomez, Delta Consulting (Färsk), Green Clinic. 6 of their clinics took
+  their HubSpot company id. The other 13 are not in HubSpot (QuickBooks-only customers) and stay without one.
+- Their 6 HubSpot orders that never reached v2, added with syncOrder: #108365379, #108065379, #108865379, #110265379 (paid,
+  $5,983.35) and #105165379, #104965379 (cancelled, $0). Behrooz's skipped Edge commitment replayed (forecasts unchanged).
+- #123365479 and #123365486 had every line twice: the n8n lines (external_id hubspot:9 + 12 digits) and HubSpot's copy of them,
+  added by the pull after the v2 -> HubSpot copy gave the line items new ids. The 8 n8n copies removed (backed up); totals now
+  $7,627.50 and $8,672.75 = HubSpot = Stripe. Code: `api/intake.js` syncOrder adds lines only to an order that has none yet.
+- 188 contacts given their Stripe customer id (same email as exactly one live contact; with two Stripe customers, the one with a
+  card, else the newest; Shawna Leifso by hand, Stripe has her email as gmail.om). 26 onboardings given card_saved_at = their
+  contact's first succeeded Stripe card setup. Nothing in v2 sets either field yet (api/_stripe.js handles charges only).
+
+## 54. Temporary fictional rep for the rep-guide screenshots (data only, added and removed), 2026-11-02, asked by Yousef
+
+Yousef: "make info@renellence have totally fake data and make it not an admin just for the sake of the screenshotting".
+For about 40 minutes info@'s sign-in opened a fictional rep, "Alex Sample" (`de0a0000-…0001`): info@'s users row had its
+auth_user_id cleared and its email set to info+held@renellence.com; the fake rep held the sign-in and info@renellence.com.
+The fake rep got the db/seed-demo-info.sql book (legacy_id `demo-info-…`, 4 `@demo.invalid` staff) plus `ed9e0000…` targets,
+10 forecasts, 3 "(demo)" events with invites, 4 expenses and 2 marketing requests. Screenshots of the live Edge (sandbox, nothing
+sent) and Pulse were taken; nothing was ordered, logged or submitted. Undone the same hour: info@ row restored (admin, its own
+sign-in and email, its 20 contacts untouched), 0 real rows had been attached to the fake rep, and every fake row removed with
+db/wipe-demo.sql minus its two lines that reach real data (clearing every user's snoozes; deleting change_logs of any missing
+record). Verified 0 demo rows left. Script: `C:\Users\youse\Documents\renellence-v2-backups\2026-11-02-audit-fixes\demo-swap.js`.
+
+## 55. Name clean-ups after the final test (data only), 2026-11-02, asked by Yousef
+
+Source import, backup `cleanup-names-before.json` beside the scripts above. One contact's last name held her email, phone and
+"Reg no": now the surname only, the registration number moved to licence_number (her 3 signer rows renamed to match). One MD
+signer named with a licence code ("Dr julka J6888, 058287") renamed "Dr. Julka". Test contact "Foo" (old-Edge attendee, no
+activity) archived (deleted_at). Two nameless contacts given HubSpot's name ("L. Bishop", "YS Cosmetic"); 9 others have no name
+in HubSpot either and stay as they are. Code (pushed, eca5cc3): the pull adds order lines only to an order that has none.
+
+## 56. Ashley Ziltener's order #123365478 added (data only), 2026-11-02, asked by Yousef
+
+Never reached v2 or HubSpot: card on file declined 2026-10-30, pay link sent, paid outside Stripe (owner). Added as source
+import (no HubSpot push): rep Lucas, status sent_to_warehouse (fulfillment request sent manually 2026-11-02 18:11Z, Accuristix
+SO 02NOV2026B), QBO invoice 2401, 8 lines from the approved n8n run #21919 (35 paid syringes at $135 + 29 free items), tax
+614.25, total 5339.25; one failed payment row for the declined charge. No succeeded payment row: payments_method has no value
+for "other means". The run's daily pay-link reminder (n8n #21919) was stopped (canceled). Script: `ash-add.js` beside the above.
+
+## 57. New Edge go-live (config + data, no table change), 2026-11-02, asked by Yousef
+
+Owner: "make new edge live" ... "lets do all of the go live checklist now".
+- Vercel edge-sandbox (edge.renellence.com): `EDGE_LIVE=1` (Production only; previews stay sandboxed), redeployed by Yousef.
+  Nothing held in sandbox_outbox is replayed; no Edge-placed orders were waiting in v2.
+- Old Edge's QStash schedules (`/api/me/alerts`, `/api/me/watch` on renellence-edge.vercel.app) paused, not deleted.
+- settings.flags `edge_alerts` = true (backup `renellence-v2-backups/2026-11-02-edge-golive/flags-before.json`).
+- Old Edge KV `kpi:settings:v1` / `kpi:inputs:v1` copied into new settings rows `kpi_settings` / `kpi_inputs` (copies in the
+  same folder). `forecastSnap:index` was empty, so no forecast history to copy.
+- n8n RSVP ping and Meta Leads nodes were already on Pulse. Code (6a07555): the order retry covers Edge orders.
+- "Edge - ISF approval reminder" links moved to renellence-admin.vercel.app/marketing and /logs (owner approved; backup in
+  hubspot-automation/docs/backups). Old Edge taken care of by Yousef.
+- Not done: Pulse has no META_ADS_TOKEN, so no Meta ad leads have reached v2 since Oct 27;
+  old Edge routes not deleted (Pulse _meta.js still reads edge.renellence.com/api/reports until it has the token).
+
+## 58. Loredana Litoiu (Veloro Beauty) to head office (data only), 2026-11-02, asked by Yousef
+
+contacts.owner_id Lucas -> Info Renellence (head office), logged as an admin change from Edge so the v2 -> HubSpot copy moves
+the HubSpot owner too. No clinic-mates, open tasks or upcoming forecasts to move. Backup `renellence-v2-backups/2026-11-02-edge-golive/loredana-owner-before.json`.
+
+## 59. Rep expenses loaded from the old expense sheet (data only), 2026-11-02, asked by Yousef
+
+Owner: "for expenses page, is it linked? ... If it isnt, load all the expenses for them". v2 expenses was empty; the old Edge read
+Google Sheet 1y_Cy1Vg3_... ("Expense Log", filled by n8n "Renellence Invoice Organizer v2") through the read-only webhook edge-expenses.
+Loaded 176 of its 213 rows as source import: status submitted, source 'expense_sheet', external_id = the Drive receipt file id
+(a re-run skips them), notes -> description, the sheet's date as is (one impossible date left empty), category empty. Left out:
+Riaan van Rooyen (10) and Dima Jammoul (23), who are not v2 users, and 4 rows with no amount. Edge (47d124c) shows the note and a
+Drive receipt link. Script and the sheet copy: `renellence-v2-backups/2026-11-02-edge-golive/load-expenses.js`.
+Since the same day the bot also saves each new receipt into v2 (n8n "Renellence Invoice Organizer v2" -> Pulse op=expense_intake,
+my-fifty e778532): status to_submit, source expense_bot, external_id = the Drive file id. Edge shows October onward only (78791a8).
+
+## 60. Full audit of all reps against HubSpot / Stripe / Shopify / SignatureAPI, and the apps: fixes (data + code, no table change), 2026-11-02, asked by Yousef
+
+Yousef: "fix everything and do another full audit ... i want after this audit for it to be completely ready". Four area audits
+(signatures, orders/payments, contacts, the Edge app), then an independent final audit of the data and of Edge/Pulse/Compass.
+Owner decisions applied as settled (v2 wins on owners; Oct 22 import scope; old Stripe invoices out; MDs not contacts). All
+writes source import, dry run first; backups and scripts: `C:\Users\youse\Documents\renellence-v2-backups\2026-11-02-full-audit`.
+- Signatures: 7 stale/duplicate signer rows removed (Catrina Peters now signed, MD Keara Minish pending; Charmaine Mamogobo,
+  Fariba Shahin, Vijeta Singh, Vero Dorval), 14 un-emailed MDs `not_sent`, 3 signers linked, 10 onboardings' injector/MD set to who
+  actually signed (e.g. Olga Gaponenko -> Dr. Diego Delgado), 13 missing envelopes added (Tracey Hotta's onboarding, 12 model forms
+  as training), signed PDFs for all 220 completed agreements in Storage `files` (`agreements/<id>/<file id>.pdf`).
+  Final audit: 6 onboardings whose MD was the account itself emptied; Veronique Dorval card_saved_at.
+- Orders/payments: 6 orders HubSpot-Processed > 30 days -> delivered (Peyvand Malek, Mirna Gomez, Ruth Dowling, MB Clinic x3), the
+  Oct 22 rule; 115 delivered_at and 167 shipped_at from HubSpot stage history (39 delivered orders have no real date, left empty);
+  15 $0-discounted lines on 12 orders -> free lines (discount reduced by the same, values unchanged); 23 Stripe payments' card
+  fields; Ashley Ziltener's second declined attempt. Final audit: #123365471 / #123365474 line ids relabelled to their products.
+- Contacts: 10 duplicates merged (Heather Molyneaux, The Cosmetic Haus x2, George Addoumieh, Wellness Centre 4 You, Anne-Marie Pion,
+  Kendra Norris, Ingrid Mudrazia, Delena Pham, YS Cosmetic; 11 doubled check-in picks removed), 9 nameless resolved (1 archived),
+  Ireen Girgis's HubSpot id, Caroline Lemay's deleted HubSpot id cleared, 22 clinics given their HubSpot company id, 3 Stripe links
+  (one moved Caroline Lemay -> Veronique Dorval), Keara Minish -> Emily, Anne-Marie Pion -> Angela, 5 empty duplicate clinics
+  archived. Final audit: "The Quo Team" archived, 50 emails in twice (HubSpot import + Gmail) -> HubSpot copy archived, 1 doubled
+  call, 1 doubled task, 1 summary moved off a merged contact.
+- Forecasts: Victoria Pond's doubled Sep 30 forecast archived.
+- Code: my-fifty ce98e46 (one signer row per recipient, awaiting MDs not_sent, signed PDFs kept; order stage history, stale
+  Processed -> delivered, free lines; Stripe charge/intent ids and disputes; no new contact for someone v2 has), 625cdb8 (HubSpot
+  batch answers matched by fields; Quo vendor never a contact; HubSpot copy of a Gmail email archived). renellence-edge f0ce099
+  (Friday check-in always opens on the forecast confirmation), 215f563 (Home Stuck = Customers "Needs action"; "coming" counts
+  booster months only; late forecasts carried into this month; signer state and reminder names).
+
+## 61. admin@ as a fictional test rep (data only, temporary), 2026-11-02, asked by Yousef
+
+Yousef: "make admin@renellence a test rep with fake data (fully fake data)". Same as #54 but for admin@: admin@'s users row
+(Yousef Kamel, admin) moved to email admin+held@renellence.com; a fictional rep "Alex Sample" (`de0a0000-…0001`) holds
+admin@renellence.com, with the db/seed-demo-info.sql book (53 people, 57 orders, legacy_id `demo-info-…`) plus `ed9e0000…`
+targets, 10 forecasts, 3 "(demo)" events, 4 expenses, 2 marketing requests. Undo: `node demo-swap-admin.js --undo --apply` in
+`renellence-v2-backups/2026-11-02-admin-demo` (moves any real row back to admin@, restores the row, wipes the demo rows).
+
+## 61. Forecast change reason "Other" with the rep's words (`renellence-edge/db/v2-019-forecast-reason-other.sql`), 2026-11-02, approved by Yousef
+
+Owner: "lets also put an other option to the reasons why the forecast was late and show a text box" ... "Yes, make it". Enum
+`forecast_changes_reason` gets the value `other`; new column `forecast_changes.reason_note` (text, at most 300 characters, filled
+only for other). **Status: applied to v2 2026-11-02** (not yet to the v1 test database). Edge cd47d50 (Other on every row of the
+Friday check-in's Forecast changes, the text required), Compass 3def535 (shows "Other: <the rep's words>"). Same day, no schema
+change: a late forecast can move to the 4 months after the month it was due, none already over (Edge 8cf3168).
+
+## 62. Demo reps removed, Natalya to info@, Quo webhooks moved to the API (data + code, no table change), 2026-11-03, asked by Yousef
+
+- #61 undone (Yousef: "remove all the mock data and the mock people and their data"): `demo-swap-admin.js --undo --apply` in
+  `renellence-v2-backups/2026-11-02-admin-demo`. admin@ is Yousef Kamel (admin) again; Alex Sample, Jordan/Casey/Riley/Taylor Demo
+  and every demo row gone (0 left in users, contacts, orders, interactions, forecasts, targets, events, attendees, expenses,
+  marketing requests, check-ins, notifications); no real row had been attached to the fake rep. Rewards code also keeps fictional
+  reps off real boards (my-fifty f8e3d77, Edge f76c70c).
+- Natalya Kupchan reassigned Lucas -> info@ (internal account; logged by the db trigger as a reassign).
+- Quo: new API key; 3 webhooks made through Quo's API (calls, texts, call summaries, apiVersion v4) -> `api/quo?key=QUO_INTAKE_KEY`,
+  signature checked (QUO_WEBHOOK_SECRET, one signing key per webhook). Old settings-screen webhooks and the Quo -> HubSpot
+  webhooks deleted. Code 2da7391 (own URL key, several signing keys) and c06627a (v4 calls carry only `participants`, which lists
+  our own line too: the outside number is the first one that is not ours).
