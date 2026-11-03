@@ -35,6 +35,7 @@ function intakeKey(req) {
   return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 // POST /api/cron?op=edge_send  { what: 'order' | 'paylink', orderId } | { what: 'email', userId, to, subject, text, html? }
+//                              | { what: 'push', userId, kind, title, body, dedupeKey }   (Edge's admin alerts, 2026-11-03)
 // -> the same answer Pulse's own send gives (api/_isf.js send / resendPayLink, api/_gmail.js send).
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 async function edgeSend(sql, b) {
@@ -49,6 +50,15 @@ async function edgeSend(sql, b) {
     if (!u) throw fail(404, 'not_found');
     return require('./_gmail').send(sql, u, { to: String(b.to || ''), subject: String(b.subject || ''), text: String(b.text || ''),
       html: b.html ? String(b.html).slice(0, 200000) : '' });   // html: Edge's branded event invites (2026-11-02)
+  }
+  // A phone alert from Edge's admin tools (owner 2026-11-03: a customer given to a rep, expenses to submit). Edge has no push
+  // key, so Pulse sends it (api/_push.js, deduped by key).
+  if (b.what === 'push') {
+    if (!UUID.test(String(b.userId || ''))) throw fail(400, 'bad_id');
+    const kind = ['new_lead', 'approval_reminder'].includes(b.kind) ? b.kind : 'approval_reminder';
+    const r = await require('./_push').notify(sql, b.userId, { kind, title: String(b.title || '').slice(0, 120), body: String(b.body || '').slice(0, 300),
+      url: '/', dedupeKey: String(b.dedupeKey || 'edge:' + Date.now()).slice(0, 200) });
+    return { ok: true, sent: r.sent || 0, noPhone: !!r.noPhone };
   }
   throw fail(400, 'bad_what');
 }

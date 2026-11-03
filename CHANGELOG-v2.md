@@ -846,3 +846,21 @@ change: a late forecast can move to the 4 months after the month it was due, non
   signature checked (QUO_WEBHOOK_SECRET, one signing key per webhook). Old settings-screen webhooks and the Quo -> HubSpot
   webhooks deleted. Code 2da7391 (own URL key, several signing keys) and c06627a (v4 calls carry only `participants`, which lists
   our own line too: the outside number is the first one that is not ours).
+
+## 63. Admin and developer views in Edge and Pulse; expenses can be approved (`renellence-edge/db/v2-020-expense-approved.sql`), 2026-11-03, approved by Yousef
+
+- **Schema (v2-020, owner yes 2026-11-03):** `expenses_status` gains `approved` (to_submit -> submitted -> approved). Reps' screens
+  show approved as submitted (Edge reads.js expenses), so nothing changes for them. Data: `tech@renellence.com` added as an admin
+  (with info@ and admin@ the developers: a fixed list in Edge `api/_edge/roles.js`, not a role in the database). **Written, not yet
+  applied** (needs the owner's go to run it on v2).
+- **Edge (branch admin-views):** admins get team-wide Home, Forecast, Customers (move a customer to a rep), Requests (approve /
+  decline marketing requests: sent -> in_design / declined), Expenses (approve a rep's month, undo, remind) and an ADMIN section
+  (Needs you, Reassign in bulk, Onboarding, Team = People / Scorecard / Reports incl. Forecast accuracy). Developers also get Users
+  and history, Security (the Shield console, commands signed in the browser), Logs, Health and usage, Territory, Marketing requests.
+  renellence-admin's v2 modules moved into `api/_edge/admin/`; renellence-admin is retired (owner: "forget renellence-admin").
+- **Reassign writes only v2:** `contacts.owner_id`, the old owner's open `tasks`, `forecasts` from this month on, one change_logs
+  batch; past orders keep `rep_id`. HubSpot is not called; Pulse's copy job (`hubspot_push`) still copies owner changes while on
+  (owner: "leave the hubspot copying on").
+- **Pulse (branch admin-views):** an Admin tab for admins (never while viewing as a rep): Needs you, Assign a customer (best fit
+  from the postal-area rules, optional "First call" task, a push to the rep), Onboarding list and one onboarding's steps. New
+  `api/_admin.js`; `cron?op=edge_send` takes `{what:'push'}` so Edge's admin alerts reach phones. No table change beyond v2-020.

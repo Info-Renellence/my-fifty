@@ -37,7 +37,7 @@ module.exports = route(async (req, res) => {
   const me = await signedIn(req);
   if (me.viewer) throw fail(403, 'view_only');   // viewing as a rep is look only (api/_auth.js, 2026-11-02)
   const b = await body(req);
-  const fn = own(OPS, b.op);
+  const fn = own(OPS, b.op) || own(require('./_admin').WRITES, b.op);   // the Admin tab (api/_admin.js, admins only)
   if (!fn) throw fail(400, 'unknown_op');
   send(res, 200, await fn(me, b));
 });

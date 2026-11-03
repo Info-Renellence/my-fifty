@@ -37,7 +37,8 @@ module.exports = route(async (req, res) => {
   }
   const me = await signedIn(req);
   const sql = db();
-  const fn = own(OPS, op);
+  // Pulse's Admin tab (owner 2026-11-03; api/_admin.js checks admin itself)
+  const fn = own(OPS, op) || own(require('./_admin').READS, op);
   if (!fn) throw fail(400, 'unknown_op');
   send(res, 200, await fn(sql, me, q));
 });
@@ -64,7 +65,10 @@ const OPS = {
     const viewing = me.viewer ? { name: me.viewer.name } : null;
     const viewAs = me.viewer || require('./_auth').canViewAs(me)
       ? (await sql`select id, full_name as name from users where kind = 'rep' and is_active is not false order by full_name`).map((r) => ({ id: r.id, name: r.name })) : null;
-    return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email }, viewing, viewAs, joined: me.viewer ? null : joined, firstVisit: !seenAt && !me.viewer,
+    // The Admin tab (owner 2026-11-03): admins only, never while viewing as a rep; the dot shows how much is waiting.
+    const admin = me.kind === 'admin' && !me.viewer;
+    const needs = admin ? await require('./_admin').READS.admin_needs(sql, me).then((n) => n.total, () => null) : null;
+    return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email, admin }, needs, viewing, viewAs, joined: me.viewer ? null : joined, firstVisit: !seenAt && !me.viewer,
       gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() && flags.voice_notes,
       // Feature switches (settings 'flags', api/_flags.js) the page may need; already-live features default on.
       features: { weekView: flags.week_view, voiceNotes: flags.voice_notes, claudeSuggestions: flags.claude_suggestions } };

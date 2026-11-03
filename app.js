@@ -119,6 +119,7 @@
     target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
     heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
     star: '<path d="M12 3l2.6 5.6 6.1.7-4.5 4.2 1.2 6L12 16.6 6.6 19.5l1.2-6L3.3 9.3l6.1-.7z"/>',
+    shield: '<path d="M12 3l8 3v6c0 4.5-3.4 8.2-8 9-4.6-.8-8-4.5-8-9V6z"/>',
     // lead groups (F6, F19-F22, F29)
     social: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="0.8" fill="currentColor"/>',
     event: '<rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13.5l1 2 2.2.3-1.6 1.5.4 2.2-2-1-2 1 .4-2.2-1.6-1.5 2.2-.3z"/>',
@@ -150,13 +151,16 @@
     function t(href, key, icon, label) {
       return '<a href="' + href + '" data-nav class="' + (on === key ? 'on' : '') + '"' + (on === key ? ' aria-current="page"' : '') + '>' + icon + label + '</a>';
     }
-    return '<nav class="tabs" aria-label="Main">'
+    return '<nav class="tabs' + (isAdminMe() ? ' five' : '') + '" aria-label="Main">'
       + t('/', 'today', ic('today', 25, 1.5), 'Today')
       + t('/people', 'people', ic('people', 25, 1.5), 'People')
       + t('/order', 'order', '<span class="plus">' + ic('plus', 18, 2.4) + '</span>', 'Order')
       + t('/rewards', 'rewards', ic('trophy', 25, 1.5), 'Rewards')
+      // The Admin tab (owner 2026-11-03): the four admins only, never while viewing as a rep; a gold dot while something waits.
+      + (isAdminMe() ? t('/admin', 'admin', '<span class="adtab">' + ic('shield', 25, 1.5) + (BOOT.needs ? '<i aria-hidden="true"></i>' : '') + '</span>', 'Admin') : '')
       + '</nav>';
   }
+  function isAdminMe() { return !!(BOOT && BOOT.me && BOOT.me.admin); }
   function backLink(href, label) { return '<a href="' + esc(href) + '" data-nav class="back">' + ic('back', 18, 1.8) + esc(label) + '</a>'; }
   function sect(left, right, color) {
     return '<div class="sect"><span class="kicker"' + (color ? ' style="color:' + color + '"' : '') + '>' + esc(left) + '</span>' + (right ? '<span class="r">' + right + '</span>' : '') + '</div>';
@@ -202,6 +206,11 @@
     [/^\/orders\/([0-9a-f-]{36})$/, function (m) { return screenOrderStatus(m[1]); }],
     [/^\/rewards$/, function () { return screenRewards(); }],
     [/^\/rewards\/wins$/, function () { return screenWins(); }],
+    // The Admin tab (owner 2026-11-03): admins only; anyone else lands on Today.
+    [/^\/admin$/, function () { return isAdminMe() ? screenAdmin() : go('/', true); }],
+    [/^\/admin\/assign\/([0-9a-f-]{36})$/, function (m) { return isAdminMe() ? screenAssign(m[1]) : go('/', true); }],
+    [/^\/admin\/onboarding$/, function () { return isAdminMe() ? screenAdminOnboarding() : go('/', true); }],
+    [/^\/admin\/onboarding\/([0-9a-f-]{36})$/, function (m) { return isAdminMe() ? screenAdminOnb(m[1]) : go('/', true); }],
   ];
   function go(path, replace) {
     if (replace) history.replaceState({}, '', path); else history.pushState({}, '', path);
@@ -1806,6 +1815,128 @@
     }).then(function (sub) {
       return act('push_subscribe', { subscription: sub.toJSON() });
     }).then(function () { localStorageSet('mf-push', 'on'); toast('Reminders are on'); screenToday(); }, function () { b.disabled = false; toast('Reminders are off. You can allow them in your phone’s settings.'); });
+  });
+
+  // ---- Admin tab (owner 2026-11-03, design "Pulse admin"): Needs you, Assign a customer, Onboarding, one onboarding ---------------
+  // Admins only (BOOT.me.admin). The full list lives on Edge; here, the most urgent and the quick actions.
+  var ADM_KIND = { no_rep: ['No owner', 'gold'], onboarding: ['Onboarding', 'amber'], on_hold: ['Order on hold', 'red'] };
+  var admDone = {};
+  function admSteps(o) {
+    return '<span class="adsteps" aria-label="Step ' + o.step + ' of 4">' + o.steps.map(function (d, i) {
+      return '<i class="' + (d ? 'on' : i + 1 === o.step ? (o.stuck ? 'stuck' : 'now') : '') + '"></i>';
+    }).join('') + '</span>';
+  }
+  function screenAdmin() {
+    return paint(read('admin_needs'), function (d) {
+      var left = d.items.filter(function (x) { return !admDone[x.kind + x.id]; }).length;
+      BOOT.needs = left;
+      var tile = function (n, label, href) {
+        return '<a ' + (href ? 'href="' + href + '" data-nav ' : '') + 'class="card adtile"><span class="num">' + n + '</span><span class="lbl">' + esc(label) + '</span></a>';
+      };
+      var h = '<div class="scr"><span class="kicker" style="padding:6px 4px 0">ADMIN · ' + esc(d.date.toUpperCase()) + '</span>'
+        + '<div class="head" style="align-items:baseline"><h1 class="h1">Needs you</h1><span class="adleft' + (left ? '' : ' done') + '">' + (left ? left + ' left' : 'All done') + '</span></div>'
+        + '<div class="adtiles">' + tile(d.groups.noRep, 'No owner yet', '') + tile(d.groups.onboarding, 'Onboarding stuck', '/admin/onboarding') + tile(d.groups.onHold, 'Order on hold', '') + '</div>'
+        + sect('Most urgent', 'Full list on Edge');
+      if (!d.items.length) return h + empty('check', 'Nothing waiting on you.', '') + '</div>';
+      h += d.items.slice(0, 12).map(function (x) {
+        var k = x.kind + x.id, fin = admDone[k], kind = ADM_KIND[x.kind];
+        var btn = fin ? '<span class="adok">✓ ' + esc(fin) + '</span>'
+          : x.kind === 'no_rep' ? '<a href="/admin/assign/' + x.id + '" data-nav class="pillbtn blue">Assign</a>'
+            : x.kind === 'onboarding' ? '<button type="button" class="pillbtn blue" data-adm-remind="' + x.id + '" data-k="' + k + '">Remind</button>'
+              : '<button type="button" class="pillbtn blue" data-adm-paylink="' + x.id + '" data-k="' + k + '">Send pay link</button>';
+        return '<section class="card adcard' + (fin ? ' done' : '') + '"><span class="adtag ' + kind[1] + '">' + esc(kind[0].toUpperCase()) + '</span>'
+          + '<span class="adrow"><span class="adtext"><a href="/person/' + x.contactId + '" data-nav class="t">' + esc(x.name) + '</a><span class="s">' + esc(x.detail) + '</span></span>' + btn + '</span></section>';
+      }).join('');
+      return h + '</div>';
+    }, 'admin');
+  }
+  var assignPick = null, assignFirstCall = true, assignResult = null;
+  function screenAssign(id) {
+    assignResult = null;
+    return paint(read('admin_assign_info', { id: id }), function (d) {
+      var best = d.reps.find(function (r) { return r.best; });
+      if (!assignPick || !d.reps.some(function (r) { return r.id === assignPick; })) assignPick = best ? best.id : d.reps[0] && d.reps[0].id;
+      return assignView(d);
+    }, 'admin');
+  }
+  function assignView(d) {
+    var p = d.person, pick = d.reps.find(function (r) { return r.id === assignPick; }) || {};
+    if (assignResult) {
+      return '<div class="scr">' + backLink('/admin', 'Needs you')
+        + '<section class="card adcard" style="text-align:center;padding:26px 18px"><span class="round" style="margin:0 auto 12px;color:var(--green)">' + ic('check', 22) + '</span>'
+        + '<span class="h2" style="display:block">' + esc(assignResult.name) + ' is ' + esc(assignResult.rep) + '’s now</span>'
+        + '<span class="s" style="display:block;margin-top:8px;color:var(--muted)">' + esc(assignResult.rep) + (assignResult.alert === 'sent' ? ' got a Pulse alert' : ' has no phone set up for alerts yet')
+        + (assignResult.firstCall ? ' and a first-call step for today' : '') + '. Their history went with them.</span></section>'
+        + '<a href="/admin" data-nav class="btn" style="margin-top:14px">Next one</a></div>';
+    }
+    var h = '<div class="scr">' + backLink('/admin', 'Needs you')
+      + '<section class="card adcard"><span class="adrow"><span class="adtext"><span class="t" style="font-size:20px">' + esc(p.name) + '</span><span class="s">' + esc([p.who, p.source].filter(Boolean).join(' · ')) + '</span></span>'
+      + '<span class="adtag ' + (p.ownerId ? 'green' : 'gold') + '">' + (p.ownerId ? esc(p.owner) + '’s' : 'No owner yet') + '</span></span>'
+      + (p.context ? '<span class="s" style="display:block;margin-top:10px;color:var(--muted);font-size:14px;line-height:1.4">' + esc(p.context) + '</span>' : '') + '</section>'
+      + '<div class="sect"><span class="kicker">Who takes them?</span><span class="r">Customers now</span></div><section class="card r20">';
+    h += d.reps.map(function (r) {
+      return '<button type="button" class="adpick' + (r.id === assignPick ? ' on' : '') + '" data-adm-pick="' + r.id + '" aria-pressed="' + (r.id === assignPick) + '">'
+        + '<span class="radio"></span><span class="adtext"><span class="t">' + esc(r.name) + (r.best ? ' <span class="adtag green" style="margin-left:6px">Best fit</span>' : '') + '</span>'
+        + '<span class="s">' + esc(r.covers || 'No area set') + '</span></span><span class="num">' + r.count + '</span></button>';
+    }).join('');
+    h += '</section><label class="adcheck"><input type="checkbox" data-adm-first' + (assignFirstCall ? ' checked' : '') + '> Add “first call today” to ' + esc(pick.name || 'their') + '’s steps</label>'
+      + '<button type="button" class="btn" data-adm-assign="' + p.id + '"' + (pick.id ? '' : ' disabled') + '>Assign to ' + esc(pick.name || '') + '</button></div>';
+    return h;
+  }
+  function screenAdminOnboarding() {
+    return paint(read('admin_onboarding'), function (d) {
+      var h = '<div class="scr">' + backLink('/admin', 'Needs you') + '<h1 class="h1" style="padding:0 4px 12px">Onboarding</h1>';
+      if (!d.rows.length) return h + empty('check', 'No onboardings waiting.', '') + '</div>';
+      return h + d.rows.map(function (o) {
+        return '<a href="/admin/onboarding/' + o.id + '" data-nav class="card adcard adlink"><span class="adrow"><span class="t">' + esc(o.name) + '</span>'
+          + '<span class="addays' + (o.stuck ? ' late' : '') + '">' + (o.days ? o.days + (o.days === 1 ? ' day' : ' days') : 'Today') + '</span></span>' + admSteps(o)
+          + '<span class="adrow"><span class="s' + (o.stuck ? ' late' : '') + '">' + esc(o.status) + '</span><span class="s">' + (o.rep ? esc(o.rep) + '’s' : '') + '</span></span></a>';
+      }).join('') + '</div>';
+    }, 'admin');
+  }
+  function screenAdminOnb(id) {
+    return paint(read('admin_onboarding_one', { id: id }), function (o) {
+      var names = ['Account form', 'Clinic signature', 'MD signature', 'Card on file'];
+      var h = '<div class="scr">' + backLink('/admin/onboarding', 'Onboarding')
+        + '<div class="head" style="align-items:flex-start"><span class="adtext"><h1 class="h1" style="font-size:28px">' + esc(o.clinic) + '</h1><span class="s">' + esc(o.person + (o.rep ? ' · ' + o.rep + '’s customer' : '') + ' · started ' + o.started) + '</span></span>'
+        + '<span class="adtag ' + (o.stuck ? 'amber' : 'blue') + '">' + (o.stuck ? 'Stuck' : 'In progress') + '</span></div><section class="card r20">';
+      h += names.map(function (n, i) {
+        var done = o.steps[i], now = i + 1 === o.step;
+        return '<span class="adstep"><span class="mark ' + (done ? 'on' : now ? (o.stuck ? 'stuck' : 'now') : '') + '">' + (done ? ic('check', 13, 2.4) : now ? '!' : '') + '</span>'
+          + '<span class="t">' + n + '</span><span class="s">' + (done ? esc(o.dates[i] || 'Done') : now ? esc(o.status.replace('Waiting on ', 'Waiting')) : '') + '</span></span>';
+      }).join('');
+      h += '</section>';
+      if (o.canRemind) h += '<button type="button" class="btn" style="margin-top:14px" data-adm-remind="' + o.id + '" data-k="onboarding' + o.id + '">Remind them to sign</button>';
+      return h + '<a href="/person/' + o.contactId + '" data-nav class="btn soft" style="margin-top:10px">Open their card</a></div>';
+    }, 'admin');
+  }
+  $app.addEventListener('click', function (e) {
+    var pk = e.target.closest('[data-adm-pick]');
+    if (pk) { assignPick = pk.getAttribute('data-adm-pick'); var d = cache[Object.keys(cache).filter(function (k) { return k.indexOf('admin_assign_info') === 0; })[0]]; if (d) $app.innerHTML = assignView(d.j) + tabs('admin'); return; }
+    var fc = e.target.closest('[data-adm-first]');
+    if (fc) { assignFirstCall = fc.checked; return; }
+    var as = e.target.closest('[data-adm-assign]');
+    if (as) {
+      as.disabled = true;
+      var key = Object.keys(cache).filter(function (k) { return k.indexOf('admin_assign_info') === 0; })[0];
+      var info = key && cache[key].j;
+      act('admin_assign', { id: as.getAttribute('data-adm-assign'), to: assignPick, firstCall: assignFirstCall }).then(function (r) {
+        assignResult = Object.assign({ firstCall: assignFirstCall }, r);
+        if (info) $app.innerHTML = assignView(info) + tabs('admin');
+      }, function (err) { as.disabled = false; toast(errText(err)); });
+      return;
+    }
+    var rm = e.target.closest('[data-adm-remind]'), pl = e.target.closest('[data-adm-paylink]');
+    if (rm || pl) {
+      var b = rm || pl;
+      b.disabled = true;
+      var call = rm ? act('remind_md', { onboardingId: rm.getAttribute('data-adm-remind') }) : act('resend_pay_link', { orderId: pl.getAttribute('data-adm-paylink') });
+      call.then(function (r) {
+        admDone[b.getAttribute('data-k')] = r.ok === false ? 'Held' : rm ? 'Reminder sent' : 'Pay link sent';
+        toast(rm ? 'Signing email resent' : 'Pay link sent');
+        if (location.pathname === '/admin') screenAdmin(); else b.outerHTML = '<span class="adok" style="display:block;text-align:center;margin-top:14px">✓ ' + (rm ? 'Reminder sent' : 'Pay link sent') + '</span>';
+      }, function (err) { b.disabled = false; toast(errText(err)); });
+    }
   });
 
   // ---- sign-in and start ------------------------------------------------------------------------------------
