@@ -891,5 +891,18 @@ change: a late forecast can move to the 4 months after the month it was due, non
   designation -> other (v2 has no aesthetician value); owner stays Lucas.
 - **Aesthetics Hub** (aestheticshubyyz@gmail.com) marked onboarded by hand so an order can be placed: one `onboardings` row
   (status signed, no agreement, form_answers.manual true).
+- **Missing QuickBooks-era orders added** (owner: "pull the missing orders through n8n and fix it on v2"). A temporary read-only
+  n8n workflow (vg3DWyIoPZSwfK5o, switched off and archived after one run) read the 406 QuickBooks invoices since 2026-01-01;
+  188 had no v2 order. Added 30 orders (18 paid, $42,017.64, Jan-Jun; 12 standalone samples, Apr-Sep) that never reached
+  HubSpot, so the HubSpot import missed them (e.g. Aesthetics Hub's Mar 9 order and Aug 12 sample). Each: status delivered,
+  no channel (v2 has shopify / stripe only), `rep_id` empty (all before Sep 1, so no rep total changes), `quickbooks_invoice_id`
+  and `legacy_id` 'qbo:<id>', lines `external_id` 'qbo:<id>:<n>'. Skipped: 129 free-goods companion invoices ($0 next to an
+  order v2 has), 9 tests, orders v2 already has, and 27 invoices still owing in QuickBooks (left for the owner to decide).
 - **Edge admin Forecast:** a month that is over counts its forecast of record (`metric_snapshots` 'forecast' on the 1st), not what
   was paid. v2 has snapshots from 2026-11-01 only; September and October were saved by old Edge (Upstash KV `forecastSnap:<month>`).
+
+## 65. Product availability (`renellence-edge/db/v2-021-product-availability.sql`), 2026-11-03, asked by Yousef
+- New column `products.is_available` (boolean, not null, default true): "product availability", yes or no. When no, the product
+  still shows on every order screen (Edge New Order, Pulse order) but is greyed out ("Unavailable right now") and cannot be
+  picked; Edge's order save and Pulse's `act.js` order refuse it. `is_active` keeps meaning the product exists at all.
+- The saypha fact sheet (SAYPHA-PAMPHLET) set to unavailable. Applied 2026-11-03 (read back: is_active true, is_available false).

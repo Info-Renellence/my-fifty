@@ -218,7 +218,8 @@ const OPS = {
     // category (the mockup's one unavailable product); other inactive products are left out. No "Same as last order"
     // and no "Last order" hints (dropped to match the mockup).
     const p = await one(sql, me, q.get('id'));
-    const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active from products where is_active = ${true} or product_line = ${'prp'}`;
+    // is_available (v2-021, owner 2026-11-03): listed, shown as unavailable and not pickable when false
+    const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active, (to_jsonb(p)->>'is_available') is distinct from 'false' as is_available from products p where is_active = ${true} or product_line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
     // The customer's MD on file fills the samples MD (final audit 2026-10-30: the same MD Edge's New order uses).
     const [md] = await sql`select m.first_name, m.last_name, m.email::text as email from contacts c join contacts m on m.id = c.medical_director_contact_id where c.id = ${p.id} and m.deleted_at is null`;
@@ -229,7 +230,7 @@ const OPS = {
       cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
       products: products.map((x) => {
         const cat = orderCat(x);
-        return { sku: x.sku, cat, name: rowName(x, cat), fullName: shortProduct(x.name), price: x.price, freeOnly: !(x.price > 0), unavailable: !x.is_active, sort: rowSort(x, cat) };
+        return { sku: x.sku, cat, name: rowName(x, cat), fullName: shortProduct(x.name), price: x.price, freeOnly: !(x.price > 0), unavailable: !x.is_active || x.is_available === false, sort: rowSort(x, cat) };
       }).sort((a, b) => ORDER_CATS.findIndex((c) => c[0] === a.cat) - ORDER_CATS.findIndex((c) => c[0] === b.cat) || (a.sort < b.sort ? -1 : a.sort > b.sort ? 1 : 0))
         .map(({ sort, ...x }) => x),
     };

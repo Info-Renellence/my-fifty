@@ -354,7 +354,8 @@ const OPS = {
     // More than 999 of one product is refused, never silently left off the order.
     if (want.length < asked.length) throw fail(400, 'too_many');
     if (want.some((l) => l.price != null && !(l.price >= 0 && l.price <= 100000))) throw fail(400, 'bad_price');
-    const prods = await sql`select id, sku, name, list_price::float8 as price from products where is_active and sku = any(${want.map((l) => l.sku)})`;
+    // an unavailable product (v2-021, owner 2026-11-03) is refused like an unknown one
+    const prods = await sql`select id, sku, name, list_price::float8 as price from products p where is_active and (to_jsonb(p)->>'is_available') is distinct from 'false' and sku = any(${want.map((l) => l.sku)})`;
     const by = Object.fromEntries(prods.map((p) => [p.sku, p]));
     if (want.some((l) => !by[l.sku])) throw fail(400, 'unknown_product');
     const lines = want.map((l) => {
