@@ -76,7 +76,11 @@ async function handle(sql, ev) {
   }
 }
 
-const outside = (o) => { const pick = /^in/i.test(s(o.direction)) ? o.from : o.to; return s(Array.isArray(pick) ? pick[0] : pick) || s((o.participants || [])[0]); };
+// Quo's API webhooks (apiVersion v4, 2026-11-03) send calls with no to/from, only participants, which also lists our own
+// line: the outside number is the first participant that is not one of Renellence's Quo numbers.
+const OWN_NUMBERS = new Set(['4384483612', '7788000216', '3657005795', '3653603629', '6475840040']);
+const outside = (o) => { const pick = /^in/i.test(s(o.direction)) ? o.from : o.to; return s(Array.isArray(pick) ? pick[0] : pick)
+  || s((o.participants || []).find((p) => !OWN_NUMBERS.has(digits10(p)))); };
 // A shared number goes on one contact only (owner 2026-10-28): the line rep's own contact, then not the medical director,
 // then the one with the most history, then the oldest.
 const contactsFor = (sql, p, rep) => sql`select c.id from contacts c where c.deleted_at is null and c.merged_into_contact_id is null
