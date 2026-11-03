@@ -883,5 +883,13 @@ change: a late forecast can move to the 4 months after the month it was due, non
 - **An order credited to someone else stays in the customer's history but says "Under <name>"** (Edge customer page, Pulse
   History) and never counts toward the viewing rep (it already did not: commission, Rewards, the month ring and Forecast use
   `rep_id`). Owner: Leigh Bishop's last order is Emily's; Lucas sees Leigh as a customer with a past order under Emily.
+- **Internal contacts** (owner, same day): Susan Jomha, Loiza Azim, Babak Sarang (and Melat Getu, already) are owned by Info with
+  their orders credited to Info (Susan Jomha owner Emily -> Info and #122965379 Samantha -> Info, reversing the earlier move; Babak
+  Sarang owner Samantha -> Info; Loiza already Info). Listed in `settings` 'internal_contacts' (no table change) so Edge's 1-on-1
+  Follow-ups and the Oct 3 launch KPI leave them out.
+- **Kendra Norris** (aesthetician at Ivan Korobkov's clinic): `clinic_id` -> Boxxed Aesthetics & Wellness (Ivan's), role and
+  designation -> other (v2 has no aesthetician value); owner stays Lucas.
+- **Aesthetics Hub** (aestheticshubyyz@gmail.com) marked onboarded by hand so an order can be placed: one `onboardings` row
+  (status signed, no agreement, form_answers.manual true).
 - **Edge admin Forecast:** a month that is over counts its forecast of record (`metric_snapshots` 'forecast' on the 1st), not what
   was paid. v2 has snapshots from 2026-11-01 only; September and October were saved by old Edge (Upstash KV `forecastSnap:<month>`).
