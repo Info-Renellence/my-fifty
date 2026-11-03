@@ -1430,9 +1430,13 @@
   // from (saypha's tiers, a product's own choices, else its list price), and Custom for any other price.
   var PRICES = function (p) { return CHOICES[p.sku] || (p.cat === 'saypha' ? TIERS(p) : [p.price]); };
   // after: the screen to show once saved (Review edits its items in place, owner 2026-10-27); default the products list.
-  function productSheet(row, after) {
+  // sku: the size to open (Review's line). Sizes mix (owner 2026-11-03): with sizes already added, a family row opens on
+  // the first size not in the order yet, so it adds another; the sizes in the order show above, tap one to edit it.
+  function productSheet(row, after, sku) {
     var dft = draft, fam = row.family;
-    var pickSku = fam ? (row.items.filter(function (p) { return (dft.qty[p.sku] || dft.free[p.sku]); })[0] || row.items[0]).sku : row.items[0].sku;
+    var inOrder = function (p) { return !!(dft.qty[p.sku] || dft.free[p.sku]); };
+    var pickSku = sku && row.items.some(function (p) { return p.sku === sku; }) ? sku
+      : fam ? (row.items.filter(function (p) { return !inOrder(p); })[0] || row.items[0]).sku : row.items[0].sku;
     var st = { sku: pickSku, op: null };
     function prod() { return row.items.filter(function (p) { return p.sku === st.sku; })[0]; }
     function load() { var p = prod(); st.q = dft.qty[p.sku] || (fam || p.freeOnly ? 0 : 0); st.f = dft.free[p.sku] || 0; st.price = dft.price[p.sku] != null ? dft.price[p.sku] : CHOICES[p.sku] ? null : p.price; st.had = !!(dft.qty[p.sku] || dft.free[p.sku]); st.custom = st.price != null && PRICES(p).indexOf(st.price) < 0; if (!st.had && !p.freeOnly) st.q = 1; if (!st.had && p.freeOnly) st.f = 1; }
@@ -1452,6 +1456,10 @@
       var p = prod(), priced = !p.freeOnly, unit = p.freeOnly ? 0 : (st.price || 0), total = (st.q || 0) * unit;
       var h = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="' + esc(row.name) + '"><span class="grab"></span>'
         + '<div class="sheet-head" style="align-items:center"><span class="display" style="font-size:24px;font-weight:800;letter-spacing:-0.6px">' + esc(row.name) + '</span><button type="button" data-close class="pillbtn">Cancel</button></div>';
+      var added = fam ? row.items.filter(inOrder) : [];
+      if (added.length) h += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">' + added.map(function (x) {
+        return '<button type="button" class="chip num' + (x.sku === st.sku ? ' on' : '') + '" data-psize="' + esc(x.sku) + '">' + esc(lineText(x, dft)) + '</button>';
+      }).join('') + (st.had ? '<button type="button" class="chip" data-pnew>+ Another size</button>' : '') + '</div>';
       if (fam) h += field('size', 'Size', p.name);
       h += '<div style="display:grid;grid-template-columns:' + (p.freeOnly ? '1fr' : '1fr 1fr') + ';gap:10px">' + (p.freeOnly ? '' : field('q', 'Quantity', String(st.q))) + field('f', 'Free', String(st.f)) + '</div>';
       if (priced) h += field('price', 'Price each', st.custom ? 'Custom' : st.price == null ? 'Choose' : money2(st.price));
@@ -1485,6 +1493,8 @@
       if (type === 'input' || type === 'change') { var c = e.target.closest('[data-custom]'); if (c) st.price = L.parsePrice(c.value); if (type === 'change' && c) draw(); return; }
       if (type) return;
       var b;
+      if ((b = e.target.closest('[data-psize]'))) { st.sku = b.getAttribute('data-psize'); st.op = null; load(); draw(); return; }
+      if (e.target.closest('[data-pnew]')) { var nx = row.items.filter(function (p) { return !inOrder(p); })[0]; if (nx) { st.sku = nx.sku; st.op = null; load(); draw(); } else toast('Every size is already in the order.'); return; }
       if ((b = e.target.closest('[data-op]'))) { var op = b.getAttribute('data-op'); st.op = st.op === op ? null : op; draw(); return; }
       if ((b = e.target.closest('[data-opt]'))) {
         var v = b.getAttribute('data-opt');
@@ -1583,7 +1593,7 @@
         + '<div class="sect" style="padding:6px 4px"><span class="label">Items</span><button type="button" data-items-edit class="link" style="min-height:32px">' + (dft.editItems ? 'Done' : 'Edit') + '</button></div>'
         + '<section class="card" style="margin-bottom:10px">' + lines.map(function (l, i) {
           var v = l.free ? '<span class="tag free">Free</span>' : money2(l.qty * l.price);
-          if (dft.editItems) return '<button type="button" class="kv" data-item-row="' + esc(rowOf(d, l.p.sku).key) + '" style="min-height:48px' + (i ? ';border-top:0.5px solid var(--line)' : '') + '"><span class="k" style="flex:0 1 auto">' + esc(l.p.fullName || l.p.name) + ' · ' + l.qty + '</span><span class="v" style="display:flex;align-items:center;gap:6px">' + v + CHEV + '</span></button>';
+          if (dft.editItems) return '<button type="button" class="kv" data-item-row="' + esc(rowOf(d, l.p.sku).key) + '" data-item-sku="' + esc(l.p.sku) + '" style="min-height:48px' + (i ? ';border-top:0.5px solid var(--line)' : '') + '"><span class="k" style="flex:0 1 auto">' + esc(l.p.fullName || l.p.name) + ' · ' + l.qty + '</span><span class="v" style="display:flex;align-items:center;gap:6px">' + v + CHEV + '</span></button>';
           return info(esc(l.p.fullName || l.p.name) + ' · ' + l.qty, v, !i).replace('class="k"', 'class="k" style="flex:0 1 auto"');
         }).join('')
           + (dft.editItems ? '<button type="button" class="kv" data-item-add style="min-height:48px;border-top:0.5px solid var(--line);color:var(--sky);font-weight:600;justify-content:flex-start;gap:8px">' + ic('plus', 15, 2.2) + 'Add a product</button>' : '')
@@ -1645,8 +1655,8 @@
     if (e.target.closest('[data-items-edit]')) { draft.editItems = !draft.editItems; keepScroll(function () { return screenReview(draft.contactId); }); return; }
     var back = function () { return screenReview(draft.contactId); };
     if ((b = e.target.closest('[data-item-row]'))) {
-      var rk = b.getAttribute('data-item-row');
-      productGroups(draft.products.products).forEach(function (g) { g[1].forEach(function (r) { if (r.key === rk) productSheet(r, back); }); });
+      var rk = b.getAttribute('data-item-row'), rs = b.getAttribute('data-item-sku');
+      productGroups(draft.products.products).forEach(function (g) { g[1].forEach(function (r) { if (r.key === rk) productSheet(r, back, rs); }); });
       return;
     }
     if (e.target.closest('[data-item-add]')) { addItemSheet(back); return; }
