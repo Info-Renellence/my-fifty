@@ -567,11 +567,17 @@ async function historyOf(sql, me, p) {
       from orders o left join order_lines ol on ol.order_id = o.id
      where o.contact_id = ${p.id} and o.deleted_at is null and o.status = any(${['rejected', 'cancelled']})
      group by o.id`;
+  // An order credited to someone else (an earlier rep, or head office) stays in History but says whose it was; it never counts
+  // toward this rep (owner 2026-11-03: Leigh Bishop's last order is Emily's, not Lucas's).
+  const others = isAdmin(me) ? [] : [...new Set(p.orders.map((o) => o.rep_id).filter((r) => r && r !== me.id))];
+  const underOf = others.length ? Object.fromEntries((await sql`select id, full_name, kind::text as kind from users where id = any(${others})`)
+    .map((u) => [u.id, u.kind === 'rep' ? u.full_name : 'head office'])) : {};
   for (const o of p.orders.concat(ended)) {
     const sample = B.isSample(o);
     const [word, tone] = ORDER_WORD(o);
+    const under = underOf[o.rep_id];
     out.push({ type: sample ? 'samples' : 'order', at: o.submitted_at || o.created_at, id: o.id,
-      title: sample ? 'Samples' : 'Order · ' + money(o.total), body: lineSummary(o), status: word, tone });
+      title: sample ? 'Samples' : 'Order · ' + money(o.total), body: lineSummary(o) + (under ? ' · Under ' + under : ''), status: word, tone });
   }
   const moves = await sql`
     select l.changed_at as at, u.full_name as name from change_logs l join users u on u.id::text = (l.old_value #>> '{}')

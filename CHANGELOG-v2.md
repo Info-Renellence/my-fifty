@@ -864,3 +864,24 @@ change: a late forecast can move to the 4 months after the month it was due, non
 - **Pulse (branch admin-views):** an Admin tab for admins (never while viewing as a rep): Needs you, Assign a customer (best fit
   from the postal-area rules, optional "First call" task, a push to the rep), Onboarding list and one onboarding's steps. New
   `api/_admin.js`; `cron?op=edge_send` takes `{what:'push'}` so Edge's admin alerts reach phones. No table change beyond v2-020.
+
+## 64. Order credit fixed by hand after cross-checking the Rep Order Totals sheet and old Edge (data + Edge code, no table change), 2026-11-03, asked by Yousef
+- **Edge admin totals subtract `orders.discount_amount`** (renellence-edge 6b24c5f): Shopify-era orders (Apr-Sep) keep list prices
+  on their lines and the discount on the order, so admin Forecast / Home / Scorecard / Reports showed September at list price.
+  Reps' own screens already subtracted it. Oct+ orders carry no discount.
+- **`orders.rep_id` set on eight orders** (owner's calls, one transaction, each checked against the reviewed old rep; 8 change_logs rows):
+  #117765379 Tess Peters Info -> Brittany; #122965379 Susan Jomha Info -> Samantha; #122165379 Olga Gaponenko Info -> Emily;
+  #117665379 and #123365379 Amber Chen Info -> Lucas; #121765379 Tina Le (none) -> Lucas; #123365486 Jerina Jorgoni and
+  #123365479 Loredana Litoiu Aria -> Info (head office).
+- Left as they were (already what the owner wanted): Leigh Bishop (Emily), Alba Faddoul and Kim Ireland (Lucas), Shameeza
+  Kassamali (Info), Ashley Ziltener #123365478 (Lucas, already in v2), Samira Rafiei (owned by and credited to Lucas), Igor
+  Wilderman (Lucas).
+- **`orders.rep_id` set to the customer's owner on nine free sample orders** since Sep 1 where they differed (one transaction,
+  only $0 orders): #117965379 Sareena Multani, #119865379 Zainab Ghanim, #123765379 Aida Owlia -> Brittany; #123865379 Marta
+  Morozova, #121465379 Sanjay Siddha -> Samantha; #120365379 and #123365477 Audrey Lacoste -> Angela; #120565379 Kristy Mann ->
+  Lucas; #123365414 Sonia Jabbarpour -> Emily.
+- **An order credited to someone else stays in the customer's history but says "Under <name>"** (Edge customer page, Pulse
+  History) and never counts toward the viewing rep (it already did not: commission, Rewards, the month ring and Forecast use
+  `rep_id`). Owner: Leigh Bishop's last order is Emily's; Lucas sees Leigh as a customer with a past order under Emily.
+- **Edge admin Forecast:** a month that is over counts its forecast of record (`metric_snapshots` 'forecast' on the 1st), not what
+  was paid. v2 has snapshots from 2026-11-01 only; September and October were saved by old Edge (Upstash KV `forecastSnap:<month>`).
