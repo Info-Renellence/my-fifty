@@ -851,8 +851,8 @@ change: a late forecast can move to the 4 months after the month it was due, non
 
 - **Schema (v2-020, owner yes 2026-11-03):** `expenses_status` gains `approved` (to_submit -> submitted -> approved). Reps' screens
   show approved as submitted (Edge reads.js expenses), so nothing changes for them. Data: `tech@renellence.com` added as an admin
-  (with info@ and admin@ the developers: a fixed list in Edge `api/_edge/roles.js`, not a role in the database). **Written, not yet
-  applied** (needs the owner's go to run it on v2).
+  (with info@ and admin@ the developers: a fixed list in Edge `api/_edge/roles.js`, not a role in the database). **Applied to v2
+  2026-11-03 by Yousef** (read back: expenses_status to_submit,submitted,approved; tech@ admin, active).
 - **Edge (branch admin-views):** admins get team-wide Home, Forecast, Customers (move a customer to a rep), Requests (approve /
   decline marketing requests: sent -> in_design / declined), Expenses (approve a rep's month, undo, remind) and an ADMIN section
   (Needs you, Reassign in bulk, Onboarding, Team = People / Scorecard / Reports incl. Forecast accuracy). Developers also get Users
