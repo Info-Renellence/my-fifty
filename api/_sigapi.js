@@ -30,6 +30,9 @@ async function sa(path, opts) {
       headers: { 'X-API-Key': key(), Accept: 'application/json', ...(o.body ? { 'Content-Type': 'application/json' } : {}) },
       body: o.body ? JSON.stringify(o.body) : undefined });
     const j = await r.json().catch(() => ({}));
+    // SignatureAPI allows about 8 requests a second; the sync's burst of envelope reads sometimes gets one 429 (2026-11-03).
+    // A 429 was not carried out, so it is tried once more a second later.
+    if (r.status === 429 && !o.retried) { await new Promise((ok) => setTimeout(ok, 1100)); return sa(path, { ...o, retried: true }); }
     if (!r.ok) { const e = new Error(s(j.detail || j.title || j.message) || 'signatureapi_' + r.status); e.status = r.status; throw e; }
     return j;
   } finally { clearTimeout(t); }
