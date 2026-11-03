@@ -9,7 +9,7 @@ const T = require('./_time');
 
 const PROGRAMS = {
   booster: { name: 'Q4 Booster', from: '2026-10-01', to: '2026-12-31', newRate: 0.02, reorderRate: 0.04 },
-  trip: { name: 'Trip to Vienna', from: '2026-10-01', to: '2026-12-03', metric: 'New people' },   // cutoff Dec 3 (owner 2026-10-28)
+  trip: { name: 'Trip to Vienna', from: '2026-10-01', to: '2026-12-03', metric: 'Customers who ordered' },   // cutoff Dec 3 (owner 2026-10-28)
 };
 // Race to 25 (Yousef 2026-10-23): the second leaderboard, people in each rep's Fifty right now, out of 25.
 const RACE = { name: 'Race to 25', goal: 25, metric: 'In your Fifty now' };
@@ -76,10 +76,17 @@ async function rewards(sql, me) {
     }
   }
 
-  // Trip to Vienna: new people per rep in the period.
+  // Trip to Vienna: customers per rep in the period (owner 2026-11-03: "reorders only count once per customer ... we count it by
+  // reordered customers not individual reorders"). A new customer (first paid order ever, in the period) counts once; a customer
+  // who reordered in the period counts once however many reorders; a customer who is new and reorders in the period is one.
+  // Credited to the rep on the order (orders.rep_id), as before.
   const t = PROGRAMS.trip;
-  const perRep = {};
-  for (const o of Object.values(firstBy)) if (o.rep_id && inRange(B.paidAt(o), t)) perRep[o.rep_id] = (perRep[o.rep_id] || 0) + 1;
+  const seen = {};
+  for (const o of orders) {
+    if (!o.rep_id || !inRange(B.paidAt(o), t)) continue;
+    (seen[o.rep_id] = seen[o.rep_id] || new Set()).add(o.contact_id);
+  }
+  const perRep = Object.fromEntries(Object.entries(seen).map(([id, s]) => [id, s.size]));
   // Fictional reps (demo and test logins: @demo.invalid, or the seeded de0…-0000-4000-8000-… ids such as admin@'s "Alex
   // Sample", my-fifty CHANGELOG-v2 #61) are never on a real rep's board (Yousef 2026-11-02); a fictional rep still sees their own row.
   const reps = await sql`select id, full_name from users where kind = ${'rep'} and is_active is not false
@@ -105,7 +112,7 @@ async function rewards(sql, me) {
     extra: money(onNew + onReorders),
     syringes, exprecell,
     trip: { name: t.name, sub: t.metric + ' · ends ' + T.short(t.to + 'T12:00:00Z'),
-      line: toLead ? toLead + ' more new ' + (toLead === 1 ? 'person' : 'people') + ' to take the lead' : 'You are in the lead',
+      line: toLead ? toLead + ' more ' + (toLead === 1 ? 'customer' : 'customers') + ' to take the lead' : 'You are in the lead',
       rows: top.map((r) => viennaRow(r, mine)),
       daysLeft: Math.max(0, T.daysBetween(today + 'T12:00:00Z', t.to + 'T12:00:00Z')), toLead, leader: top.length ? top[0].n : 0, mine: mine ? mine.n : 0 },
     race: { name: RACE.name, goal, sub: RACE.metric,
