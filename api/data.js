@@ -448,7 +448,9 @@ async function statusRow(sql, p) {
     return { kind: sample ? 'samples' : 'order', id: open.id, label, sub: sample ? 'Samples · Free' : 'Order · ' + money(open.total),
       value: sample ? 'Free' : money(open.total), fill, steps: sample ? ['Placed', 'MD signature', 'Shipped'] : ['Placed', 'Payment', 'Shipped'] };
   }
-  const onb = await onboardingOf(sql, p.id);
+  // An old onboarding form never finished is not a status for someone already ordering (owner 2026-11-03: Dawn-Marie
+  // Runnalls read "Waiting on MD signature" with two paid orders): anyone with an order can order again anyway.
+  const onb = p.orders.length ? null : await onboardingOf(sql, p.id);
   if (onb && !['signed', 'complete'].includes(onb.status)) {
     const first = onb.signers.find((x) => x.role !== 'md');
     const label = first && !first.signed_at ? 'Waiting on signature' : 'Waiting on MD signature';

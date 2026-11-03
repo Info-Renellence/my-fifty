@@ -523,3 +523,7 @@ label.pfield { padding-left: 14px; }
 .adstep .mark { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: var(--raised); color: var(--muted); font-weight: 800; font-size: 13px; }
 .adstep .mark.on { background: var(--green-bg); color: var(--green); } .adstep .mark.now { background: var(--blue-tint); color: var(--sky); } .adstep .mark.stuck { background: var(--amber-bg); color: var(--amber-ink); }
 .adstep .t { font-weight: 600; } .adstep .s { font-size: 13px; color: var(--muted); }
+
+/* A long value (a written next step) under its label, left-aligned (owner 2026-11-03). */
+.kv.long { flex-direction: column; align-items: flex-start; gap: 4px; padding: 12px 14px; }
+.kv.long .v { text-align: left; font-size: 14.5px; font-weight: 500; line-height: 1.4; }

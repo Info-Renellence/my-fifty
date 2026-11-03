@@ -993,7 +993,8 @@
     };
   }
   function kvBtn(attr, label, value, none) {
-    return '<button type="button" ' + attr + ' class="kv"><span class="k">' + label + '</span><span class="v' + (none ? ' none' : '') + '">' + esc(value) + '</span></button>';
+    // a long value (a written next step) sits under its label, left-aligned, instead of a squeezed right-hand column (owner 2026-11-03)
+    return '<button type="button" ' + attr + ' class="kv' + (String(value).length > 40 ? ' long' : '') + '"><span class="k">' + label + '</span><span class="v' + (none ? ' none' : '') + '">' + esc(value) + '</span></button>';
   }
   $app.addEventListener('click', function (e) {
     var lb = e.target.closest('[data-log]');
