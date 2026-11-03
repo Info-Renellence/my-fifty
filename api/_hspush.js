@@ -79,9 +79,14 @@ async function rememberIds(sql, marks, pairs) {
   const keys = Object.keys(marks.ids);
   if (keys.length > 3000) for (const k of keys.slice(0, keys.length - 3000)) delete marks.ids[k];
 }
+// HubSpot's id already on another row (one deleted or merged since: legacy_id is unique over every row, 2026-11-03) is not
+// taken again: the row is left as it is and named in the log, instead of the error stopping the whole push.
 async function adopt(sql, table, row, hsId, marks) {
+  const [held] = await sql.unsafe(`select id from public.${table} where legacy_id = $1 and id <> $2 limit 1`, [s(hsId), row.id]);
+  if (held) { console.warn('HSPUSH_ID_HELD', table, row.id, 'HubSpot', s(hsId), 'is on', held.id); return false; }
   await inTx(sql, (tx) => tx.unsafe(`update public.${table} set legacy_id = $1 where id = $2`, [s(hsId), row.id]));
   if (NINE.test(s(row.legacy_id))) await rememberIds(sql, marks, { [row.legacy_id]: s(hsId) });
+  return true;
 }
 
 async function pushNew(sql, marks, out, until) {
@@ -89,7 +94,7 @@ async function pushNew(sql, marks, out, until) {
   for (const cl of await sql`select * from clinics where legacy_id ~ '^9[0-9]{12}$' and deleted_at is null order by created_at limit 50`) {
     if (Date.now() > until) return;
     const made = await hs('POST', '/crm/v3/objects/companies', { properties: Object.assign(clinicProps(cl), ((await madeBy(sql, 'companies', cl.legacy_id)) || {}).properties || {}) });
-    await adopt(sql, 'clinics', cl, made.id, marks); out.clinics++;
+    if (await adopt(sql, 'clinics', cl, made.id, marks)) out.clinics++;
   }
   // contacts: n8n's, and people reps added in Pulse / Edge since the sync began
   const people = await sql`select c.*, cl.name as clinic_name, cl.legacy_id as clinic_legacy from contacts c left join clinics cl on cl.id = c.clinic_id
@@ -110,7 +115,7 @@ async function pushNew(sql, marks, out, until) {
       catch (e) { const m = /Existing ID: (\d+)/.exec(s(e.body && e.body.message)); if (e.status === 409 && m) id = m[1]; else throw e; }
     }
     if (c.clinic_legacy && /^\d{1,12}$/.test(c.clinic_legacy)) await hs('PUT', `/crm/v4/objects/contacts/${id}/associations/default/companies/${c.clinic_legacy}`).catch(() => null);
-    await adopt(sql, 'contacts', c, id, marks); out.contacts++;
+    if (await adopt(sql, 'contacts', c, id, marks)) out.contacts++;
   }
   // orders n8n made: replay its request with HubSpot's ids for the customer and the line items
   for (const o of await sql`select o.*, c.legacy_id as contact_legacy, cl.legacy_id as clinic_legacy from orders o left join contacts c on c.id = o.contact_id left join clinics cl on cl.id = c.clinic_id
@@ -131,7 +136,7 @@ async function pushNew(sql, marks, out, until) {
       .concat((li.results || []).map((x) => ({ to: { id: x.id }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 513 }] })))
       .concat(/^\d{1,12}$/.test(s(o.clinic_legacy)) ? [{ to: { id: s(o.clinic_legacy) }, types: [{ associationCategory: 'HUBSPOT_DEFINED', associationTypeId: 509 }] }] : []);
     const made = await hs('POST', '/crm/v3/objects/orders', { properties: props, associations: assoc });
-    await adopt(sql, 'orders', o, made.id, marks); out.orders++;
+    if (await adopt(sql, 'orders', o, made.id, marks)) out.orders++;
   }
 }
 
