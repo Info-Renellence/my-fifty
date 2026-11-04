@@ -253,8 +253,8 @@ describe('L9 product step: prices and free units (the mockup, 2026-10-21)', () =
   }));
   test('only free units make a sample order, which needs the MD; a bad price is refused', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
-    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }] }), (e) => e.message === 'md_required');
-    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 1, price: 0 }] }), (e) => e.message === 'md_required', 'a $0 price is free too');
+    const none = await A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 1, price: 0 }] });   // a $0 price is free too; no MD typed is fine
+    assert.equal((await sql`select payment_method from orders where id = ${none.orderId}`)[0].payment_method, null);
     const r = await A.order(me, { contactId: c, lines: [{ sku: 'SAL400', qty: 2, free: true }], mdName: 'Dr. Free Testmd', mdEmail: 'free.testmd.' + h.uid() + '@demo.invalid' });
     const [o] = await sql`select medical_director_contact_id, payment_method from orders where id = ${r.orderId}`;
     assert.ok(o.medical_director_contact_id);

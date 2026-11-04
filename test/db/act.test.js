@@ -302,7 +302,7 @@ describe('order (L10 / L15 Send for approval)', () => {
     const me = await h.user(sql), c = await ready(sql, me);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 0 }] }), st(400, 'no_products'));
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'FAKE', qty: 1 }] }), st(400, 'unknown_product'));
-    await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] }), st(400, 'md_required'));
+    assert.equal((await A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] })).ok, true, 'samples without an MD use the one on file');
     await assert.rejects(A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr X' }), st(400, 'md_required'));
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1000 }] }), st(400, 'no_products'));
   }));

@@ -368,8 +368,10 @@ const OPS = {
     const samples = !(total > 0);   // nothing to pay: a sample order, which needs the MD
     const method = samples ? null : b.payment === 'wire' ? 'wire' : 'card_on_file';
     let md = null;
-    if (samples) {
-      const mdName = clean(b.mdName, 120), mdEmail = clean(b.mdEmail, 200).toLowerCase();
+    // Sample orders don't force an MD (Yousef 2026-11-04): only onboarded customers can order, so the customer's MD on
+    // file is used when none is typed. One typed still needs both a name and a valid email.
+    const mdName = samples ? clean(b.mdName, 120) : '', mdEmail = samples ? clean(b.mdEmail, 200).toLowerCase() : '';
+    if (mdName || mdEmail) {
       if (!mdName || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mdEmail)) throw fail(400, 'md_required');
       md = { name: mdName, email: mdEmail };
     }
@@ -399,6 +401,8 @@ const OPS = {
         }
         // ...and becomes the customer's MD when they have none, so Edge's New order (which reads it there) agrees (final audit 2026-10-30).
         if (mdId !== c.id) await tx`update contacts set medical_director_contact_id = ${mdId} where id = ${c.id} and medical_director_contact_id is null`;
+      } else if (samples) {
+        [{ id: mdId }] = await tx`select medical_director_contact_id as id from contacts where id = ${c.id}`;
       }
       const [o] = await tx`
         insert into orders (contact_id, rep_id, placed_by_id, channel, status, submitted_at, medical_director_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)

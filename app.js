@@ -1600,7 +1600,7 @@
           + (dft.editItems ? '<button type="button" class="kv" data-item-add style="min-height:48px;border-top:0.5px solid var(--line);color:var(--sky);font-weight:600;justify-content:flex-start;gap:8px">' + ic('plus', 15, 2.2) + 'Add a product</button>' : '')
           + (samples ? '' : '<div class="kv" style="min-height:48px"><b style="font-size:15px">Total</b><b style="font-size:17px">' + money2(sum.total) + '</b></div>') + '</section>';
       if (samples) {
-        h += '<div class="sect" style="padding:6px 4px"><span class="label">Medical director</span></div>'
+        h += '<div class="sect" style="padding:6px 4px"><span class="label">Medical director · optional</span></div>'
           + '<section class="card" style="margin-bottom:4px">'
           + '<label class="kv" style="min-height:48px;justify-content:flex-start"><span class="k" style="width:52px">Name</span><input type="text" data-md="mdName" value="' + esc(dft.mdName) + '" placeholder="Dr. name" aria-label="Medical director name" class="mdin"></label>'
           + '<label class="kv" style="min-height:48px;justify-content:flex-start"><span class="k" style="width:52px">Email</span><input type="email" spellcheck="false" autocapitalize="off" data-md="mdEmail" value="' + esc(dft.mdEmail) + '" placeholder="md@clinic.ca" aria-label="Medical director email" class="mdin"></label></section>'
