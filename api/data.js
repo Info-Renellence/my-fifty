@@ -26,7 +26,8 @@ const money = (n) => '$' + Math.round(Number(n) || 0).toLocaleString('en-CA');
 const LEAD_GROUPS = { onboarded: 'Onboarded', social: 'Social media', event: 'Events and training', warm: 'Other warm leads', cold: 'Cold leads' };
 const TOUCH_WORD = { call: 'Called', text: 'Texted', meeting: 'Visited', email: 'Emailed' };
 
-module.exports = route(async (req, res) => {
+// Each request runs in its own test-account scope (api/_demo.js), switched on only when sign-in finds the test account.
+const handler = route(async (req, res) => {
   const q = query(req);
   const op = q.get('op') || '';
   if (op === 'config') {
@@ -71,7 +72,9 @@ const OPS = {
     return { me: { id: me.id, name: me.name, first: me.first, initials: me.initials, email: me.email, admin }, needs, viewing, viewAs, joined: me.viewer ? null : joined, firstVisit: !seenAt && !me.viewer,
       gmail: gmail.length ? gmail[0].status : 'off', voice: require('./_gemini').available() && flags.voice_notes,
       // Feature switches (settings 'flags', api/_flags.js) the page may need; already-live features default on.
-      features: { weekView: flags.week_view, voiceNotes: flags.voice_notes, claudeSuggestions: flags.claude_suggestions } };
+      features: { weekView: flags.week_view, voiceNotes: flags.voice_notes, claudeSuggestions: flags.claude_suggestions },
+      // The test account (owner 2026-11-04, api/_demo.js): made-up data, nothing is sent; the page says so.
+      test: require('./_demo').active() };
   },
 
   async today(sql, me) {
@@ -645,6 +648,7 @@ function sampleSteps(o, md, ag) {
   return markCurrent(steps, () => 'Waiting');
 }
 
+module.exports = (req, res) => require('./_demo').run(() => handler(req, res));
 module.exports.OPS = OPS;
 // Exposed for the unit tests only.
 module.exports._ = { money, initials, shortProduct, unitWord, one, addedBy, sourceText, cardOnFile, onboardingOf, statusRow, outcomeWord, when, lastHistoryLine,

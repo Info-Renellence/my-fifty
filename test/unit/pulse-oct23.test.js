@@ -77,8 +77,8 @@ test('head office gets reps_only; admins and reps still sign in', async () => {
   try {
     for (const [kind, want] of [['head_office', 'reps_only'], ['admin', 'admin'], ['rep', 'rep']]) {
       const authId = 'a-' + kind;
-      D.setDb(async () => [{ id: 'u-' + kind, email: kind + '@renellence.com', full_name: 'Unit ' + kind, kind, is_active: true, preferences: {}, auth_user_id: authId }]);
-      global.fetch = async () => ({ ok: true, json: async () => ({ id: authId, email: kind + '@renellence.com' }) });
+      D.setDb(async () => [{ id: 'u-' + kind, email: 'unit-' + kind + '@renellence.com', full_name: 'Unit ' + kind, kind, is_active: true, preferences: {}, auth_user_id: authId }]);
+      global.fetch = async () => ({ ok: true, json: async () => ({ id: authId, email: 'unit-' + kind + '@renellence.com' }) });
       const got = await Au.signedIn({ headers: { authorization: 'Bearer ho-' + kind + Math.random() } }).then((me) => me.kind, (e) => e.status + ' ' + e.message);
       assert.equal(got, want === 'reps_only' ? '403 reps_only' : want, kind);
     }

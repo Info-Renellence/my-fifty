@@ -1630,7 +1630,7 @@
     $app.innerHTML = '<div class="scr" style="align-items:center;text-align:center;padding-top:calc(var(--safe-top) + 90px)">'
       + '<span class="sentok">' + ic('check', 46, 2.2) + '</span>'
       + '<h1 class="display" style="font-size:30px;font-weight:800;letter-spacing:-1.1px;margin-top:20px">Sent for approval</h1>'
-      + '<span style="font-size:17px;color:#C9D1E0;margin-top:8px;max-width:320px">' + (!r.sentToN8n ? 'Saved. It goes for approval as soon as the order connection answers.' : samples ? 'The MD signs once it’s approved.' : 'You’ll get a text when it’s approved.') + '</span>'
+      + '<span style="font-size:17px;color:#C9D1E0;margin-top:8px;max-width:320px">' + (r.test ? 'Test account: saved here only. Nothing was sent for approval or charged.' : !r.sentToN8n ? 'Saved. It goes for approval as soon as the order connection answers.' : samples ? 'The MD signs once it’s approved.' : 'You’ll get a text when it’s approved.') + '</span>'
       + '<div style="margin-top:auto;width:100%;padding-bottom:12px"><a href="/orders/' + r.orderId + '" data-nav class="btn" style="border-radius:14px;font-weight:600">See status</a></div></div>' + tabs('order');
   }
   $app.addEventListener('input', function (e) {
@@ -2044,6 +2044,7 @@
         ? act('gmail_connect', { refreshToken: rt }).then(function () { localStorageSet('mf-gmail', sentKey); }, function () {}) : Promise.resolve();
       return gmail.then(function () { return api('boot'); }).then(function (b) {
         BOOT = b; ME = b.me;
+        if (b.test && window.pulseTestBanner) window.pulseTestBanner();   // admin@ is the test account (api/_demo.js)
         // A saved view-as that the server no longer honours (not info@, rep switched off) is dropped.
         if (viewAs() && !b.viewing) { try { localStorage.removeItem('mf-view-as'); } catch (e) { /* storage off */ } }
         viewBar();

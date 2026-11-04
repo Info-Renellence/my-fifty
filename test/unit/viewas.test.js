@@ -7,7 +7,7 @@ const Module = require('module');
 const USERS = [
   { id: '11111111-1111-4111-8111-111111111111', email: 'info@renellence.com', full_name: 'Info Renellence', kind: 'admin', is_active: true, auth_user_id: 'a-info' },
   { id: '22222222-2222-4222-8222-222222222222', email: 'emily@renellence.com', full_name: 'Emily Grace', kind: 'rep', is_active: true, auth_user_id: 'a-emily' },
-  { id: '33333333-3333-4333-8333-333333333333', email: 'admin@renellence.com', full_name: 'Yousef Kamel', kind: 'admin', is_active: true, auth_user_id: 'a-admin' },
+  { id: '33333333-3333-4333-8333-333333333333', email: 'tech@renellence.com', full_name: 'Yousef Kamel', kind: 'admin', is_active: true, auth_user_id: 'a-admin' },
   { id: '44444444-4444-4444-8444-444444444444', email: 'gone@renellence.com', full_name: 'Gone Rep', kind: 'rep', is_active: false, auth_user_id: null },
 ];
 const sql = (strings, ...vals) => {
@@ -23,7 +23,7 @@ Module._load = function (req) {
   return realLoad.apply(this, arguments);
 };
 process.env.SUPABASE_URL = 'https://example.invalid';
-const TOKENS = { info: { id: 'a-info', email: 'info@renellence.com' }, admin: { id: 'a-admin', email: 'admin@renellence.com' } };
+const TOKENS = { info: { id: 'a-info', email: 'info@renellence.com' }, admin: { id: 'a-admin', email: 'tech@renellence.com' } };   // admin@ is the test account now (api/_demo.js)
 global.fetch = async (url, o) => ({ ok: true, json: async () => TOKENS[String(o.headers.Authorization).slice(7)] });
 const A = require('../../api/_auth');
 const req = (who, as) => ({ headers: Object.assign({ authorization: 'Bearer ' + who }, as ? { 'x-view-as': as } : {}) });
@@ -45,7 +45,7 @@ test('info@ alone, or asking for an admin, a switched-off rep or a bad id, stays
 
 test('nobody but info@ can view as', async () => {
   const me = await A.signedIn(req('admin', USERS[1].id));
-  assert.equal(me.email, 'admin@renellence.com');
+  assert.equal(me.email, 'tech@renellence.com');
   assert.equal(me.viewer, undefined);
   assert.equal(A.canViewAs({ email: 'INFO@renellence.com' }), true);
   assert.equal(A.canViewAs({ email: 'admin@renellence.com' }), false);

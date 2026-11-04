@@ -13,8 +13,11 @@
 // A tag (letters) makes a second, separate demo book for another person next to the first one: every id, legacy id,
 // email, order number and Stripe id gets the tag, so the two never clash (2026-10-21: a book for info@renellence.com,
 // node scripts/seed-demo.js info@renellence.com info > db/seed-demo-info.sql). db/wipe-demo.sql removes both.
-const OWNER = (process.argv[2] || 'admin@renellence.com').toLowerCase();
-const TAG = String(process.argv[3] || '').toLowerCase().replace(/[^a-z]/g, '');
+// Required instead of run (the test account's in-memory database, api/_demo.js, owner 2026-11-04): the SQL is the
+// module's export, for admin@ with no tag, dated from the moment it is loaded.
+const MAIN = require.main === module;
+const OWNER = ((MAIN && process.argv[2]) || 'admin@renellence.com').toLowerCase();
+const TAG = String((MAIN && process.argv[3]) || '').toLowerCase().replace(/[^a-z]/g, '');
 const DAY = 86400000;
 const now = Date.now();
 let seq = 0;
@@ -263,4 +266,5 @@ if (TAG) {
     .replace(/(demo\.[a-z]+)@demo\.invalid/g, '$1.' + TAG + '@demo.invalid')
     .replace(/@sampleclinic/g, '@' + TAG + '.sampleclinic');   // event names keep their ' (demo)' ending, which db/wipe-demo.sql matches
 }
-console.log(text);
+if (MAIN) console.log(text);
+else module.exports = text;

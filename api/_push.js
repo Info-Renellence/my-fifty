@@ -60,6 +60,7 @@ async function subscribe(tx, me, sub) {
 // was already sent is skipped). sql: the plain connection. n: { kind, title, body, url, dedupeKey, contactId }.
 async function notify(sql, userId, n) {
   if (require('./_staging').blocked()) return { sent: 0, staging: true };   // staging never notifies a phone (api/_staging.js)
+  if (require('./_demo').active()) return { sent: 0, demo: true };   // nor does the test account (api/_demo.js)
   const keys = vapid();
   if (!keys) return { sent: 0, error: 'no_key' };
   // Nobody to tell yet: nothing is logged, so it can still go once they turn notifications on.

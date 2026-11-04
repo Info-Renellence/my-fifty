@@ -38,8 +38,10 @@ function merge(value) {
 }
 
 // All switches. sql: the plain connection or a transaction. Never throws: a read problem = the defaults.
+// The test account (api/_demo.js) reads its own copy each time and never fills the shared cache.
 async function all(sql) {
-  if (cache && Date.now() - cache.at < TTL_MS) return cache.flags;
+  const test = require('./_demo').active();
+  if (!test && cache && Date.now() - cache.at < TTL_MS) return cache.flags;
   let flags;
   try {
     const [row] = await sql`select value from settings where key = ${'flags'}`;
@@ -47,7 +49,7 @@ async function all(sql) {
   } catch (e) {
     flags = merge(null);
   }
-  cache = { at: Date.now(), flags };
+  if (!test) cache = { at: Date.now(), flags };
   return flags;
 }
 

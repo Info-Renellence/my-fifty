@@ -3,7 +3,8 @@
   "cleanUrls": true,
   "functions": {
     "api/act.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "{db/demo/**,node_modules/@electric-sql/pglite/dist/**}"
     },
     "api/cron.js": {
       "maxDuration": 60
@@ -16,6 +17,9 @@
     },
     "api/hs.js": {
       "maxDuration": 60
+    },
+    "api/data.js": {
+      "includeFiles": "{db/demo/**,node_modules/@electric-sql/pglite/dist/**}"
     }
   },
   "rewrites": [

@@ -51,6 +51,9 @@ async function signedIn(req) {
   if (!u || !u.id) throw fail(401, 'signed_out');
   const email = String(u.email || '').toLowerCase();
   if (!DOMAIN.test(email) || (u.user_metadata && u.user_metadata.email_verified === false)) throw fail(403, 'not_renellence');
+  // The test account (owner 2026-11-04, api/_demo.js): from here on this request reads and writes only its in-memory
+  // database, so its user row and book are made up and v2 is never asked.
+  if (require('./_demo').isTestEmail(email)) await require('./_db').enterDemo();
   const sql = db();
   let [row] = await sql`select id, email, full_name, kind, is_active, preferences, auth_user_id from users where auth_user_id = ${u.id}`;
   if (!row) {

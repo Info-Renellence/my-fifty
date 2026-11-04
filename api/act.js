@@ -32,7 +32,8 @@ const B = require('./_book');
 const T = require('./_time');
 const W = require('./_week');
 
-module.exports = route(async (req, res) => {
+// Each request runs in its own test-account scope (api/_demo.js), switched on only when sign-in finds the test account.
+const handler = route(async (req, res) => {
   if (req.method !== 'POST') throw fail(405, 'post_only');
   const me = await signedIn(req);
   if (me.viewer) throw fail(403, 'view_only');   // viewing as a rep is look only (api/_auth.js, 2026-11-02)
@@ -426,7 +427,7 @@ const OPS = {
     if (sent.queued) await asUser(me.id, (tx) => tx`
       insert into change_logs (actor_user_id, actor_kind, source, action, entity_type, entity_id, contact_id, note)
       values (${me.id}, 'user', 'my_fifty', 'send', 'orders', ${orderId}, ${c.id}, 'Sent for approval')`);
-    return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason, payday: await paydayOf() };
+    return { ok: true, orderId, sentToN8n: sent.queued, reason: sent.reason, test: require('./_demo').active(), payday: await paydayOf() };
   },
 
   async resend_pay_link(me, b) {
@@ -531,5 +532,6 @@ function normalPhone(s) {
   return '';
 }
 
+module.exports = (req, res) => require('./_demo').run(() => handler(req, res));
 module.exports.OPS = OPS;
 module.exports._ = { splitNote, followUpAt, normalPhone };
