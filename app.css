@@ -339,6 +339,11 @@ button:not(:disabled):not([aria-disabled="true"]):active, a[href]:active { trans
 
 /* F7 / F8 / F27 Person card */
 .pcard { border-radius: 26px; padding: 16px 16px 14px; margin-bottom: 14px; background: var(--hero-deep); box-shadow: var(--edge), 0 12px 26px rgba(0,0,0,0.45); }
+/* The city in the card's top-right corner, and the MD under the clinic (owner 2026-11-04): both small and out of the
+   way of the card's size, so the card stays the same height. */
+.pcity { position: absolute; top: 14px; right: 16px; z-index: 1; display: inline-flex; align-items: center; gap: 4px; max-width: 34%; font-size: 12px; font-weight: 600; opacity: .7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pcity svg { flex: none; }
+.pmd { font-size: 12px; line-height: 13px; margin-top: -1px; opacity: .6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .pring { position: absolute; right: -50px; top: -60px; width: 190px; height: 190px; border-radius: 50%; border: 26px solid rgba(255,255,255,0.06); }
 .stagepill.tap { color: inherit; cursor: pointer; }
 .stagepill.tap .pchev { opacity: .7; margin-left: 2px; font-size: 14px; }

@@ -165,6 +165,15 @@ const OPS = {
     const status = await statusRow(sql, p);
     const claudeStep = await claudeNextStep(sql, p);
     const last = await lastHistoryLine(sql, p);
+    // The card's corner and second line (owner 2026-11-04): the city (shipping, else the clinic's, else billing) and
+    // their medical director (contacts.medical_director_contact_id), unless they are their own MD.
+    const [where] = await sql`
+      select coalesce(nullif(trim(c.shipping_city), ''), nullif(trim(cl.city), ''), nullif(trim(c.billing_city), '')) as city,
+             md.first_name as md_first, md.last_name as md_last
+        from contacts c left join clinics cl on cl.id = c.clinic_id
+        left join contacts md on md.id = c.medical_director_contact_id and md.id <> c.id and md.deleted_at is null
+       where c.id = ${p.id}`;
+    const mdName = where && (where.md_first || where.md_last) ? B.fullName({ first_name: where.md_first, last_name: where.md_last }) : null;
     // The card's three numbers (Pulse UI 2026-10-27): My Fifty = total bought, last order, days since contact;
     // candidate = samples sent, days since samples, days since contact; lead = where they came from, since added, contacts.
     // Total bought and last order as reps see them: paid orders plus wires (owner 2026-10-28; shownPaid above).
@@ -183,7 +192,7 @@ const OPS = {
         : [[p.sourceKind === 'event' && p.eventName ? p.eventName : SOURCE[p.sourceKind] || SOURCE[p.leadGroup] || 'Unknown', 'Came from'], [B.ago(p.createdAt).replace(' ago', ''), 'Since added'], [String(p.touches), 'Contacts']];
     return {
       role: p.role, leadGroup: p.leadGroup, stats, samples: sampleLines.length ? { lines: sampleLines, sent: T.short(B.placedAt(p.sampleOrder)) } : null,
-      id: p.id, name: p.name, first: p.first, clinic: p.clinic, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold, byHand: !!p.repStage,
+      id: p.id, name: p.name, first: p.first, clinic: p.clinic, city: (where && where.city) || null, md: mdName, phone: p.phone, email: p.email, stage: p.stage, goingCold: !!p.goingCold, byHand: !!p.repStage,
       label: p.stage === 'fifty' ? (p.goingCold ? 'MY FIFTY · GOING COLD' : 'MY FIFTY') : p.stage === 'candidate' ? 'CANDIDATE'
         : 'LEAD · ' + ({ onboarded: 'ONBOARDED', social: 'SOCIAL MEDIA', event: 'EVENT AND TRAINING', warm: 'WARM', cold: 'COLD' }[p.leadGroup] || 'NEW'),
       totalBought: p.stage === 'fifty' ? money(p.totalBought) : null,

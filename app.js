@@ -904,13 +904,15 @@
       var back = lead ? '/people/leads/' + (p.leadGroup || 'cold') : '/people';
       var h = '<div class="scr">' + backLink(back, lead ? 'Leads' : 'People')
         + '<section class="hero pcard"><span class="pring" aria-hidden="true"></span>'
+        + (p.city ? '<span class="pcity">' + ic('pin', 13, 2) + esc(p.city) + '</span>' : '')
         + '<span style="position:relative;display:flex;align-items:center;gap:16px"><span data-avtap>' + AV(p.role, p.name, 88, 'ring card ' + avState(p), p.id) + '</span>'
         + '<span style="flex:1 1 auto;min-width:0;display:flex;flex-direction:column">'
         + (p.stage === 'fifty'
           ? '<span class="stagepill"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '</span>'
           : '<button type="button" data-stage class="stagepill tap" aria-label="Stage: ' + esc(label) + '. Change"><span style="width:11px;height:11px;border-radius:50%;box-sizing:border-box;' + dot + '"></span>' + esc(label) + '<span class="pchev" aria-hidden="true">›</span></button>')
         + '<h1 class="display" style="font-size:25px;font-weight:800;line-height:1.1;letter-spacing:-1px">' + esc(p.name) + '</h1>'
-        + (p.clinic ? '<span style="margin-top:2px;font-size:15px;opacity:.75">' + nb(p.clinic) + '</span>' : '') + '</span></span>'
+        + (p.clinic ? '<span style="margin-top:2px;font-size:15px;opacity:.75">' + nb(p.clinic) + '</span>' : '')
+        + (p.md ? '<span class="pmd">MD: ' + esc(p.md) + '</span>' : '') + '</span></span>'
         + '<span class="pstats">' + p.stats.map(function (s) { return '<span><span class="num">' + esc(s[0]) + '</span><span class="pl">' + esc(s[1]) + '</span></span>'; }).join('') + '</span></section>';
       function act4(attr, icon, label, main) {
         return '<button type="button" ' + attr + ' class="act4"><span class="' + (main ? 'main' : '') + '">' + ic(icon, 20, 1.6) + '</span>' + label + '</button>';
