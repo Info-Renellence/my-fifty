@@ -333,7 +333,8 @@ const signedThisWeek = (at, createdAt) => new Date(at || createdAt) > Date.now()
 // Product names as the mockup writes them: "saypha® filler", "Magic Needle 25G 50mm", "Mesbio needle 30G 12mm".
 function shortProduct(name) {
   const s = String(name || '');
-  let m = s.match(/^(saypha®?\s+(?:lips|filler|volume plus|volume))\b/i);
+  // Not the "saypha lips Pink Ice Pack" (ICE102): a free extra, never shortened to the lips syringe (Yousef 2026-11-04).
+  let m = /ice pack/i.test(s) ? null : s.match(/^(saypha®?\s+(?:lips|filler|volume plus|volume))\b/i);
   if (m) return m[1].toLowerCase();   // saypha and its products are always lower case, whatever the order line says
   m = s.match(/^Magic Needle Cannula\s+(\d+G)\s+(\d+)MM/i);
   if (m) return 'Magic Needle ' + m[1] + ' ' + m[2] + 'mm';
@@ -366,7 +367,8 @@ function rowSort(x, cat) {
   const m = String(x.name).match(/(\d+)G\s+(\d+)MM/i);
   if ((cat === 'cannula' || cat === 'mesbio') && m) return String(m[1]).padStart(3, '0') + String(m[2]).padStart(3, '0');
   if (cat === 'saypha') return String(['SAF', 'SAL', 'SAV2', 'SAVP'].findIndex((s) => String(x.sku).toUpperCase().startsWith(s))) + x.sku;
-  return String(x.name).toLowerCase();
+  if (/ice pack/i.test(x.name)) return '0' + x.sku;   // the ice packs side by side, first in Other (Yousef 2026-11-04)
+  return '1' + String(x.name).toLowerCase();
 }
 
 async function one(sql, me, id) {

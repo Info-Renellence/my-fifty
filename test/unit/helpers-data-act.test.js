@@ -50,6 +50,7 @@ describe('data: words', () => {
     assert.equal(D.shortProduct('Mesbio Intradermal Hypodermic Needle 30G 12MM Box of 100'), 'Mesbio needle 30G 12mm');
     assert.equal(D.shortProduct('Exprecell Single Syringe System (5 Syringes/Box)'), 'Exprecell Single Syringe System');
     assert.equal(D.shortProduct('saypha Lip Balm'), 'saypha Lip Balm');
+    assert.equal(D.shortProduct('saypha lips Pink Ice Pack'), 'saypha lips Pink Ice Pack', 'the ice pack is not the lips syringe');
     assert.equal(D.shortProduct(null), '');
   });
   test('boxes are cannulas, needles and Exprecell', () => {
