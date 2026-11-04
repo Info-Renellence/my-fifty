@@ -34,6 +34,15 @@ function intakeKey(req) {
   const a = Buffer.from(got), b = Buffer.from(want);
   return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
+// Edge's own key for edge_send (2026-11-03): Edge's PULSE_INTAKE_SECRET no longer matched N8N_INTAKE_SECRET (both sensitive,
+// neither can be read back), so every Edge order got a 401 and waited for resendOrders. EDGE_PULSE_SECRET is set on both
+// projects and opens edge_send only; the intake secret still works.
+function edgeKey(req) {
+  const want = String(process.env.EDGE_PULSE_SECRET || '').trim();
+  const got = String(req.headers['x-edge-pulse'] || '');
+  const a = Buffer.from(got), b = Buffer.from(want);
+  return !!want && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
 // POST /api/cron?op=edge_send  { what: 'order' | 'paylink', orderId } | { what: 'email', userId, to, subject, text, html? }
 //                              | { what: 'push', userId, kind, title, body, dedupeKey }   (Edge's admin alerts, 2026-11-03)
 // -> the same answer Pulse's own send gives (api/_isf.js send / resendPayLink, api/_gmail.js send).
@@ -85,7 +94,7 @@ module.exports = route(async (req, res) => {
   if (op === 'order_claim' && req.method === 'POST' && isfKey(req)) return send(res, 200, await orderClaim(db(), await require('./_http').body(req)));
   // What n8n looks up, from v2 instead of HubSpot (data-flow improvement 4; api/_lookup.js): read only, Pulse ISF key.
   if (op === 'lookup' && req.method === 'GET' && isfKey(req)) return send(res, 200, await require('./_lookup').lookup(db(), query(req)));
-  if (op === 'edge_send' && req.method === 'POST' && intakeKey(req)) return send(res, 200, await edgeSend(db(), await require('./_http').body(req)));
+  if (op === 'edge_send' && req.method === 'POST' && (intakeKey(req) || edgeKey(req))) return send(res, 200, await edgeSend(db(), await require('./_http').body(req)));
   // A receipt from the expense bot (n8n "Renellence Invoice Organizer v2", 2026-11-02) into the rep's "To submit" on Edge.
   if (op === 'expense_intake' && req.method === 'POST' && isfKey(req)) return send(res, 200, await require('./_expenseintake').intake(db(), await require('./_http').body(req)));
   if (!authorised(req)) throw fail(401, 'not_allowed');
@@ -435,4 +444,4 @@ function wireEmail(hello, intro, list, buttons) {
 }
 
 // Exposed for the unit tests only.
-module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, appAlerts, pingRsvp, morningTitle, wires, resendOrders, sendOrders, edgeSend, intakeKey };
+module.exports._ = { authorised, newLeads, morning, nudge, forecastSnapshot, orderDecision, orderClaim, appAlerts, pingRsvp, morningTitle, wires, resendOrders, sendOrders, edgeSend, intakeKey, edgeKey };

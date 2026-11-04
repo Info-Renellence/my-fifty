@@ -16,6 +16,15 @@ test('edge_send: only the intake secret opens it', () => {
   assert.equal(cron.intakeKey({ headers: { 'x-intake-secret': '' } }), false, 'no secret set: closed');
 });
 
+test('edge_send: Edge has its own key that opens it too', () => {
+  process.env.EDGE_PULSE_SECRET = 'unit-edge';
+  assert.equal(cron.edgeKey({ headers: { 'x-edge-pulse': 'unit-edge' } }), true);
+  assert.equal(cron.edgeKey({ headers: { 'x-edge-pulse': 'wrong-value' } }), false);
+  assert.equal(cron.edgeKey({ headers: { 'x-intake-secret': 'unit-edge' } }), false, 'only on its own header');
+  delete process.env.EDGE_PULSE_SECRET;
+  assert.equal(cron.edgeKey({ headers: { 'x-edge-pulse': '' } }), false, 'no secret set: closed');
+});
+
 test('edge_send: bad input is refused; an email for a rep with no Gmail says so', async () => {
   await h.withDb(async (sql) => {
     await assert.rejects(cron.edgeSend(sql, { what: 'nope' }), (e) => e.status === 400 || e.code === 400 || /bad_what/.test(e.message));
