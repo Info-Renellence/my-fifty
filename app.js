@@ -1364,11 +1364,11 @@
 
   // ---- F9 New order: the products ----------------------------------------------------------------------------
   // The draft order lives here until it is sent: { contactId, qty: { sku: n }, free: { sku: n }, price: { sku: $ },
-  // payment, approvalNote, shippingNote, mdName, mdEmail }. Only free units = a sample order (MD signs; Review samples).
+  // payment, approvalNote, shippingNote }. Only free units = a sample order (Review samples).
   // F9 groups the products: saypha one row each; Magic Needle and Mesbio one row each with a size; the rest under More.
   var draft = null;
   function draftFor(contactId) {
-    if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, qty: {}, free: {}, price: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '', mdName: '', mdEmail: '' };
+    if (!draft || draft.contactId !== contactId) draft = { contactId: contactId, qty: {}, free: {}, price: {}, payment: 'card_on_file', approvalNote: '', shippingNote: '' };
     return draft;
   }
   var money2 = function (n) { return '$' + (Math.round(n * 100) / 100).toLocaleString('en-CA', { minimumFractionDigits: n % 1 ? 2 : 0, maximumFractionDigits: 2 }); };
@@ -1578,7 +1578,6 @@
       var lines = orderLines(d, dft);
       if (!lines.length) { setTimeout(function () { go('/order/' + contactId, true); }, 0); return loading(); }
       var sum = L.draftSummary(d.products, dft), samples = sum.samples, who = d.person;
-      if (who.md && !dft.mdName && !dft.mdEmail) { dft.mdName = who.md.name; dft.mdEmail = who.md.email; }   // the customer's MD on file (final audit 2026-10-30)
       function info(label, value, first) { return '<div class="kv" style="min-height:48px' + (first ? '' : '') + '"><span class="k">' + label + '</span><span class="v">' + value + '</span></div>'; }
       var noShip = dft.noShip = !(who.shipping.street && who.shipping.city && who.shipping.postal);
       // No email at all: the pay link or wire invoice would have nowhere to go (samples and a saved card don't need one).
@@ -1599,13 +1598,9 @@
         }).join('')
           + (dft.editItems ? '<button type="button" class="kv" data-item-add style="min-height:48px;border-top:0.5px solid var(--line);color:var(--sky);font-weight:600;justify-content:flex-start;gap:8px">' + ic('plus', 15, 2.2) + 'Add a product</button>' : '')
           + (samples ? '' : '<div class="kv" style="min-height:48px"><b style="font-size:15px">Total</b><b style="font-size:17px">' + money2(sum.total) + '</b></div>') + '</section>';
-      if (samples) {
-        h += '<div class="sect" style="padding:6px 4px"><span class="label">Medical director · optional</span></div>'
-          + '<section class="card" style="margin-bottom:4px">'
-          + '<label class="kv" style="min-height:48px;justify-content:flex-start"><span class="k" style="width:52px">Name</span><input type="text" data-md="mdName" value="' + esc(dft.mdName) + '" placeholder="Dr. name" aria-label="Medical director name" class="mdin"></label>'
-          + '<label class="kv" style="min-height:48px;justify-content:flex-start"><span class="k" style="width:52px">Email</span><input type="email" spellcheck="false" autocapitalize="off" data-md="mdEmail" value="' + esc(dft.mdEmail) + '" placeholder="md@clinic.ca" aria-label="Medical director email" class="mdin"></label></section>'
-          + '<span style="display:block;font-size:13px;color:var(--muted);padding:0 4px 12px">Signs after approval. Ships once signed.</span>';
-      } else {
+      // No MD fields (Yousef 2026-11-04): only onboarded customers can order, and an onboarded customer's MD already
+      // signed off on samples in the onboarding agreement.
+      if (!samples) {
         h += '<div class="sect" style="padding:6px 4px"><span class="label">Payment</span></div>'
           + '<div class="seg flat" style="margin-bottom:6px">' + [['card_on_file', 'Card on file'], ['wire', 'Wire / e-transfer']].map(function (x) {
             return '<button type="button" data-pay="' + x[0] + '" aria-pressed="' + (dft.payment === x[0]) + '"' + (dft.payment === x[0] ? ' class="on"' : '') + '>' + x[1] + '</button>';
@@ -1630,13 +1625,11 @@
     $app.innerHTML = '<div class="scr" style="align-items:center;text-align:center;padding-top:calc(var(--safe-top) + 90px)">'
       + '<span class="sentok">' + ic('check', 46, 2.2) + '</span>'
       + '<h1 class="display" style="font-size:30px;font-weight:800;letter-spacing:-1.1px;margin-top:20px">Sent for approval</h1>'
-      + '<span style="font-size:17px;color:#C9D1E0;margin-top:8px;max-width:320px">' + (r.test ? 'Test account: saved here only. Nothing was sent for approval or charged.' : !r.sentToN8n ? 'Saved. It goes for approval as soon as the order connection answers.' : samples ? 'The MD signs once it’s approved.' : 'You’ll get a text when it’s approved.') + '</span>'
+      + '<span style="font-size:17px;color:#C9D1E0;margin-top:8px;max-width:320px">' + (r.test ? 'Test account: saved here only. Nothing was sent for approval or charged.' : !r.sentToN8n ? 'Saved. It goes for approval as soon as the order connection answers.' : 'You’ll get a text when it’s approved.') + '</span>'
       + '<div style="margin-top:auto;width:100%;padding-bottom:12px"><a href="/orders/' + r.orderId + '" data-nav class="btn" style="border-radius:14px;font-weight:600">See status</a></div></div>' + tabs('order');
   }
   $app.addEventListener('input', function (e) {
     if (!draft) return;
-    var t = e.target.closest('[data-md]');
-    if (t) { draft[t.getAttribute('data-md')] = t.value; return; }
     t = e.target.closest('[data-notefield]');
     if (t) draft[t.getAttribute('data-notefield')] = t.value;
   });
@@ -1669,7 +1662,7 @@
       if (draft.emailless && !draft.samplesOnly && (draft.payment === 'wire' || !draft.cardSaved)) { toast(errText({ message: 'no_invoice_email' })); invoiceEmailSheet(draft.contactId); return; }
       b.disabled = true; b.textContent = 'Sending…';
       var d = draft, samples = L.draftSummary(d.products.products, d).samples;
-      act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote, mdName: d.mdName, mdEmail: d.mdEmail,
+      act('order', { contactId: d.contactId, payment: d.payment, approvalNote: d.approvalNote, shippingNote: d.shippingNote,
         lines: orderLines(d.products, d).map(function (l) { return l.free ? { sku: l.p.sku, qty: l.qty, free: true } : { sku: l.p.sku, qty: l.qty, price: l.price }; }) })
         .then(function (r) {
           draft = null; sentScreen(r, samples);

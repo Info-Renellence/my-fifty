@@ -24,7 +24,7 @@
     note_required: 'Say or type what happened first.', pick_a_follow_up: 'Pick a follow-up date.', name_required: 'Add a name.',
     bad_email: 'That email doesn’t look right.', bad_phone: 'That phone number doesn’t look right.',
     already_yours: 'This person is already in your book.', email_yours: 'Someone in your book already has this email.', email_someones: 'Someone in another rep’s book already has this email.', already_someones: 'This person is already in someone else’s book.',
-    no_products: 'Add products first.', md_required: 'Add the medical director’s name and email.', not_ready_to_order: 'They need to finish onboarding before ordering.',
+    no_products: 'Add products first.', not_ready_to_order: 'They need to finish onboarding before ordering.',
     no_shipping_address: 'Add a shipping address before sending this order.', no_invoice_email: 'Add an email first so they get the pay link or invoice.', address_required: 'Add the street and city.',
     no_week: 'Your week isn’t set yet.', already_done: 'This visit is already done.',
     voice_not_set_up: 'Voice notes aren’t set up yet. Tap Type.', recording_too_long: 'That recording is too long. Try a shorter one.',
@@ -83,7 +83,7 @@
     var v = parseInt(t, 10);
     return v <= QTY_MAX ? v : null;
   }
-  // The bottom bar: paid items and money, free units, and whether it is a sample order (only free units: MD signs).
+  // The bottom bar: paid items and money, free units, and whether it is a sample order (only free units).
   function draftSummary(products, draft) {
     var paid = 0, free = 0, total = 0;
     products.forEach(function (p) {
@@ -94,7 +94,7 @@
     var samples = paid === 0 && free > 0;
     return { paid: paid, free: free, total: Math.round(total * 100) / 100, samples: samples, empty: paid + free === 0,
       line: samples ? free + ' free sample' + (free === 1 ? '' : 's') : paid + (paid === 1 ? ' item' : ' items') + ' · ' + moneyExact(total),
-      sub: samples ? 'MD signs after approval' : free ? '+ ' + free + ' free' : 'Paid order' };
+      sub: samples ? 'Sample order' : free ? '+ ' + free + ' free' : 'Paid order' };
   }
   // L10 Billing row: the same as shipping when there is no billing street or it matches.
   function billingSame(who) { return !who.billing.street || (who.billing.street === who.shipping.street && who.billing.city === who.shipping.city); }

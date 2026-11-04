@@ -224,11 +224,8 @@ const OPS = {
     // is_available (v2-021, owner 2026-11-03): listed, shown as unavailable and not pickable when false
     const products = await sql`select sku, name, product_line, list_price::float8 as price, is_active, (to_jsonb(p)->>'is_available') is distinct from 'false' as is_available from products p where is_active = ${true} or product_line = ${'prp'}`;
     const card = await cardOnFile(sql, p.id);
-    // The customer's MD on file fills the samples MD (final audit 2026-10-30: the same MD Edge's New order uses).
-    const [md] = await sql`select m.first_name, m.last_name, m.email::text as email from contacts c join contacts m on m.id = c.medical_director_contact_id where c.id = ${p.id} and m.deleted_at is null`;
     return {
-      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing,
-        md: md && md.email ? { name: [md.first_name, md.last_name].filter(Boolean).join(' '), email: md.email } : null },
+      person: { id: p.id, name: p.name, clinic: p.clinic, initials: initials(p.name), role: p.role, email: p.email, secondaryEmail: p.secondaryEmail, shipping: p.shipping, billing: p.billing },
       card,
       cats: ORDER_CATS.map(([key, label]) => ({ key, label })),
       products: products.map((x) => {
@@ -640,11 +637,11 @@ function sampleSteps(o, md, ag) {
   const steps = [
     { label: 'Order placed', when: fmtTime(o.submitted_at || o.created_at), done: true },
     { label: 'Approved', when: o.approved_at ? fmtTime(o.approved_at) : '', done: !!o.approved_at || reached(o, 'approved') },
-    { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at || reached(o, 'sent_to_warehouse') },
+    (ag || o.medical_director_signed_at) && { label: 'MD signature', when: o.medical_director_signed_at ? fmtTime(o.medical_director_signed_at) : ag && ag.sent_at ? 'Sent to ' + mdName + ' ' + fmtTime(ag.sent_at).replace(/^Today /, '') : '', done: !!o.medical_director_signed_at || reached(o, 'sent_to_warehouse') },
     { label: 'Preparing to ship', when: o.sent_to_warehouse_at ? fmtTime(o.sent_to_warehouse_at) : '', done: !!(o.sent_to_warehouse_at || o.shipped_at) || reached(o, 'sent_to_warehouse') },
     { label: 'Shipped', when: o.shipped_at ? fmtTime(o.shipped_at) : '', done: !!o.shipped_at || reached(o, 'shipped') },
     delivered(o),
-  ];
+  ].filter(Boolean);   // no MD step unless an MD envelope went out (onboarded customers need none, Yousef 2026-11-04)
   return markCurrent(steps, () => 'Waiting');
 }
 

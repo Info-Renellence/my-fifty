@@ -335,7 +335,7 @@ const OPS = {
   // lines: [{ sku, qty, price?, free? }] (L9 product step, the mockup since 2026-10-21). A paid line carries the rep's
   // price (any amount from $0; list price when left out; the list price is kept on the line too, so the approver sees
   // a changed price). free: true lines are free units ("+ Free"). An order whose every line is free is a sample order
-  // (MD required). kind: 'samples' (older app versions) makes every line free.
+  // (no MD asked for). kind: 'samples' (older app versions) makes every line free.
   async order(me, b) {
     const sql = db();
     const c = await mine(sql, me, b.contactId);
@@ -365,16 +365,8 @@ const OPS = {
       return { product_id: p.id, product_sku: p.sku, product_name: p.name, quantity: l.qty, unit_price: unit, list_price: p.price, is_free: !(unit > 0) };
     });
     const total = lines.reduce((a, l) => a + l.quantity * l.unit_price, 0);
-    const samples = !(total > 0);   // nothing to pay: a sample order, which needs the MD
+    const samples = !(total > 0);   // nothing to pay: a sample order
     const method = samples ? null : b.payment === 'wire' ? 'wire' : 'card_on_file';
-    let md = null;
-    // Sample orders don't force an MD (Yousef 2026-11-04): only onboarded customers can order, so the customer's MD on
-    // file is used when none is typed. One typed still needs both a name and a valid email.
-    const mdName = samples ? clean(b.mdName, 120) : '', mdEmail = samples ? clean(b.mdEmail, 200).toLowerCase() : '';
-    if (mdName || mdEmail) {
-      if (!mdName || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(mdEmail)) throw fail(400, 'md_required');
-      md = { name: mdName, email: mdEmail };
-    }
     // No shipping address, no order (RD11, Yousef 2026-10-23): a street, city and postal code, as Edge asks (final audit
     // 2026-10-30: Pulse took street and city only). Send waits until one is added on Review.
     const [ship] = await sql`select coalesce(shipping_street, '') <> '' and coalesce(shipping_city, '') <> '' and coalesce(shipping_postal_code, '') <> '' as ok from contacts where id = ${c.id}`;
@@ -388,22 +380,9 @@ const OPS = {
     // Nell's Payday (Final Mockup (3) N1): the commission this order should earn once paid (api/_nell.js).
     const paydayOf = () => require('./_nell').payday(sql, me, c.id, c.owner_id || me.id, total).catch(() => null);
     const orderId = await asUser(me.id, async (tx) => {
-      let mdId = null;
-      if (md) {
-        // The medical director is a contact (SOP section 4), found by email or added.
-        const [found] = await tx`select id from contacts where (lower(email::text) = ${md.email} or lower(secondary_email::text) = ${md.email})
-          order by (deleted_at is null) desc limit 1`;   // a removed person still holds their email (it is unique), so they are found too
-        if (found) { mdId = found.id; await tx`update contacts set is_medical_director = true where id = ${mdId} and is_medical_director is not true`; }
-        else {
-          const parts = md.name.replace(/^dr\.?\s+/i, '').split(/\s+/);
-          [{ id: mdId }] = await tx`insert into contacts (clinic_id, first_name, last_name, email, is_medical_director, role, designation)
-            values (${c.clinic_id}, ${parts[0]}, ${parts.slice(1).join(' ') || null}, ${md.email}, true, 'physician', ${/^dr\.?\s/i.test(md.name) ? 'md' : null}) returning id`;   // designation list is lower case (v2 part B)
-        }
-        // ...and becomes the customer's MD when they have none, so Edge's New order (which reads it there) agrees (final audit 2026-10-30).
-        if (mdId !== c.id) await tx`update contacts set medical_director_contact_id = ${mdId} where id = ${c.id} and medical_director_contact_id is null`;
-      } else if (samples) {
-        [{ id: mdId }] = await tx`select medical_director_contact_id as id from contacts where id = ${c.id}`;
-      }
+      // No MD is asked for (Yousef 2026-11-04): only onboarded customers can order and their MD already signed off on
+      // samples in the onboarding agreement. A sample order keeps the customer's MD on file for the record.
+      const [{ md: mdId }] = samples ? await tx`select medical_director_contact_id as md from contacts where id = ${c.id}` : [{ md: null }];
       const [o] = await tx`
         insert into orders (contact_id, rep_id, placed_by_id, channel, status, submitted_at, medical_director_contact_id, payment_method, approval_note, shipping_note, payment_terms_days)
         values (${c.id}, ${c.owner_id || me.id}, ${me.id}, 'stripe', 'submitted', now(), ${mdId}, ${method}, ${clean(b.approvalNote, 1000) || null}, ${clean(b.shippingNote, 1000) || null}, ${terms})

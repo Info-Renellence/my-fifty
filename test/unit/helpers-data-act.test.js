@@ -166,5 +166,9 @@ describe('data: order words and steps', () => {
     const steps = D.orderSteps({ submitted_at: placed, approved_at: placed, shipped_at: placed, delivered_at: placed }, { paid_flag: true }, []);
     assert.deepEqual([steps[5].label, steps[5].done, steps[5].when], ['Delivered', true, 'Today 8:47']);
   });
-  test('sampleSteps: no MD envelope yet', () => assert.equal(D.sampleSteps({ submitted_at: placed, approved_at: placed }, null, null)[2].when, 'Waiting'));
+  test('sampleSteps: no MD envelope, no MD step', () => {
+    const steps = D.sampleSteps({ submitted_at: placed, approved_at: placed }, null, null);
+    assert.deepEqual(steps.map((s) => s.label), ['Order placed', 'Approved', 'Preparing to ship', 'Shipped', 'Delivered']);
+    assert.equal(steps[2].when, 'Waiting');
+  });
 });

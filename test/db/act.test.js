@@ -298,12 +298,11 @@ describe('order (L10 / L15 Send for approval)', () => {
     await assert.rejects(A.order(me, { contactId: inj, lines: [{ sku: 'SAF100', qty: 1 }] }), st(409, 'not_ready_to_order'));
     assert.equal((await A.order(me, { contactId: main, lines: [{ sku: 'SAF100', qty: 1 }] })).ok, true);
   }));
-  test('no products, unknown products, and samples (or only free products) without an MD are refused', () => h.withDb(async (sql) => {
+  test('no products or unknown products are refused; samples need no MD', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 0 }] }), st(400, 'no_products'));
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'FAKE', qty: 1 }] }), st(400, 'unknown_product'));
     assert.equal((await A.order(me, { contactId: c, lines: [{ sku: 'HDB100', qty: 1 }] })).ok, true, 'samples without an MD use the one on file');
-    await assert.rejects(A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr X' }), st(400, 'md_required'));
     await assert.rejects(A.order(me, { contactId: c, lines: [{ sku: 'SAF100', qty: 1000 }] }), st(400, 'no_products'));
   }));
   test('a card order: saved for approval with prices, free extras, notes, and no payment yet', () => h.withDb(async (sql) => {
@@ -330,21 +329,15 @@ describe('order (L10 / L15 Send for approval)', () => {
     assert.equal(x.paid_flag, false, 'not paid until the money is marked received');
     assert.equal(x.total, 450);
   }));
-  test('samples: every line free, the MD found by email and marked as an MD', () => h.withDb(async (sql) => {
+  test('samples: every line free, no MD asked for; a typed MD is ignored and the MD on file is kept (Yousef 2026-11-04)', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await ready(sql, me);
-    const md = await h.contact(sql, null, { owner: null, email: 'md.found@test.invalid' });
-    const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 2 }], mdName: 'Dr. Found', mdEmail: 'MD.Found@test.invalid' });
+    const md = await h.contact(sql, null, { owner: null, email: 'md.onfile.' + h.uid() + '@test.invalid' });
+    await sql`update contacts set medical_director_contact_id = ${md} where id = ${c}`;
+    const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 2 }], mdName: 'Dr. Typed', mdEmail: 'typed.' + h.uid() + '@test.invalid' });
     const [o] = await sql`select medical_director_contact_id, payment_method from orders where id = ${r.orderId}`;
     assert.deepEqual(o, { medical_director_contact_id: md, payment_method: null });
-    assert.equal((await sql`select is_medical_director from contacts where id = ${md}`)[0].is_medical_director, true);
+    assert.equal((await sql`select count(*)::int n from contacts where first_name = 'Typed'`)[0].n, 0, 'no MD contact made from typed input');
     assert.ok((await sql`select bool_and(is_free) ok from order_lines where order_id = ${r.orderId}`)[0].ok);
-  }));
-  test('samples: a new MD is added as a doctor with no owner', () => h.withDb(async (sql) => {
-    const me = await h.user(sql), c = await ready(sql, me);
-    const email = 'md.new.' + h.uid() + '@test.invalid';
-    const r = await A.order(me, { contactId: c, kind: 'samples', lines: [{ sku: 'SAL400', qty: 1 }], mdName: 'Dr. Lee Unit', mdEmail: email });
-    const [md] = await sql`select first_name, last_name, designation, owner_id, is_medical_director, role::text from contacts where id = (select medical_director_contact_id from orders where id = ${r.orderId})`;
-    assert.deepEqual(md, { first_name: 'Lee', last_name: 'Unit', designation: 'md', owner_id: null, is_medical_director: true, role: 'physician' });
   }));
   test('with n8n connected, the order is sent with its id and the key', () => h.withDb(async (sql) => {
     process.env.N8N_MYFIFTY_URL = 'https://n8n.test/hook';

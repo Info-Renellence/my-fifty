@@ -115,7 +115,7 @@ describe('ordering pieces', () => {
   });
   test('draftSummary: only free units is a sample order', () => {
     const s = L.draftSummary(products, draft({ free: { SAF100: 2 } }));
-    assert.deepEqual([s.samples, s.line, s.sub], [true, '2 free samples', 'MD signs after approval']);
+    assert.deepEqual([s.samples, s.line, s.sub], [true, '2 free samples', 'Sample order']);
     assert.equal(L.draftSummary(products, draft({ qty: { SAF100: 1 }, price: { SAF100: 0 } })).samples, true, 'a $0 line is free');
     assert.equal(L.draftSummary(products, draft()).empty, true);
   });
