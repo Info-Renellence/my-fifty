@@ -1207,12 +1207,49 @@
     return '<span data-body' + (long ? ' class="clamp3"' : '') + ' style="font-size:15px;line-height:1.35;white-space:pre-line">' + esc(text) + '</span>'
       + (long ? '<button type="button" data-hmore class="link" style="align-self:flex-start;min-height:36px">More</button>' : '');
   }
+  // "+ Add note" (owner 2026-11-04): a note without a call, and an optional reminder to follow up.
+  var REMIND = [['', 'No reminder'], ['tomorrow', 'Tomorrow'], ['week', 'In 1 week'], ['2weeks', 'In 2 weeks'], ['day', 'Pick a day']];
+  function noteSheet(contactId) {
+    var st = { text: '', remind: '', day: '', busy: false };
+    function draw() {
+      var ready = st.text.trim().length > 1 && (st.remind !== 'day' || !!st.day) && !st.busy;
+      $sheet.innerHTML = '<div class="dim" data-close></div><div class="sheet" role="dialog" aria-modal="true" aria-label="Add note"><span class="grab"></span>'
+        + '<div class="sheet-head" style="align-items:center"><span class="sheet-title">Add note</span><button type="button" data-close class="pillbtn">Cancel</button></div>'
+        + '<div class="well" style="padding:12px 14px"><textarea class="note" data-note aria-label="Note" placeholder="e.g. Between clinics, back in touch in a few weeks to order" style="min-height:120px">' + esc(st.text) + '</textarea></div>'
+        + '<span class="label" style="padding:0 2px">Remind me</span>'
+        + '<div style="display:flex;flex-wrap:wrap;gap:8px">' + REMIND.map(function (r) {
+          return '<button type="button" data-remind="' + r[0] + '" class="chip' + (st.remind === r[0] ? ' on' : '') + '" aria-pressed="' + (st.remind === r[0]) + '">' + r[1] + '</button>';
+        }).join('') + '</div>'
+        + (st.remind === 'day' ? '<div class="well"><input type="date" data-remind-day min="' + ymd() + '" value="' + esc(st.day) + '" aria-label="Remind me on"></div>' : '')
+        + '<button type="button" data-save class="btn' + (ready ? '' : ' off') + '"' + (ready ? '' : ' aria-disabled="true"') + '>' + (st.busy ? 'Saving…' : 'Save') + '</button></div>';
+    }
+    draw();
+    setTimeout(function () { var t = $sheet.querySelector('[data-note]'); if (t) t.focus(); }, 60);
+    sheetHandler = function (e, type) {
+      // Typing only updates Save (a redraw would lose the cursor); a picked day redraws.
+      if (type === 'input' && e.target.matches('[data-note]')) {
+        st.text = e.target.value;
+        var sb = $sheet.querySelector('[data-save]'), ok = st.text.trim().length > 1 && (st.remind !== 'day' || !!st.day);
+        sb.classList.toggle('off', !ok); sb.setAttribute('aria-disabled', String(!ok));
+        return;
+      }
+      if (type === 'change' && e.target.matches('[data-remind-day]')) { st.day = e.target.value; draw(); return; }
+      if (type) return;
+      var r = e.target.closest('[data-remind]');
+      if (r) { st.remind = r.getAttribute('data-remind'); draw(); return; }
+      if (!e.target.closest('[data-save]') || st.busy || st.text.trim().length < 2 || (st.remind === 'day' && !st.day)) return;
+      st.busy = true; draw();
+      act('add_note', { contactId: contactId, note: st.text, followUp: st.remind === 'day' ? st.day : st.remind || undefined })
+        .then(function (res) { closeSheet(); toast(res.followUp ? 'Note saved · reminder ' + res.followUp : 'Note saved'); render(); },
+          function (err) { st.busy = false; draw(); toast(errText(err)); });
+    };
+  }
   function screenHistory(id) {
     return paint(read('history', { id: id }), function (d) {
       var entries = d.entries.filter(function (e) {
         return historyTab === 'all' || (historyTab === 'notes' ? (e.type === 'note' || (e.type === 'touch' && e.noted)) : (e.type === 'order' || e.type === 'samples'));
       });
-      var h = '<div class="scr">' + backLink('/person/' + d.id, d.name) + '<div class="head"><h1 class="h1">History</h1></div>'
+      var h = '<div class="scr">' + backLink('/person/' + d.id, d.name) + '<div class="head"><h1 class="h1">History</h1><button type="button" data-addnote="' + d.id + '" class="pillbtn blue" style="margin-bottom:6px">' + ic('plus', 15, 2.2) + 'Add note</button></div>'
         + '<div class="seg flat" role="tablist" style="margin-bottom:6px">'
         + [['all', 'All'], ['notes', 'Notes'], ['orders', 'Orders']].map(function (t) {
           return '<button type="button" role="tab" data-htab="' + t[0] + '" aria-selected="' + (historyTab === t[0]) + '"' + (historyTab === t[0] ? ' class="on"' : '') + ' style="height:32px">' + t[1] + '</button>';
@@ -1261,6 +1298,8 @@
     if (b) { var full = b.nextElementSibling; full.hidden = !full.hidden; b.textContent = full.hidden ? 'Show the whole email' : 'Hide the whole email'; return; }
     b = e.target.closest('[data-hmore]');
     if (b) { var body = b.previousElementSibling; var open = body.classList.toggle('clamp3') === false; b.textContent = open ? 'Less' : 'More'; return; }
+    b = e.target.closest('[data-addnote]');
+    if (b) { noteSheet(b.getAttribute('data-addnote')); return; }
     b = e.target.closest('[data-edit]');
     if (b) {
       var id = b.getAttribute('data-edit'), text = b.getAttribute('data-text');

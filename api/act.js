@@ -13,6 +13,7 @@ require('./_staging'); // first: with STAGING=1 nothing goes out (api/_staging.j
 //   set_stage        the person card: lead or candidate by hand (v2-017)
 //   set_uses         L7/L8 Filler / PRP they use
 //   edit_note        L14 Edit (your own entries)
+//   add_note         L14 "+ Add note": a note without a call, and an optional reminder
 //   invoice_email    L10 "+ Add an invoice email" (contacts.secondary_email)
 //   shipping_address L10 "+ Add a shipping address" (contacts.shipping_*; billing too when it is empty)
 //   order            L10 / L15 Send for approval
@@ -66,6 +67,7 @@ function followUpAt(choice) {
   const today = T.ymd();
   if (choice === 'eod') return T.atLocal(today, 17, 0);
   if (choice === 'tomorrow') return T.atLocal(T.addDays(today, 1), 9, 0);
+  if (choice === 'week' || choice === '2weeks') return T.atLocal(T.addDays(today, choice === 'week' ? 7 : 14), 9, 0);
   // A real calendar day only ('2026-02-30' or '2026-13-45' would otherwise reach the database as an invalid time).
   if (/^\d{4}-\d{2}-\d{2}$/.test(String(choice || '')) && choice >= today && realDay(choice)) return T.atLocal(choice, 9, 0);
   return null;
@@ -305,6 +307,28 @@ const OPS = {
       void note;
     });
     return { ok: true };
+  },
+
+  // A note on its own (owner 2026-11-04: "she's between clinics, back in a few weeks": log it without a call and get
+  // reminded). The reminder is optional; one set replaces the person's open follow-ups, as a log's does.
+  async add_note(me, b) {
+    const text = clean(b.note, 4000);
+    if (text.length < 2) throw fail(400, 'note_required');
+    const due = b.followUp ? followUpAt(b.followUp) : null;
+    if (b.followUp && !due) throw fail(400, 'pick_a_follow_up');
+    const sql = db();
+    const c = await mine(sql, me, b.contactId);
+    const out = await asUser(me.id, async (tx) => {
+      const [i] = await tx`insert into interactions (kind, contact_id, user_id, occurred_at, status, body, source, created_by_id)
+        values ('note', ${c.id}, ${me.id}, now(), 'completed', ${text}, 'my_fifty', ${me.id}) returning id`;
+      if (!due) return { interactionId: i.id };
+      await tx`update tasks set status = 'done', completed_at = now()
+         where contact_id = ${c.id} and assignee_id = ${me.id} and status = 'open' and deleted_at is null`;
+      const [t] = await tx`insert into tasks (contact_id, assignee_id, created_by_id, title, kind, due_at, status, source, from_interaction_id)
+        values (${c.id}, ${me.id}, ${me.id}, ${splitNote(text).next || 'Follow up'}, 'call', ${due}, 'open', 'manual', ${i.id}) returning id`;
+      return { interactionId: i.id, taskId: t.id };
+    });
+    return Object.assign({ ok: true }, out, due ? { followUp: T.short(due) } : {});
   },
 
   async invoice_email(me, b) {

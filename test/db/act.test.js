@@ -278,6 +278,23 @@ describe('set_follow_up, set_uses, edit_note, invoice_email', () => {
     await assert.rejects(A.edit_note(me, { interactionId: r.interactionId, body: '' }), st(400, 'note_required'));
     await assert.rejects(A.edit_note(me, { interactionId: 'x', body: 'hello' }), st(400, 'bad_id'));
   }));
+  test('add_note: a note with no reminder leaves the follow-ups; a reminder replaces them', () => h.withDb(async (sql) => {
+    const me = await h.user(sql), other = await h.user(sql), c = await h.contact(sql, me);
+    const old = await h.task(sql, c, me.id, { due: h.ago(-1) });
+    const plain = await A.add_note(me, { contactId: c, note: 'Between clinics' });
+    assert.equal(plain.followUp, undefined);
+    assert.equal((await sql`select kind::text, source::text from interactions where id = ${plain.interactionId}`)[0].kind, 'note');
+    assert.equal((await sql`select status::text from tasks where id = ${old}`)[0].status, 'open');
+    const r = await A.add_note(me, { contactId: c, note: 'Back in a few weeks
+Next: ask for the order', followUp: '2weeks' });
+    assert.equal(r.followUp, T.short(T.atLocal(T.addDays(T.ymd(), 14), 9, 0)));
+    assert.equal((await sql`select status::text from tasks where id = ${old}`)[0].status, 'done');
+    const [t] = await sql`select title, from_interaction_id from tasks where id = ${r.taskId}`;
+    assert.deepEqual([t.title, t.from_interaction_id], ['ask for the order', r.interactionId]);
+    await assert.rejects(A.add_note(me, { contactId: c, note: 'x' }), st(400, 'note_required'));
+    await assert.rejects(A.add_note(me, { contactId: c, note: 'hello', followUp: '2001-01-01' }), st(400, 'pick_a_follow_up'));
+    await assert.rejects(A.add_note(other, { contactId: c, note: 'not mine' }), (e) => e.status >= 400 && e.status < 500);
+  }));
   test('invoice_email saves the secondary email', () => h.withDb(async (sql) => {
     const me = await h.user(sql), c = await h.contact(sql, me);
     assert.deepEqual(await A.invoice_email(me, { contactId: c, email: ' Accounts@Clinic.test ' }), { ok: true, email: 'accounts@clinic.test' });

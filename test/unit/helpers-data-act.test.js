@@ -21,6 +21,10 @@ describe('act: followUpAt', () => {
   test('Tomorrow is 9 AM tomorrow', () => assert.equal(A.followUpAt('tomorrow').toISOString(), '2026-10-21T13:00:00.000Z'));
   test('a picked date is 9 AM that day', () => assert.equal(A.followUpAt('2026-12-01').toISOString(), '2026-12-01T14:00:00.000Z'));
   test('today can be picked', () => assert.ok(A.followUpAt('2026-10-20')));
+  test('In 1 week and In 2 weeks are 9 AM that many days on', () => {
+    assert.equal(A.followUpAt('week').toISOString(), '2026-10-27T13:00:00.000Z');
+    assert.equal(A.followUpAt('2weeks').toISOString(), '2026-11-03T14:00:00.000Z');
+  });
   test('a past date, a bad date and nothing are refused', () => {
     assert.equal(A.followUpAt('2026-10-19'), null);
     assert.equal(A.followUpAt('next week'), null);
