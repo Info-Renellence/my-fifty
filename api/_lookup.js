@@ -7,6 +7,11 @@
 //           its 4 HubSpot steps (contact search, its companies, their hours, a clinic-name search). Same order of choice:
 //           the customer's clinic, else a clinic with the order's clinic name.
 //   GET /api/cron?op=lookup&what=owner_name&owner=<HubSpot owner id>  -> { found, name, email, id, firstName, lastName }   (onboarding emails; HubSpot's owner shape)
+//   GET /api/cron?op=lookup&what=onboarded&email=<customer email>[&order=<this order's v2 id>]  -> { found, onboarded }
+//        The sales form's gate before an order goes for approval (Yousef 2026-11-04): only onboarded customers may order,
+//        and an onboarded customer's sample orders need no MD signature. The same test Pulse and Edge apply before they
+//        let an order be placed (act.js order): a signed onboarding for the person, or an earlier order that was not
+//        rejected or cancelled (customers from before onboarding forms). The order being checked is left out.
 // Called by n8n with the Pulse ISF key (X-Edge-ISF). Read only.
 'use strict';
 const M = require('./_hsmap');
@@ -51,11 +56,28 @@ async function ownerName(sql, owner) {
   return { found: true, name: u.full_name || '', email: u.email || '', id: String(owner), firstName: parts[0] || '', lastName: parts.slice(1).join(' ') };
 }
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+async function onboarded(sql, email, order) {
+  const e = String(email || '').trim().toLowerCase();
+  if (!e) return { found: false, onboarded: false };
+  const ids = (await sql`select id from contacts where deleted_at is null and merged_into_contact_id is null
+    and (lower(email::text) = ${e} or lower(secondary_email::text) = ${e})`).map((c) => c.id);
+  if (!ids.length) return { found: false, onboarded: false };
+  const skip = UUID.test(String(order || '')) ? String(order) : null;
+  const [r] = await sql`
+    select (exists (select 1 from onboardings where status in ('signed', 'complete') and coalesce(primary_contact_id, injector_contact_id) = any(${ids}))
+         or exists (select 1 from orders where contact_id = any(${ids}) and deleted_at is null and status not in ('rejected', 'cancelled')
+                      and (${skip}::uuid is null or id <> ${skip}::uuid))) as ok`;
+  return { found: true, onboarded: !!r.ok };
+}
+
 async function lookup(sql, q) {
   const what = q.get('what');
   if (what === 'clinic_hours') return clinicHours(sql, q.get('email'), q.get('clinic'));
   if (what === 'owner_name') return ownerName(sql, q.get('owner'));
+  if (what === 'onboarded') return onboarded(sql, q.get('email'), q.get('order'));
   const e = new Error('unknown_lookup'); e.status = 400; throw e;
 }
 
-module.exports = { lookup, clinicHours, ownerName, splitHours };
+module.exports = { lookup, clinicHours, ownerName, onboarded, splitHours };

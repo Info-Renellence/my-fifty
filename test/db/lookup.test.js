@@ -33,3 +33,23 @@ test('owner name in HubSpot\'s owner shape; an unknown owner is found:false', as
     assert.deepEqual(await L.ownerName(sql, '1'), { found: false, name: '', email: '' });
   });
 });
+
+test('onboarded: a signed onboarding or an earlier order that went through; the order being checked does not count (Yousef 2026-11-04)', async () => {
+  await h.withDb(async (sql) => {
+    const rep = await h.user(sql);
+    const n = h.uid();
+    const signed = await h.contact(sql, rep, { email: 'onb.signed.' + n + '@demo.invalid' });
+    await sql`insert into onboardings (primary_contact_id, status) values (${signed}, 'signed')`;
+    assert.deepEqual(await L.onboarded(sql, 'ONB.signed.' + n + '@demo.invalid'), { found: true, onboarded: true });
+    const lead = await h.contact(sql, rep, { email: 'onb.lead.' + n + '@demo.invalid' });
+    assert.deepEqual(await L.onboarded(sql, 'onb.lead.' + n + '@demo.invalid'), { found: true, onboarded: false }, 'no onboarding, no order');
+    const first = await h.order(sql, lead, rep, { status: 'submitted' });
+    assert.equal((await L.onboarded(sql, 'onb.lead.' + n + '@demo.invalid', first)).onboarded, false, 'its own first order does not make it onboarded');
+    await h.order(sql, lead, rep, { status: 'cancelled' });
+    assert.equal((await L.onboarded(sql, 'onb.lead.' + n + '@demo.invalid', first)).onboarded, false, 'a cancelled order does not count');
+    await h.order(sql, lead, rep, { status: 'delivered' });
+    assert.equal((await L.onboarded(sql, 'onb.lead.' + n + '@demo.invalid', first)).onboarded, true, 'an earlier order that went through counts');
+    assert.deepEqual(await L.onboarded(sql, 'nobody.' + n + '@demo.invalid'), { found: false, onboarded: false });
+    assert.deepEqual(await L.onboarded(sql, ''), { found: false, onboarded: false });
+  });
+});
